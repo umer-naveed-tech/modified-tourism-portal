@@ -1,6 +1,7 @@
 <?php
 require_once 'config.php';
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify();
     $name = $_POST['name'];
     $email = $_POST['email'];
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
@@ -137,9 +138,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
         <div class="signup-body">
             <?php if(isset($error)): ?>
-                <div class="error-message"><?php echo $error; ?></div>
+                <div class="error-message"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
             <form method="POST">
+                <?php echo csrf_field(); ?>
                 <div class="form-group">
                     <label>Full Name</label>
                     <input type="text" name="name" placeholder="Enter your full name" required>

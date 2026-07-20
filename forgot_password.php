@@ -1,8 +1,9 @@
 <?php
 session_start();
- 
+
 require_once __DIR__ . '/secrets.php';
- 
+require_once __DIR__ . '/csrf.php';
+
 try {
     $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME, DB_USER, DB_PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -25,17 +26,18 @@ try {
 } catch(PDOException $e) {
     die("Connection failed: " . $e->getMessage());
 }
- 
+
 require_once 'PHPMailer/src/PHPMailer.php';
 require_once 'PHPMailer/src/SMTP.php';
 require_once 'PHPMailer/src/Exception.php';
- 
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
- 
+
 $error = '';
- 
+
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify();
     $email = trim($_POST['email']);
     
     $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
@@ -103,9 +105,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 <div style="background: white; border-radius: 16px; max-width: 400px; width: 90%; padding: 30px;">
     <h3 class="text-center">Forgot Password?</h3>
     <?php if($error): ?>
-        <div class="alert alert-danger"><?php echo $error; ?></div>
+        <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
     <?php endif; ?>
     <form method="POST">
+        <?php echo csrf_field(); ?>
         <input type="email" name="email" class="form-control mb-3" placeholder="Enter your email" required>
         <button type="submit" class="btn btn-dark w-100">Send OTP</button>
     </form>

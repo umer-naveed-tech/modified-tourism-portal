@@ -8,25 +8,18 @@ if(!isset($_SESSION['reset_email'])) {
 }
 
 $error = '';
-$debug_info = '';
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify();
     $otp = trim($_POST['otp']);
     $email = $_SESSION['reset_email'];
     
-    // Debug: Get the latest OTP from database
+    // Get the latest OTP from database
     $stmt = $pdo->prepare("SELECT * FROM password_resets WHERE email = ? ORDER BY id DESC LIMIT 1");
     $stmt->execute([$email]);
     $db_record = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if($db_record) {
-        $debug_info = "📧 Email: $email<br>";
-        $debug_info .= "🔢 OTP You Entered: <strong>$otp</strong><br>";
-        $debug_info .= "💾 OTP in Database: <strong>" . $db_record['otp'] . "</strong><br>";
-        $debug_info .= "⏰ Expires At: " . $db_record['expires_at'] . "<br>";
-        $debug_info .= "⏰ Current Time: " . date('Y-m-d H:i:s') . "<br>";
-        $debug_info .= "✅ Is Used: " . ($db_record['is_used'] == 0 ? 'No (Good)' : 'Yes (Already used)') . "<br>";
-        
         // Check if OTP matches
         if($db_record['otp'] == $otp) {
             // Check if expired
@@ -65,26 +58,23 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     <p class="text-center text-muted">Enter 6-digit code sent to your email</p>
     
     <?php if(isset($_SESSION['reset_success'])): ?>
-        <div class="alert alert-success"><?php echo $_SESSION['reset_success']; unset($_SESSION['reset_success']); ?></div>
+        <div class="alert alert-success"><?php echo htmlspecialchars($_SESSION['reset_success']); unset($_SESSION['reset_success']); ?></div>
     <?php endif; ?>
     
     <?php if($error): ?>
-        <div class="alert alert-danger"><?php echo $error; ?></div>
-    <?php endif; ?>
-    
-    <?php if($debug_info): ?>
-        <div class="alert alert-info" style="font-size: 12px; word-break: break-all;">
-            <strong>🔍 Debug Info:</strong><br>
-            <?php echo $debug_info; ?>
-        </div>
+        <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
     <?php endif; ?>
     
     <form method="POST">
+        <?php echo csrf_field(); ?>
         <input type="text" name="otp" class="form-control mb-3 text-center" placeholder="000000" maxlength="6" required autofocus>
         <button type="submit" class="btn btn-dark w-100">Verify OTP</button>
     </form>
     <div class="text-center mt-3">
-        <a href="resend_otp.php">Resend OTP</a>
+        <form method="POST" action="resend_otp.php" style="display:inline;">
+            <?php echo csrf_field(); ?>
+            <button type="submit" class="btn btn-link p-0" style="text-decoration:underline;">Resend OTP</button>
+        </form>
         <br>
         <a href="forgot_password.php">Request New OTP</a>
     </div>

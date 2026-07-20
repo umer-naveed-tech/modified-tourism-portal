@@ -11,6 +11,10 @@ require_once 'send_status_email.php';
 ob_clean();
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if(!csrf_valid()) {
+        echo json_encode(['success' => false, 'error' => 'Security check failed. Please refresh the page and try again.']);
+        exit();
+    }
     $id = $_POST['id'];
     $new_status = $_POST['status'];
     

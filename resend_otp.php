@@ -1,36 +1,42 @@
 <?php
 session_start();
 require_once 'config.php';
- 
+
 if(!isset($_SESSION['reset_email'])) {
     header('Location: forgot_password.php');
     exit();
 }
- 
+
+if($_SERVER['REQUEST_METHOD'] != 'POST') {
+    header('Location: verify_otp.php');
+    exit();
+}
+csrf_verify();
+
 $email = $_SESSION['reset_email'];
- 
+
 $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
 $stmt->execute([$email]);
 $user = $stmt->fetch();
- 
+
 $otp = sprintf("%06d", mt_rand(1, 999999));
 $expires_at = date('Y-m-d H:i:s', strtotime('+10 minutes'));
- 
+
 $stmt = $pdo->prepare("UPDATE password_resets SET is_used = 1 WHERE email = ?");
 $stmt->execute([$email]);
- 
+
 $stmt = $pdo->prepare("INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, ?)");
 $stmt->execute([$email, $otp, $expires_at]);
- 
+
 require_once 'PHPMailer/src/PHPMailer.php';
 require_once 'PHPMailer/src/SMTP.php';
 require_once 'PHPMailer/src/Exception.php';
- 
+
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
- 
+
 $mail = new PHPMailer(true);
- 
+
 try {
     $mail->isSMTP();
     $mail->Host       = SMTP_HOST;

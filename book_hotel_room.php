@@ -5,6 +5,7 @@ if(!isset($_SESSION['user_id'])) {
     exit();
 }
 require_once 'config.php';
+csrf_verify();
 
 $room_id = $_POST['room_id'] ?? 0;
 $hotel_id = $_POST['hotel_id'] ?? 0;

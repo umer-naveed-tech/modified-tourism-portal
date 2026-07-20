@@ -3,6 +3,7 @@ session_start();
 require_once 'config.php';
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify();
     $email = $_POST['email'];
     $password = $_POST['password'];
     
@@ -160,9 +161,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         </div>
         <div class="login-body">
             <?php if(isset($error)): ?>
-                <div class="error-message"><?php echo $error; ?></div>
+                <div class="error-message"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
             <form method="POST">
+                <?php echo csrf_field(); ?>
                 <div class="form-group">
                     <label>Email Address</label>
                     <input type="email" name="email" placeholder="Enter your email" required>

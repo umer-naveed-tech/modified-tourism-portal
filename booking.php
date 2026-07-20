@@ -24,6 +24,7 @@ $booking_no = '';
 $wa_link = '';
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify();
     $travel_date = $_POST['travel_date'];
     $from_location = $_POST['from_location'] ?? '';
     $to_location = $_POST['to_location'] ?? '';
@@ -47,7 +48,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Book <?php echo $service['title']; ?> - Ahmed Travels</title>
+    <title>Book <?php echo htmlspecialchars($service['title']); ?> - Ahmed Travels</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -70,27 +71,28 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <div class="container">
     <div class="booking-card">
-        <h2 class="text-center">Book <?php echo $service['title']; ?></h2>
+        <h2 class="text-center">Book <?php echo htmlspecialchars($service['title']); ?></h2>
         
         <?php if($success): ?>
             <div class="alert alert-success text-center">
                 <h4>✅ Booking Confirmed!</h4>
-                <p><strong>Booking ID:</strong> <?php echo $booking_no; ?></p>
-                <p><strong>Service:</strong> <?php echo $service['title']; ?></p>
+                <p><strong>Booking ID:</strong> <?php echo htmlspecialchars($booking_no); ?></p>
+                <p><strong>Service:</strong> <?php echo htmlspecialchars($service['title']); ?></p>
                 <p><strong>Total Amount:</strong> Rs. <?php echo number_format($service['price'] * ($_POST['guests'] ?? 1)); ?></p>
-                <a href="<?php echo $wa_link; ?>" class="btn btn-success" target="_blank">
+                <a href="<?php echo htmlspecialchars($wa_link); ?>" class="btn btn-success" target="_blank">
                     <i class="fab fa-whatsapp"></i> Send WhatsApp Confirmation
                 </a>
                 <br><br>
                 <a href="dashboard.php" class="btn btn-primary">View My Bookings</a>
-                <a href="services.php?type=<?php echo $service_type; ?>" class="btn btn-secondary">Book More</a>
+                <a href="services.php?type=<?php echo urlencode($service_type); ?>" class="btn btn-secondary">Book More</a>
             </div>
         <?php else: ?>
             <?php if($error): ?>
-                <div class="alert alert-danger"><?php echo $error; ?></div>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
             
             <form method="POST">
+                <?php echo csrf_field(); ?>
                 <div class="row">
                     <div class="col-md-6">
                         <label><i class="fas fa-calendar"></i> Travel Date *</label>
@@ -117,7 +119,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="row">
                     <div class="col-md-12">
                         <label><i class="fas fa-map-marker-alt"></i> Location</label>
-                        <input type="text" name="from_location" value="<?php echo $service['location']; ?>" readonly>
+                        <input type="text" name="from_location" value="<?php echo htmlspecialchars($service['location']); ?>" readonly>
                     </div>
                 </div>
                 <?php endif; ?>

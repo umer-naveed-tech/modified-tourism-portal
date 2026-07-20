@@ -8,6 +8,10 @@ if(!isset($_SESSION['user_id'])) {
 }
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if(!csrf_valid()) {
+        echo json_encode(['success' => false, 'message' => 'Security check failed. Please refresh the page and try again.']);
+        exit();
+    }
     $type = $_POST['ziyarat_type'] ?? '';
     $date = $_POST['date'] ?? '';
     $time = $_POST['time'] ?? '';

@@ -146,26 +146,26 @@ $total_revenue = $stmt->fetchColumn() ?? 0;
                     <td><?php echo $b['id']; ?></td>
                     <td><?php echo htmlspecialchars($b['booking_no']); ?></td>
                     <td><?php echo htmlspecialchars($b['user_name']); ?></td>
-                    <td><?php echo $b['user_email']; ?></td>
-                    <td><?php echo $b['user_phone']; ?></td>
+                    <td><?php echo htmlspecialchars($b['user_email']); ?></td>
+                    <td><?php echo htmlspecialchars($b['user_phone']); ?></td>
                     <td>
-                        <?php echo ucfirst($b['service_type']); ?>
+                        <?php echo htmlspecialchars(ucfirst($b['service_type'])); ?>
                         <?php if(!empty($b['service_title'])): ?>
                             <br><small style="color:#64748b;"><?php echo htmlspecialchars($b['service_title']); ?></small>
                         <?php endif; ?>
                     </td>
                     <td><strong>SAR <?php echo number_format($b['total_amount']); ?></strong></td>
-                    <td><?php echo $b['travel_date']; ?></td>
+                    <td><?php echo htmlspecialchars($b['travel_date']); ?></td>
                     <td><?php echo date('d M Y h:i A', strtotime($b['created_at'])); ?></td>
                     <td>
-                        <select class="status-select" data-id="<?php echo $b['id']; ?>">
+                        <select class="status-select" data-id="<?php echo (int)$b['id']; ?>">
                             <option value="pending" <?php echo $b['status'] == 'pending' ? 'selected' : ''; ?>>Pending</option>
                             <option value="confirmed" <?php echo $b['status'] == 'confirmed' ? 'selected' : ''; ?>>Confirmed</option>
                             <option value="cancelled" <?php echo $b['status'] == 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
                         </select>
                     </td>
                     <td>
-                        <a href="https://wa.me/92<?php echo $b['user_phone']; ?>" class="btn-wa" target="_blank">WhatsApp</a>
+                        <a href="https://wa.me/92<?php echo urlencode($b['user_phone']); ?>" class="btn-wa" target="_blank">WhatsApp</a>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -175,6 +175,7 @@ $total_revenue = $stmt->fetchColumn() ?? 0;
 </div>
 
 <script>
+const csrfToken = '<?php echo csrf_token(); ?>';
 document.querySelectorAll('.status-select').forEach(select => {
     select.addEventListener('change', function() {
         const bookingId = this.dataset.id;
@@ -184,7 +185,7 @@ document.querySelectorAll('.status-select').forEach(select => {
             fetch('update_booking_status.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'id=' + bookingId + '&status=' + newStatus
+                body: 'id=' + encodeURIComponent(bookingId) + '&status=' + encodeURIComponent(newStatus) + '&csrf_token=' + encodeURIComponent(csrfToken)
             })
             .then(response => response.json())
             .then(data => {

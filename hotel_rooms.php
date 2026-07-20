@@ -134,6 +134,7 @@ $error = '';
     <div class="booking-section" id="bookingSection" style="display: none;">
         <h4>Complete Your Booking</h4>
         <form method="POST" action="book_hotel_room.php">
+            <?php echo csrf_field(); ?>
             <input type="hidden" name="room_id" id="selected_room_id">
             <input type="hidden" name="hotel_id" value="<?php echo $hotel_id; ?>">
             <input type="hidden" name="hotel_name" value="<?php echo htmlspecialchars($hotel['hotel_name']); ?>">

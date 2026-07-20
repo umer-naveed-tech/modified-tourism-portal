@@ -34,6 +34,7 @@ $booking_no = '';
 $wa_link = '';
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify();
     $from = $_POST['from'];
     $to = $_POST['to'];
     $date = $_POST['date'];
@@ -108,21 +109,22 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         <?php if($success): ?>
             <div class="alert alert-success text-center">
                 <h4>Booking Confirmed!</h4>
-                <p><strong>Booking ID:</strong> <?php echo $booking_no; ?></p>
-                <p><strong>Route:</strong> <?php echo $from_city; ?> → <?php echo $to_city; ?></p>
+                <p><strong>Booking ID:</strong> <?php echo htmlspecialchars($booking_no); ?></p>
+                <p><strong>Route:</strong> <?php echo htmlspecialchars($from_city); ?> → <?php echo htmlspecialchars($to_city); ?></p>
                 <p><strong>Total Fare:</strong> SAR <?php echo number_format($fare['price_sar'] ?? 0); ?></p>
-                <a href="<?php echo $wa_link; ?>" class="btn btn-success" target="_blank">Send WhatsApp</a>
+                <a href="<?php echo htmlspecialchars($wa_link); ?>" class="btn btn-success" target="_blank">Send WhatsApp</a>
                 <br><br>
                 <a href="dashboard.php" class="btn btn-primary">View My Bookings</a>
                 <a href="services.php?type=taxi" class="btn btn-secondary">Book Another</a>
             </div>
         <?php else: ?>
             <div class="text-center mb-3">
-                <img src="<?php echo $car['image_url']; ?>" style="width: 100%; border-radius: 12px;">
-                <p class="mt-2">Capacity: <?php echo $car['capacity']; ?> persons | Air Conditioning: Yes</p>
+                <img src="<?php echo htmlspecialchars($car['image_url']); ?>" style="width: 100%; border-radius: 12px;">
+                <p class="mt-2">Capacity: <?php echo (int)$car['capacity']; ?> persons | Air Conditioning: Yes</p>
             </div>
             
             <form method="POST">
+                <?php echo csrf_field(); ?>
                 <div class="row">
                     <div class="col-md-6">
                         <label>Pickup City</label>

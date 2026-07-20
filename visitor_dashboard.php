@@ -158,19 +158,19 @@ $bookings = $stmt->fetchAll();
             <div class="booking-card">
                 <div class="booking-info">
                     <h4><?php echo htmlspecialchars($b['booking_no']); ?></h4>
-                    <p><?php echo ucfirst($b['service_type']); ?> | Travel Date: <?php echo $b['travel_date']; ?></p>
+                    <p><?php echo htmlspecialchars(ucfirst($b['service_type'])); ?> | Travel Date: <?php echo htmlspecialchars($b['travel_date']); ?></p>
                 </div>
                 <div>
-                    <span class="booking-status status-<?php echo $b['status']; ?>"><?php echo ucfirst($b['status']); ?></span>
+                    <span class="booking-status status-<?php echo htmlspecialchars($b['status']); ?>"><?php echo htmlspecialchars(ucfirst($b['status'])); ?></span>
                 </div>
                 <div class="booking-info">
                     <p>Amount: <strong>SAR <?php echo number_format($b['total_amount']); ?></strong></p>
                 </div>
                 <div class="booking-actions">
                     <?php if($can_cancel): ?>
-                        <a href="cancel_booking.php?id=<?php echo $b['id']; ?>" class="btn-cancel" onclick="return confirm('Cancel this booking?')">Cancel</a>
+                        <a href="cancel_booking.php?id=<?php echo (int)$b['id']; ?>" class="btn-cancel" onclick="return confirm('Cancel this booking?')">Cancel</a>
                     <?php endif; ?>
-                    <a href="https://wa.me/923001234567?text=Help with booking <?php echo $b['booking_no']; ?>" class="btn-support" target="_blank">Support</a>
+                    <a href="https://wa.me/923001234567?text=<?php echo urlencode('Help with booking ' . $b['booking_no']); ?>" class="btn-support" target="_blank">Support</a>
                 </div>
             </div>
             <?php endforeach; ?>

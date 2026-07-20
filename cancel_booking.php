@@ -32,6 +32,7 @@ $can_cancel = ($now <= $cancel_deadline) && ($booking['status'] == 'pending');
 $remaining_seconds = max(0, $cancel_deadline->getTimestamp() - $now->getTimestamp());
 
 if($_SERVER['REQUEST_METHOD'] == 'POST' && $can_cancel) {
+    csrf_verify();
     $reason = $_POST['reason'] ?? 'Customer requested cancellation';
     
     $stmt = $pdo->prepare("UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = ? WHERE id = ?");
@@ -80,9 +81,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && $can_cancel) {
             <h3 class="text-center">Cancel Booking</h3>
             
             <?php if($success): ?>
-                <div class="alert alert-success"><?php echo $success; ?> Redirecting...</div>
+                <div class="alert alert-success"><?php echo htmlspecialchars($success); ?> Redirecting...</div>
             <?php elseif($error): ?>
-                <div class="alert alert-danger"><?php echo $error; ?></div>
+                <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
             <?php elseif(!$can_cancel && $booking['status'] == 'pending'): ?>
                 <div class="alert alert-danger">
                     Cancellation window closed. You can only cancel within 60 minutes of booking.
@@ -92,12 +93,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && $can_cancel) {
                 <div class="alert alert-warning">Booking already cancelled.</div>
                 <a href="visitor_dashboard.php" class="btn btn-secondary w-100">Back to Dashboard</a>
             <?php else: ?>
-                <p><strong>Booking ID:</strong> <?php echo $booking['booking_no']; ?></p>
-                <p><strong>Service:</strong> <?php echo ucfirst($booking['service_type']); ?></p>
+                <p><strong>Booking ID:</strong> <?php echo htmlspecialchars($booking['booking_no']); ?></p>
+                <p><strong>Service:</strong> <?php echo htmlspecialchars(ucfirst($booking['service_type'])); ?></p>
                 <p><strong>Amount:</strong> SAR <?php echo number_format($booking['total_amount']); ?></p>
                 <p class="text-danger">⏰ You have <?php echo floor($remaining_seconds / 60); ?> minutes left to cancel.</p>
                 
                 <form method="POST">
+                    <?php echo csrf_field(); ?>
                     <textarea name="reason" class="form-control mb-3" rows="2" placeholder="Reason for cancellation (optional)"></textarea>
                     <button type="submit" class="btn btn-danger w-100" onclick="return confirm('Confirm cancellation?')">Confirm Cancellation</button>
                     <a href="visitor_dashboard.php" class="btn btn-secondary w-100 mt-2">Go Back</a>

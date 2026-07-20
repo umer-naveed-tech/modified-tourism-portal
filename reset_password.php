@@ -10,6 +10,7 @@ if(!isset($_SESSION['reset_verified'])) {
 $error = '';
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify();
     $password = $_POST['password'];
     $confirm = $_POST['confirm_password'];
     
@@ -43,9 +44,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 <div style="background: white; border-radius: 16px; max-width: 400px; width: 90%; padding: 30px;">
     <h3 class="text-center">Reset Password</h3>
     <?php if($error): ?>
-        <div class="alert alert-danger"><?php echo $error; ?></div>
+        <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
     <?php endif; ?>
     <form method="POST">
+        <?php echo csrf_field(); ?>
         <input type="password" name="password" class="form-control mb-3" placeholder="New Password (min 6)" required>
         <input type="password" name="confirm_password" class="form-control mb-3" placeholder="Confirm Password" required>
         <button type="submit" class="btn btn-dark w-100">Reset Password</button>
