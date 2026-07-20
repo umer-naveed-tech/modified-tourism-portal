@@ -5,7 +5,8 @@ if(!isset($_SESSION['user_id'])) {
     exit();
 }
 require_once 'config.php';
-require_once 'send_admin_email.php';  // Add this
+require_once 'send_admin_email.php';
+require_once 'send_booking_email.php';  // ✅ ADDED
 
 $car_id = $_GET['car_id'] ?? 0;
 $car_name = $_GET['car_name'] ?? '';
@@ -39,8 +40,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $to = $_POST['to'];
     $date = $_POST['date'];
     $time = $_POST['time'];
-    // Note: fare is NOT trusted from the client anymore — it is looked up
-    // fresh from car_fares using the car/route, same as the page load above.
+    
     $fare_stmt = $pdo->prepare("SELECT price_sar FROM car_fares WHERE car_id = ? AND from_city = ? AND to_city = ?");
     $fare_stmt->execute([$car_id, $from, $to]);
     $verified_fare = $fare_stmt->fetch();
@@ -48,33 +48,53 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     if(!$verified_fare) {
         $error = "Invalid route selected. Please try again.";
     } else {
-    $fare_amount = $verified_fare['price_sar'];
-    
-    $booking_no = 'TAXI-' . date('Ymd') . '-' . rand(1000, 9999);
-    $travel_datetime = $date . ($time ? ' at ' . $time : '');
-    
-    $stmt = $pdo->prepare("INSERT INTO bookings (booking_no, user_id, service_type, service_id, booking_date, travel_date, from_location, to_location, guests, total_amount, status, payment_status, can_cancel_until) VALUES (?, ?, 'taxi', ?, CURDATE(), ?, ?, ?, ?, ?, 'pending', 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))");
-    
-    if($stmt->execute([$booking_no, $_SESSION['user_id'], $car_id, $travel_datetime, $from, $to, $car['capacity'], $fare_amount])) {
-        $success = true;
+        $fare_amount = $verified_fare['price_sar'];
         
-        // Send email to admin
-        sendAdminEmail(
-            'booking',
-            $booking_no,
-            $_SESSION['user_name'],
-            $_SESSION['user_email'],
-            'Taxi - ' . $car['car_name'] . ' (' . $from . ' to ' . $to . ')',
-            $travel_datetime,
-            $fare_amount,
-            'pending'
-        );
+        $booking_no = 'TAXI-' . date('Ymd') . '-' . rand(1000, 9999);
+        $travel_datetime = $date . ($time ? ' at ' . $time : '');
         
-        $wa_msg = "New Booking: $car_name from $from to $to on $date at $time. Booking ID: $booking_no. Total: SAR $fare_amount";
-        $wa_link = "https://wa.me/923001234567?text=" . urlencode($wa_msg);
-    } else {
-        $error = "Booking failed. Please try again.";
-    }
+        $stmt = $pdo->prepare("INSERT INTO bookings (booking_no, user_id, service_type, service_id, booking_date, travel_date, from_location, to_location, guests, total_amount, status, payment_status, can_cancel_until) VALUES (?, ?, 'taxi', ?, CURDATE(), ?, ?, ?, ?, ?, 'pending', 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))");
+        
+        if($stmt->execute([$booking_no, $_SESSION['user_id'], $car_id, $travel_datetime, $from, $to, $car['capacity'], $fare_amount])) {
+            $success = true;
+            
+            // Send email to admin
+            sendAdminEmail(
+                'booking',
+                $booking_no,
+                $_SESSION['user_name'],
+                $_SESSION['user_email'],
+                'Taxi - ' . $car['car_name'] . ' (' . $from . ' to ' . $to . ')',
+                $travel_datetime,
+                $fare_amount,
+                'pending'
+            );
+            
+            // ✅ SEND EMAIL TO REGISTERED USER
+            $to_email = $_SESSION['user_email'] ?? '';
+            $customer_name = $_SESSION['user_name'] ?? 'Customer';
+            
+            if(!empty($to_email) && file_exists('send_booking_email.php')) {
+                sendBookingEmail(
+                    $to_email,
+                    $customer_name,
+                    $booking_no,
+                    'Taxi - ' . $car['car_name'] . ' (' . $from . ' to ' . $to . ')',
+                    $travel_datetime,
+                    $fare_amount,
+                    $car['car_name'],
+                    $from . ' → ' . $to,
+                    $car['capacity'],
+                    $fare_amount
+                );
+            }
+            // ============================================================
+            
+            $wa_msg = "New Booking: $car_name from $from to $to on $date at $time. Booking ID: $booking_no. Total: SAR $fare_amount";
+            $wa_link = "https://wa.me/923001234567?text=" . urlencode($wa_msg);
+        } else {
+            $error = "Booking failed. Please try again.";
+        }
     }
 }
 ?>
