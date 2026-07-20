@@ -400,7 +400,7 @@ if(empty($cities)) {
             <?php if(count($services) > 0): ?>
                 <?php foreach($services as $hotel): ?>
                     <div class="service-card" onclick="location.href='hotel_rooms.php?hotel_id=<?php echo $hotel['id']; ?>'">
-                        <img class="service-card-img" src="https://files.catbox.moe/nsxi7x.jpg" alt="<?php echo htmlspecialchars($hotel['hotel_name'] ?? 'Hotel'); ?>">
+                        <img class="service-card-img" src="<?php echo htmlspecialchars(!empty($hotel['image_url']) ? $hotel['image_url'] : 'https://placehold.co/400x250/0f172a/e2e8f0?text=' . urlencode($hotel['city'] ?? 'Hotel')); ?>" alt="<?php echo htmlspecialchars($hotel['hotel_name'] ?? 'Hotel'); ?>" onerror="this.onerror=null;this.src='https://placehold.co/400x250/0f172a/e2e8f0?text=Hotel';">
                         <div class="service-card-body">
                             <h3 class="service-card-title"><?php echo htmlspecialchars($hotel['hotel_name'] ?? 'Hotel Name'); ?></h3>
                             <div class="service-card-location"><?php echo htmlspecialchars($hotel['city'] ?? 'Mecca'); ?></div>

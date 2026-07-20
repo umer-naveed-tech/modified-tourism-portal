@@ -90,7 +90,7 @@ $error = '';
             ?>
             <div class="col-md-6">
                 <div class="room-card" data-room-id="<?php echo $room['id']; ?>" data-price="<?php echo $room['price_per_night_sar']; ?>" data-room-name="<?php echo $room['room_type']; ?>" onclick="selectRoom(this)">
-                    <img src="<?php echo $room['image_url'] ?? 'https://placehold.co/400x200/0f172a/e2e8f0?text=Room'; ?>" alt="<?php echo $room['room_type']; ?> Room">
+                    <img src="<?php echo htmlspecialchars($room['image_url'] ?? 'https://placehold.co/400x200/0f172a/e2e8f0?text=Room'); ?>" alt="<?php echo htmlspecialchars($room['room_type']); ?> Room" onerror="this.onerror=null;this.src='https://placehold.co/400x200/0f172a/e2e8f0?text=Room';">
                     <div class="card-body">
                         <span class="room-type-badge"><?php echo $room['room_type']; ?></span>
                         <h4><?php echo $room['room_type']; ?> Room</h4>
