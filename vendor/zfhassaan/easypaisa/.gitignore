@@ -1,1 +1,8 @@
-/vendor
+# Never commit real credentials
+secrets.php
+ 
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

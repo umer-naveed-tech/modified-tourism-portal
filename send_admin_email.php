@@ -1,26 +1,25 @@
 <?php
+require_once __DIR__ . '/secrets.php';
 require_once 'PHPMailer/src/PHPMailer.php';
 require_once 'PHPMailer/src/SMTP.php';
 require_once 'PHPMailer/src/Exception.php';
-
+ 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
-
+ 
 function sendAdminEmail($type, $booking_no, $customer_name, $customer_email, $service_type, $travel_date, $total_amount, $status = 'pending') {
     $mail = new PHPMailer(true);
     
     try {
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
+        $mail->Host       = SMTP_HOST;
         $mail->SMTPAuth   = true;
-        // ========== YAHAN APNI DETAILS DALO ==========
-        $mail->Username   = 'cabubakar663@gmail.com';      // ← Apni Gmail ID
-        $mail->Password   = 'ebds gaci apij ssgv'; // ← App Password
-        // =============================================
+        $mail->Username   = SMTP_USERNAME;
+        $mail->Password   = SMTP_APP_PASSWORD;
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+        $mail->Port       = SMTP_PORT;
         
-        $mail->setFrom('cabubakar663@gmail.com', 'Ahmed Travels');
+        $mail->setFrom(SMTP_USERNAME, SMTP_FROM_NAME);
         $mail->addAddress(ADMIN_EMAIL, 'Admin');
         
         $mail->isHTML(true);

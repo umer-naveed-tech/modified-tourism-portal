@@ -1,13 +1,10 @@
 <?php
 session_start();
-
-$host = 'localhost';
-$dbname = 'tourism_db';
-$username = 'root';
-$password = '';
-
+ 
+require_once __DIR__ . '/secrets.php';
+ 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
+    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME, DB_USER, DB_PASS);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
     $pdo->exec("CREATE TABLE IF NOT EXISTS password_resets (
@@ -28,16 +25,16 @@ try {
 } catch(PDOException $e) {
     die("Connection failed: " . $e->getMessage());
 }
-
+ 
 require_once 'PHPMailer/src/PHPMailer.php';
 require_once 'PHPMailer/src/SMTP.php';
 require_once 'PHPMailer/src/Exception.php';
-
+ 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
-
+ 
 $error = '';
-
+ 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = trim($_POST['email']);
     
@@ -66,16 +63,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             try {
                 $mail->isSMTP();
-                $mail->Host       = 'smtp.gmail.com';
+                $mail->Host       = SMTP_HOST;
                 $mail->SMTPAuth   = true;
-                // ========== YAHAN APNI DETAILS DALO ==========
-                $mail->Username   = 'umernaveed2580@gmail.com';
-                $mail->Password   = 'ebds gaci apij ssgv';
-                // =============================================
+                $mail->Username   = SMTP_USERNAME;
+                $mail->Password   = SMTP_APP_PASSWORD;
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-                $mail->Port       = 587;
+                $mail->Port       = SMTP_PORT;
                 
-                $mail->setFrom('umernaveed2580@gmail.com', 'Ahmed Travels');
+                $mail->setFrom(SMTP_USERNAME, SMTP_FROM_NAME);
                 $mail->addAddress($email, $user['name']);
                 
                 $mail->isHTML(true);

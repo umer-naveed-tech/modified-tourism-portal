@@ -1,26 +1,25 @@
 <?php
+require_once __DIR__ . '/secrets.php';
 require_once 'PHPMailer/src/PHPMailer.php';
 require_once 'PHPMailer/src/SMTP.php';
 require_once 'PHPMailer/src/Exception.php';
-
+ 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
-
+ 
 function sendStatusEmail($to_email, $customer_name, $booking_no, $service_type, $travel_date, $total_amount, $new_status) {
     $mail = new PHPMailer(true);
     
     try {
         $mail->isSMTP();
-        $mail->Host       = 'smtp.gmail.com';
+        $mail->Host       = SMTP_HOST;
         $mail->SMTPAuth   = true;
-        // ========== YAHAN APNI DETAILS DALO ==========
-        $mail->Username   = 'umernaveed2580@gmail.com';
-        $mail->Password   = 'ebds gaci apij ssgv'; // ← APP PASSWORD
-        // =============================================
+        $mail->Username   = SMTP_USERNAME;
+        $mail->Password   = SMTP_APP_PASSWORD;
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = 587;
+        $mail->Port       = SMTP_PORT;
         
-        $mail->setFrom('umernaveed2580@gmail.com', 'Ahmed Travels');
+        $mail->setFrom(SMTP_USERNAME, SMTP_FROM_NAME);
         $mail->addAddress($to_email, $customer_name);
         
         $mail->isHTML(true);
