@@ -19,9 +19,8 @@ $hotel_id = $_POST['hotel_id'] ?? 0;
 $hotel_name = $_POST['hotel_name'] ?? '';
 $check_in = $_POST['check_in'] ?? '';
 $check_out = $_POST['check_out'] ?? '';
-$nights = $_POST['nights'] ?? 1;
-$total_amount_str = $_POST['total_amount'] ?? '0';
-$total_amount = floatval(str_replace('SAR ', '', $total_amount_str));
+// Note: nights and total_amount are NOT trusted from the client anymore —
+// they are recalculated below from the room's real price in the database.
 
 // Get room details
 $stmt = $pdo->prepare("SELECT * FROM hotel_rooms WHERE id = ?");
@@ -32,6 +31,19 @@ if(!$room) {
     header('Location: services.php?type=hotels');
     exit();
 }
+
+// Server-side nights calculation
+$date_in = new DateTime($check_in);
+$date_out = new DateTime($check_out);
+$nights = $date_in->diff($date_out)->days;
+
+if($nights < 1) {
+    header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
+    exit();
+}
+
+// Total amount ALWAYS computed from the DB price, never from POST data
+$total_amount = $room['price_per_night_sar'] * $nights;
 
 // Generate booking number
 $booking_no = 'HOTEL-' . date('Ymd') . '-' . rand(1000, 9999);

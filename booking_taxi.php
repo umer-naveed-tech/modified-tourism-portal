@@ -38,7 +38,16 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $to = $_POST['to'];
     $date = $_POST['date'];
     $time = $_POST['time'];
-    $fare_amount = $_POST['fare'];
+    // Note: fare is NOT trusted from the client anymore — it is looked up
+    // fresh from car_fares using the car/route, same as the page load above.
+    $fare_stmt = $pdo->prepare("SELECT price_sar FROM car_fares WHERE car_id = ? AND from_city = ? AND to_city = ?");
+    $fare_stmt->execute([$car_id, $from, $to]);
+    $verified_fare = $fare_stmt->fetch();
+
+    if(!$verified_fare) {
+        $error = "Invalid route selected. Please try again.";
+    } else {
+    $fare_amount = $verified_fare['price_sar'];
     
     $booking_no = 'TAXI-' . date('Ymd') . '-' . rand(1000, 9999);
     $travel_datetime = $date . ($time ? ' at ' . $time : '');
@@ -64,6 +73,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $wa_link = "https://wa.me/923001234567?text=" . urlencode($wa_msg);
     } else {
         $error = "Booking failed. Please try again.";
+    }
     }
 }
 ?>

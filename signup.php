@@ -5,7 +5,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $email = $_POST['email'];
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     $phone = $_POST['phone'];
-    $role = $_POST['role'];
+    $role = 'visitor'; // Security: public signup can NEVER create an agent/admin account.
+                        // Agent accounts must be added directly in the database by the site owner.
     
     $stmt = $pdo->prepare("INSERT INTO users (name, email, password, phone, role) VALUES (?,?,?,?,?)");
     if($stmt->execute([$name, $email, $password, $phone, $role])) {
@@ -154,13 +155,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <div class="form-group">
                     <label>Phone Number</label>
                     <input type="text" name="phone" placeholder="Enter your phone number" required>
-                </div>
-                <div class="form-group">
-                    <label>I am a</label>
-                    <select name="role" required>
-                        <option value="visitor">Visitor - Book Services</option>
-                        <option value="agent">Travel Agent - Manage Services</option>
-                    </select>
                 </div>
                 <button type="submit" class="btn-signup">Create Account</button>
             </form>
