@@ -128,7 +128,6 @@ $total_revenue = $stmt->fetchColumn() ?? 0;
         <a href="services.php?type=hotels" class="action-btn action-btn-primary">Manage Hotels</a>
         <a href="services.php?type=taxi" class="action-btn action-btn-primary">Manage Taxis</a>
         <a href="services.php?type=visa" class="action-btn action-btn-primary">Manage Visas</a>
-        <a href="services.php?type=groups" class="action-btn action-btn-primary">Manage Tours</a>
     </div>
     
     <!-- All Bookings Table (SAR Currency) -->

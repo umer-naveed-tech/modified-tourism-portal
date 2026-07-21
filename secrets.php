@@ -10,20 +10,23 @@
  * 2. Fill in the values below with your real credentials.
  * 3. Save this file locally — Git will ignore it automatically.
  */
- 
+
 // ---- Database ----
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'tourism_db');
 define('DB_USER', 'root');
 define('DB_PASS', '');
- 
+
 // ---- SMTP (Gmail) ----
 define('SMTP_HOST', 'smtp.gmail.com');
 define('SMTP_PORT', 587);
-define('SMTP_USERNAME', 'umernaveed2580@gmail.com');       // ← apni Gmail ID
-define('SMTP_APP_PASSWORD', 'zhpv wrhq upkx jlqq');  // ← NAYA app password (16 digit)
+define('SMTP_USERNAME', 'your_email@gmail.com');       // ← apni Gmail ID
+define('SMTP_APP_PASSWORD', 'your_new_app_password');  // ← NAYA app password (16 digit)
 define('SMTP_FROM_NAME', 'Ahmed Travels');
- 
+
 // ---- Admin ----
-define('ADMIN_EMAIL', 'cabubakar663@gmail.com');
- 
+define('ADMIN_EMAIL', 'your_admin_email@gmail.com');
+
+// ---- AI Assistant (Groq — free) ----
+// Get a free key at https://console.groq.com/keys (no credit card needed)
+define('GROQ_API_KEY', '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');

@@ -137,11 +137,6 @@ $bookings = $stmt->fetchAll();
             <p>Fast processing</p>
             <button>Apply Now</button>
         </div>
-        <div class="service-card" onclick="location.href='services.php?type=groups'">
-            <h3>Group Tours</h3>
-            <p>Explore with groups</p>
-            <button>View Tours</button>
-        </div>
     </div>
     
     <!-- My Bookings (SAR Currency) -->
@@ -182,5 +177,6 @@ $bookings = $stmt->fetchAll();
     <?php endif; ?>
 </div>
 
+<?php include 'chatbot_widget.php'; ?>
 </body>
 </html>

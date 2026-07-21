@@ -1,4 +1,4 @@
-<?php session_start(); ?>
+<?php session_start(); require_once 'config.php'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -94,7 +94,6 @@
     <a href="#contact" onclick="toggleMenu()">Contact</a>
     <div style="margin: 20px 0;">
         <strong style="color:#c9a03d;">Our Services</strong>
-        <a href="services.php?type=groups" style="padding-left: 15px;">Group Tours</a>
         <a href="services.php?type=hotels" style="padding-left: 15px;">Hotel Booking</a>
         <a href="services.php?type=taxis" style="padding-left: 15px;">Book a Taxi</a>
         <a href="services.php?type=visas" style="padding-left: 15px;">Visa Services</a>
@@ -128,16 +127,7 @@
         </div>
     </div>
     
-    <!-- Slide 3: Explore the World -->
-    <div class="slide" style="background-image: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1600');">
-        <div class="slide-content">
-            <h1>Explore the World</h1>
-            <p>Dubai | Singapore | Malaysia</p>
-            <a href="services.php?type=groups" class="btn-book">Explore Tours</a>
-        </div>
-    </div>
-    
-    <!-- Slide 4: Visa Services -->
+    <!-- Slide 3: Visa Services -->
     <div class="slide" style="background-image: url('https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=1600');">
         <div class="slide-content">
             <h1>Visa Services</h1>
@@ -160,12 +150,6 @@
             <p>Explore the best travel services for your journey</p>
         </div>
         <div class="row">
-            <div class="col-md-6 col-lg-3">
-                <div class="service-card" onclick="location.href='services.php?type=groups'">
-                    <img src="https://images.unsplash.com/photo-1530521954074-e64f6810b32d?w=400" alt="Group Tours">
-                    <div class="card-body"><h5>Group Tours</h5></div>
-                </div>
-            </div>
             <div class="col-md-6 col-lg-3">
                 <div class="service-card" onclick="location.href='services.php?type=hotels'">
                     <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400" alt="Hotels">
@@ -201,7 +185,6 @@
             </div>
             <div class="col-md-4">
                 <h5>Quick Links</h5>
-                <p><a href="services.php?type=groups">Group Tours</a></p>
                 <p><a href="services.php?type=hotels">Hotels</a></p>
                 <p><a href="services.php?type=taxis">Book a Taxi</a></p>
                 <p><a href="services.php?type=visas">Visa Services</a></p>
@@ -228,5 +211,6 @@
     function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('active'); document.getElementById('overlay').classList.toggle('active'); }
     window.addEventListener('scroll', function() { const navbar = document.getElementById('navbar'); if(window.scrollY > 50) { navbar.classList.add('scrolled'); } else { navbar.classList.remove('scrolled'); } });
 </script>
+<?php include 'chatbot_widget.php'; ?>
 </body>
 </html>

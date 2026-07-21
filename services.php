@@ -3,6 +3,10 @@ session_start();
 require_once 'config.php';
 
 $type = $_GET['type'] ?? 'hotels';
+if($type == 'ziyarat' || $type == 'groups') {
+    header('Location: services.php?type=hotels');
+    exit();
+}
 $city = $_GET['city'] ?? 'Mecca';
 
 // Fetch data based on type
@@ -18,32 +22,6 @@ if($type == 'hotels') {
     $stmt = $pdo->prepare("SELECT * FROM services WHERE service_type = 'visa'");
     $stmt->execute();
     $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} elseif($type == 'groups') {
-    $stmt = $pdo->prepare("SELECT * FROM services WHERE service_type = 'groups'");
-    $stmt->execute();
-    $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} elseif($type == 'ziyarat') {
-    // Ziyarat data - hardcoded
-    $ziyarat_services = [
-        [
-            'id' => 'makkah',
-            'title' => 'Makkah Ziyarat',
-            'subtitle' => 'Holy Sites in Makkah',
-            'duration' => '2 Hours',
-            'capacity' => '1-3 PAX',
-            'price' => 270,
-            'image' => 'https://images.unsplash.com/photo-1580589368625-7f7f1f96e6b3?w=400&h=250&fit=crop'
-        ],
-        [
-            'id' => 'madinah',
-            'title' => 'Madinah Ziyarat',
-            'subtitle' => 'Holy Sites in Madinah',
-            'duration' => '2 Hours',
-            'capacity' => '1-3 PAX',
-            'price' => 270,
-            'image' => 'https://images.unsplash.com/photo-1580589368625-7f7f1f96e6b3?w=400&h=250&fit=crop'
-        ]
-    ];
 } else {
     $services = [];
 }
@@ -117,7 +95,8 @@ if(empty($cities)) {
         .car-category.premium { background: #0891b2; color: white; }
         .car-category.standard { background: #64748b; color: white; }
         .car-category.economy { background: #10b981; color: white; }
-        .car-image { width: 100%; height: 250px; object-fit: cover; }
+        .car-image-wrap { width: 100%; height: 250px; background: #0f172a; border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .car-image { width: 100%; height: 100%; object-fit: contain; }
         .fare-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
         .fare-table th, .fare-table td { padding: 10px; text-align: center; border: 1px solid #e2e8f0; }
         .fare-table th { background: #f8fafc; font-weight: 600; }
@@ -126,241 +105,8 @@ if(empty($cities)) {
         
         .empty-state { text-align: center; padding: 60px; background: white; border-radius: 20px; border: 1px solid #e2e8f0; }
         
-        /* ===== ZIYARAT TAB STYLES ===== */
-        .ziyarat-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            max-width: 700px;
-            margin: 20px auto 0;
-        }
-        .ziyarat-card {
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            border: 1px solid #e2e8f0;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        .ziyarat-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 20px 25px -12px rgba(0,0,0,0.12);
-            border-color: #d4af37;
-        }
-        .ziyarat-card img {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-        }
-        .ziyarat-card-body {
-            padding: 24px 28px 28px;
-        }
-        .ziyarat-card-body .badge {
-            display: inline-block;
-            background: #f1f5f9;
-            padding: 3px 14px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            color: #475569;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .ziyarat-card-body h3 {
-            font-size: 20px;
-            font-weight: 700;
-            color: #0f172a;
-            margin: 8px 0 4px;
-        }
-        .ziyarat-card-body .subtitle {
-            font-size: 13px;
-            color: #64748b;
-        }
-        .ziyarat-card-body .meta {
-            display: flex;
-            gap: 16px;
-            margin: 12px 0 14px;
-            font-size: 13px;
-            color: #64748b;
-        }
-        .ziyarat-card-body .price {
-            font-size: 26px;
-            font-weight: 700;
-            color: #d4af37;
-        }
-        .ziyarat-card-body .price small {
-            font-size: 14px;
-            font-weight: 400;
-            color: #94a3b8;
-        }
-        .ziyarat-card-body .book-btn {
-            background: #0f172a;
-            color: white;
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 14px;
-            width: 100%;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 16px;
-        }
-        .ziyarat-card-body .book-btn:hover {
-            background: #d4af37;
-            color: #0f172a;
-        }
-        
-        /* ===== ZIYARAT MODAL ===== */
-        .ziyarat-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(4px);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .ziyarat-modal.active {
-            display: flex;
-        }
-        .ziyarat-modal-content {
-            background: white;
-            border-radius: 20px;
-            padding: 36px 40px;
-            max-width: 440px;
-            width: 92%;
-            position: relative;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 24px 48px -12px rgba(0,0,0,0.25);
-        }
-        .ziyarat-modal-close {
-            position: absolute;
-            top: 14px;
-            right: 18px;
-            font-size: 22px;
-            cursor: pointer;
-            color: #94a3b8;
-            background: none;
-            border: none;
-            transition: color 0.3s ease;
-            font-weight: 300;
-        }
-        .ziyarat-modal-close:hover { color: #ef4444; }
-        .ziyarat-modal .modal-title {
-            font-size: 22px;
-            font-weight: 700;
-            color: #0f172a;
-            margin-bottom: 2px;
-        }
-        .ziyarat-modal .modal-subtitle {
-            font-size: 13px;
-            color: #64748b;
-            margin-bottom: 4px;
-        }
-        .ziyarat-modal .modal-price {
-            font-size: 28px;
-            font-weight: 700;
-            color: #d4af37;
-            margin: 8px 0 20px;
-        }
-        .ziyarat-modal .modal-price small {
-            font-size: 16px;
-            font-weight: 400;
-            color: #94a3b8;
-        }
-        .ziyarat-modal label {
-            font-weight: 600;
-            font-size: 13px;
-            color: #0f172a;
-            display: block;
-            margin-bottom: 4px;
-        }
-        .ziyarat-modal input, 
-        .ziyarat-modal select {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 10px;
-            margin-bottom: 14px;
-            font-size: 14px;
-            background: white;
-            transition: border-color 0.3s ease;
-        }
-        .ziyarat-modal input:focus,
-        .ziyarat-modal select:focus {
-            outline: none;
-            border-color: #d4af37;
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.12);
-        }
-        .ziyarat-modal .confirm-btn {
-            background: #d4af37;
-            color: #0f172a;
-            border: none;
-            padding: 14px;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 15px;
-            width: 100%;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 4px;
-        }
-        .ziyarat-modal .confirm-btn:hover {
-            background: #c9a227;
-            color: white;
-            transform: translateY(-1px);
-        }
-        .ziyarat-modal .success-msg {
-            text-align: center;
-            padding: 16px 0;
-        }
-        .ziyarat-modal .success-msg .check-icon {
-            width: 64px;
-            height: 64px;
-            background: #d1fae5;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 12px;
-            font-size: 32px;
-            color: #10b981;
-        }
-        .ziyarat-modal .success-msg h3 {
-            font-size: 20px;
-            font-weight: 700;
-            color: #0f172a;
-            margin: 8px 0;
-        }
-        .ziyarat-modal .success-msg p {
-            color: #64748b;
-            font-size: 14px;
-        }
-        .ziyarat-modal .success-msg .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 14px;
-        }
-        .ziyarat-modal .success-msg .detail-row .label {
-            color: #64748b;
-        }
-        .ziyarat-modal .success-msg .detail-row .value {
-            font-weight: 600;
-            color: #0f172a;
-        }
-        
         @media (max-width: 768px) { 
             .services-grid { grid-template-columns: 1fr; }
-            .ziyarat-modal-content { padding: 28px 24px; }
-            .ziyarat-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -385,9 +131,7 @@ if(empty($cities)) {
     <div class="tabs">
         <a href="?type=hotels&city=Mecca" class="tab-link <?php echo $type == 'hotels' ? 'active' : ''; ?>">Hotels</a>
         <a href="?type=taxi" class="tab-link <?php echo $type == 'taxi' ? 'active' : ''; ?>">Airport Taxi</a>
-        <a href="?type=ziyarat" class="tab-link <?php echo $type == 'ziyarat' ? 'active' : ''; ?>">Ziyarat</a>
         <a href="?type=visa" class="tab-link <?php echo $type == 'visa' ? 'active' : ''; ?>">Visa Services</a>
-        <a href="?type=groups" class="tab-link <?php echo $type == 'groups' ? 'active' : ''; ?>">Group Tours</a>
     </div>
     
     <!-- ========== HOTELS ========== -->
@@ -429,7 +173,7 @@ if(empty($cities)) {
             <?php endif; ?>
         </div>
     
-    <!-- ========== TAXI (No Ziyarat Here) ========== -->
+    <!-- ========== TAXI ========== -->
     <?php elseif($type == 'taxi' && isset($cars)): ?>
         <div class="car-dropdown-container">
             <select id="carSelect" class="car-select">
@@ -492,7 +236,9 @@ if(empty($cities)) {
                         <h2>${car.name} ${car.model}</h2>
                         <span class="car-category ${categoryClass}">${categoryName} Class</span>
                     </div>
-                    <img class="car-image" src="${car.image_url}" onerror="this.src='https://placehold.co/600x300/0f172a/e2e8f0?text=${car.name}'">
+                    <div class="car-image-wrap">
+                        <img class="car-image" src="${car.image_url}" onerror="this.src='https://placehold.co/600x300/0f172a/e2e8f0?text=${car.name}'">
+                    </div>
                     <div style="padding: 25px;">
                         <p style="margin-bottom: 15px;"><strong>Capacity:</strong> ${car.capacity} persons &nbsp;|&nbsp; <strong>Air Conditioning:</strong> Yes</p>
                         ${faresHtml}
@@ -551,156 +297,9 @@ if(empty($cities)) {
         });
         </script>
     
-    <!-- ========== ZIYARAT TAB ========== -->
-    <?php elseif($type == 'ziyarat'): ?>
-        <div style="text-align: center; margin-bottom: 32px;">
-            <h2 style="font-size: 28px; font-weight: 700; color: #0f172a;">Ziyarat Packages</h2>
-            <p style="color: #64748b; font-size: 14px;">Book your Ziyarat with CAR (1-3 PAX) · SAR 270 only</p>
-        </div>
-        
-        <div class="ziyarat-grid">
-            <?php foreach($ziyarat_services as $ziyarat): ?>
-            <div class="ziyarat-card" onclick="openZiyaratModal('<?php echo $ziyarat['id']; ?>')">
-                <img src="<?php echo $ziyarat['image']; ?>" alt="<?php echo $ziyarat['title']; ?>">
-                <div class="ziyarat-card-body">
-                    <span class="badge"><?php echo $ziyarat['id'] == 'makkah' ? 'Makkah' : 'Madinah'; ?></span>
-                    <h3><?php echo $ziyarat['title']; ?></h3>
-                    <div class="subtitle"><?php echo $ziyarat['subtitle']; ?></div>
-                    <div class="meta">
-                        <span>⏱ <?php echo $ziyarat['duration']; ?></span>
-                        <span>👤 <?php echo $ziyarat['capacity']; ?></span>
-                    </div>
-                    <div class="price">SAR <?php echo number_format($ziyarat['price']); ?> <small>per car</small></div>
-                    <button class="book-btn">Book Now</button>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-        
-        <!-- Ziyarat Modal -->
-        <div class="ziyarat-modal" id="ziyaratModal">
-            <div class="ziyarat-modal-content">
-                <button class="ziyarat-modal-close" onclick="closeZiyaratModal()">×</button>
-                
-                <div id="modalContent">
-                    <div class="modal-title" id="modalTitle">Makkah Ziyarat</div>
-                    <div class="modal-subtitle" id="modalSubtitle">Holy Sites in Makkah</div>
-                    <div class="modal-price">SAR 270 <small>per car</small></div>
-                    
-                    <form id="ziyaratForm">
-                        <?php echo csrf_field(); ?>
-                        <input type="hidden" name="ziyarat_type" id="ziyaratType">
-                        <input type="hidden" name="ziyarat_price" id="ziyaratPrice" value="270">
-                        
-                        <label>Travel Date</label>
-                        <input type="date" name="date" id="ziyaratDate" required min="<?php echo date('Y-m-d'); ?>">
-                        
-                        <label>Travel Time</label>
-                        <input type="time" name="time" id="ziyaratTime">
-                        
-                        <label>Number of Guests</label>
-                        <select name="guests" id="ziyaratGuests" required>
-                            <option value="1">1 Person</option>
-                            <option value="2">2 Persons</option>
-                            <option value="3">3 Persons</option>
-                        </select>
-                        
-                        <label>Pickup Location</label>
-                        <input type="text" name="pickup_location" id="ziyaratPickup" placeholder="Enter your hotel name or address" required>
-                        
-                        <label>Special Requests</label>
-                        <input type="text" name="special_requests" id="ziyaratRequests" placeholder="Any special requirements?">
-                        
-                        <button type="submit" class="confirm-btn">Confirm Booking</button>
-                    </form>
-                </div>
-                
-                <div id="modalSuccess" style="display: none;">
-                    <div class="success-msg">
-                        <div class="check-icon">✓</div>
-                        <h3>Booking Confirmed</h3>
-                        <p>Your Ziyarat booking has been confirmed successfully.</p>
-                        <div style="margin: 16px 0; text-align: left; background: #f8fafc; padding: 14px 16px; border-radius: 10px;">
-                            <div class="detail-row">
-                                <span class="label">Booking ID</span>
-                                <span class="value" id="bookingIdDisplay">ZIYARAT-2026-001</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="label">Total Fare</span>
-                                <span class="value" id="bookingFareDisplay">SAR 270</span>
-                            </div>
-                        </div>
-                        <button class="confirm-btn" onclick="closeZiyaratModal(); window.location.href='dashboard.php';">View My Bookings</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <script>
-        // ===== ZIYARAT MODAL FUNCTIONS =====
-        const ziyaratData = {
-            'makkah': {
-                title: 'Makkah Ziyarat',
-                subtitle: 'Holy Sites in Makkah'
-            },
-            'madinah': {
-                title: 'Madinah Ziyarat',
-                subtitle: 'Holy Sites in Madinah'
-            }
-        };
-        
-        function openZiyaratModal(type) {
-            const data = ziyaratData[type];
-            if(!data) return;
-            
-            document.getElementById('modalTitle').textContent = data.title;
-            document.getElementById('modalSubtitle').textContent = data.subtitle;
-            document.getElementById('ziyaratType').value = type;
-            
-            document.getElementById('modalContent').style.display = 'block';
-            document.getElementById('modalSuccess').style.display = 'none';
-            document.getElementById('ziyaratModal').classList.add('active');
-            
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('ziyaratDate').value = today;
-        }
-        
-        function closeZiyaratModal() {
-            document.getElementById('ziyaratModal').classList.remove('active');
-        }
-        
-        document.getElementById('ziyaratModal').addEventListener('click', function(e) {
-            if(e.target === this) closeZiyaratModal();
-        });
-        
-        document.getElementById('ziyaratForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData(this);
-            
-            fetch('book_ziyarat_ajax.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if(data.success) {
-                    document.getElementById('modalContent').style.display = 'none';
-                    document.getElementById('modalSuccess').style.display = 'block';
-                    document.getElementById('bookingIdDisplay').textContent = data.booking_no;
-                    document.getElementById('bookingFareDisplay').textContent = 'SAR ' + data.fare;
-                } else {
-                    alert(data.message || 'Booking failed. Please try again.');
-                }
-            })
-            .catch(error => {
-                alert('An error occurred. Please try again.');
-            });
-        });
-        </script>
     
-    <!-- ========== VISA & TOURS ========== -->
-    <?php elseif(($type == 'visa' || $type == 'groups') && isset($services)): ?>
+    <!-- ========== VISA SERVICES ========== -->
+    <?php elseif($type == 'visa' && isset($services)): ?>
         <div class="services-grid">
             <?php foreach($services as $service): ?>
                 <div class="service-card" onclick="location.href='booking.php?type=<?php echo $type; ?>&id=<?php echo $service['id']; ?>'">
@@ -709,7 +308,7 @@ if(empty($cities)) {
                         <h3 class="service-card-title"><?php echo htmlspecialchars($service['title'] ?? 'Service Name'); ?></h3>
                         <div class="service-card-location"><?php echo htmlspecialchars($service['description'] ?? 'No description available'); ?></div>
                         <div class="service-card-price">SAR <?php echo number_format($service['price'] ?? 0); ?></div>
-                        <button class="service-card-btn"><?php echo $type == 'visa' ? 'Apply Now' : 'Book Now'; ?></button>
+                        <button class="service-card-btn">Apply Now</button>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -720,5 +319,6 @@ if(empty($cities)) {
     <?php endif; ?>
 </div>
 
+<?php include 'chatbot_widget.php'; ?>
 </body>
 </html>
