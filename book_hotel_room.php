@@ -1,0 +1,221 @@
+<?php
+session_start();
+require_once 'config.php';
+csrf_verify();
+
+$room_id = $_POST['room_id'] ?? 0;
+$hotel_id = $_POST['hotel_id'] ?? 0;
+$hotel_name = $_POST['hotel_name'] ?? '';
+$room_type_code = $_POST['room_type_code'] ?? '';
+$check_in = $_POST['check_in'] ?? '';
+$check_out = $_POST['check_out'] ?? '';
+$meal_type = $_POST['meal_type'] ?? 'breakfast';
+$extra_bed = isset($_POST['extra_bed']) ? 1 : 0;
+$guests = $_POST['guests'] ?? 2;
+
+if(!$room_id || !$hotel_id || !$check_in || !$check_out) {
+    header('Location: services.php?type=hotels');
+    exit();
+}
+
+if(!isset($_SESSION['user_id'])) {
+    $_SESSION['pending_hotel_booking'] = [
+        'room_id' => $room_id,
+        'hotel_id' => $hotel_id,
+        'hotel_name' => $hotel_name,
+        'room_type_code' => $room_type_code,
+        'check_in' => $check_in,
+        'check_out' => $check_out,
+        'meal_type' => $meal_type,
+        'extra_bed' => $extra_bed,
+        'guests' => $guests,
+        'supplements' => $_POST['supplements'] ?? [],
+    ];
+    $_SESSION['redirect_after_login'] = 'hotel_rooms.php?hotel_id=' . urlencode($hotel_id) . '&resume=1';
+    header('Location: login.php');
+    exit();
+}
+
+// Get room details
+if($hotel_id == 43) {
+    $stmt = $pdo->prepare("SELECT * FROM hotel_room_types WHERE id = ?");
+    $stmt->execute([$room_id]);
+    $room = $stmt->fetch();
+    $db_room_type = $room['room_type'] ?? '';
+    $capacity = $room['capacity'] ?? 2;
+} else {
+    $stmt = $pdo->prepare("SELECT * FROM hotel_rooms WHERE id = ?");
+    $stmt->execute([$room_id]);
+    $room = $stmt->fetch();
+    $db_room_type = strtolower($room['room_type'] ?? '');
+    $capacity = $room['capacity'] ?? 2;
+}
+
+if(!$room) {
+    header('Location: services.php?type=hotels');
+    exit();
+}
+
+$date_in = new DateTime($check_in);
+$date_out = new DateTime($check_out);
+$nights = $date_in->diff($date_out)->days;
+
+if($nights < 1) {
+    header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
+    exit();
+}
+
+function isWeekend($date) {
+    $day = date('N', strtotime($date));
+    return ($day == 4 || $day == 5);
+}
+
+$total = 0;
+$extra_bed_total = 0;
+$supplements_total = 0;
+$meal_total = 0;
+
+// ============================================================
+// MAKKAH HOTEL (hotel_id = 43)
+// ============================================================
+if ($hotel_id == 43) {
+    $meal_type = $_POST['meal_type'] ?? 'breakfast';
+    $extra_bed = isset($_POST['extra_bed']) ? 1 : 0;
+    $supplements = $_POST['supplements'] ?? [];
+    $guests = $_POST['guests'] ?? 2;
+    
+    $supplement_prices = [
+        'renovated' => 125,
+        'junior_suite' => 250,
+        'kaaba_view' => 600,
+        'suite' => 2450
+    ];
+    
+    foreach ($supplements as $supp) {
+        if (isset($supplement_prices[$supp])) {
+            $supplements_total += $supplement_prices[$supp];
+        }
+    }
+    
+    $meal_prices = [
+        'breakfast' => 80,
+        'halfboard' => 250,
+        'fullboard' => 420
+    ];
+    $meal_price_per_night = $meal_prices[$meal_type] ?? 80;
+    
+    for ($i = 0; $i < $nights; $i++) {
+        $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
+        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
+        
+        $stmt = $pdo->prepare("
+            SELECT * FROM hotel_seasonal_pricing 
+            WHERE hotel_id = ? AND room_type_code = ? AND is_weekend = ? 
+            AND ? BETWEEN start_date AND end_date
+        ");
+        $stmt->execute([$hotel_id, $db_room_type, $is_weekend_val, $current_date]);
+        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($rule) {
+            $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
+            $total += $night_price;
+            
+            if ($extra_bed) {
+                $extra_bed_price = ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
+                $extra_bed_total += $extra_bed_price;
+            }
+        }
+    }
+    
+    $meal_total = $meal_price_per_night * $guests * $nights;
+    $grand_total = $total + $meal_total + $extra_bed_total + $supplements_total;
+    
+} elseif ($hotel_id == 63) {
+    // MOVENPICK
+    $meal_type = $_POST['meal_type'] ?? 'breakfast';
+    $extra_bed = isset($_POST['extra_bed']) ? 1 : 0;
+    if ($meal_type === 'fullboard') {
+        $extra_bed = 0;
+    }
+    
+    for ($i = 0; $i < $nights; $i++) {
+        $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
+        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
+        
+        $stmt = $pdo->prepare("
+            SELECT * FROM hotel_seasonal_pricing 
+            WHERE hotel_id = ? AND room_type = ? AND is_weekend = ? 
+            AND ? BETWEEN start_date AND end_date
+            AND (meal_type = ? OR is_full_board = 1)
+        ");
+        $stmt->execute([$hotel_id, $db_room_type, $is_weekend_val, $current_date, $meal_type]);
+        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($rule) {
+            $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
+            $total += $night_price;
+            
+            if ($extra_bed && !$rule['is_full_board']) {
+                $extra_bed_price = ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
+                $extra_bed_total += $extra_bed_price;
+            }
+        }
+    }
+    $grand_total = $total + $extra_bed_total;
+    
+} else {
+    // MARRIOT or OTHER
+    $stmt = $pdo->prepare("SELECT price_per_night_sar FROM hotel_rooms WHERE id = ?");
+    $stmt->execute([$room_id]);
+    $room_price = $stmt->fetch(PDO::FETCH_ASSOC);
+    $total = ($room_price['price_per_night_sar'] ?? 0) * $nights;
+    $grand_total = $total;
+}
+
+$booking_no = 'HOTEL-' . date('Ymd') . '-' . rand(1000, 9999);
+$travel_date = $check_in;
+$room_display = $room['room_type'] ?? $room['display_name'] ?? 'Room';
+$from_location = $hotel_name . ' - ' . $room_display . ' (Check-in: ' . $check_in . ', Check-out: ' . $check_out . ')';
+
+$stmt = $pdo->prepare("
+    INSERT INTO bookings (
+        booking_no, user_id, service_type, service_id, booking_date, 
+        travel_date, from_location, guests, extra_bed, extra_bed_price, total_amount, 
+        status, payment_status, can_cancel_until
+    ) VALUES (?, ?, 'hotel', ?, CURDATE(), ?, ?, ?, ?, ?, ?, 'pending', 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))
+");
+
+if($stmt->execute([
+    $booking_no, 
+    $_SESSION['user_id'], 
+    $hotel_id, 
+    $travel_date, 
+    $from_location, 
+    $capacity, 
+    $extra_bed,
+    $extra_bed_total,
+    $grand_total
+])) {
+    if(file_exists('send_booking_email.php')) {
+        require_once 'send_booking_email.php';
+        sendBookingEmail(
+            $_SESSION['user_email'],
+            $_SESSION['user_name'],
+            $booking_no,
+            'Hotel - ' . $hotel_name . ' (' . $room_display . ')',
+            $check_in . ' to ' . $check_out,
+            $grand_total,
+            $hotel_name,
+            $room_display,
+            $capacity,
+            $grand_total
+        );
+    }
+    
+    header('Location: booking_success.php?booking_no=' . $booking_no . '&type=hotel&amount=' . $grand_total);
+    exit();
+} else {
+    header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
+    exit();
+}
+?>
