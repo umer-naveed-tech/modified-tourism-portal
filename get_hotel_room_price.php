@@ -1,7 +1,35 @@
 <?php
 session_start();
 header('Content-Type: application/json');
+
+// ------------------------------------------------------------------
+// JSON safety net: PHP warnings/notices/fatal errors printed as raw
+// text (instead of being caught) corrupt the JSON response, which is
+// exactly what makes the frontend show "Error calculating price" —
+// fetch()'s response.json() fails to parse a response that has extra
+// text mixed into it. This block makes sure that never happens: any
+// warning gets logged instead of printed, and any fatal error still
+// results in a clean JSON error instead of a broken page.
+// ------------------------------------------------------------------
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+set_error_handler(function($errno, $errstr, $errfile, $errline) {
+    error_log("get_hotel_room_price.php warning: $errstr in $errfile on line $errline");
+    return true; // stop PHP's default output, we've logged it already
+});
+register_shutdown_function(function() {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        error_log("get_hotel_room_price.php FATAL: {$err['message']} in {$err['file']} on line {$err['line']}");
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
+        echo json_encode(['success' => false, 'error' => 'Server error while calculating price. Please try again.']);
+    }
+});
+
 require_once 'config.php';
+require_once 'hotel_handlers/handler_factory.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'error' => 'Invalid request']);
@@ -79,12 +107,12 @@ if ($hotel_id == 43) {
         $rule = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($rule) {
-            $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
+            $night_price = $rule['base_price_sar'];
             $total += $night_price;
             $nights++;
             
             if ($extra_bed) {
-                $extra_bed_price = ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
+                $extra_bed_price = $rule['extra_bed_base'] ?? 0;
                 $extra_bed_total += $extra_bed_price;
             }
             
@@ -96,36 +124,6 @@ if ($hotel_id == 43) {
             ];
             
             $found = true;
-        }
-        
-        if (!$found) {
-            $stmt = $pdo->prepare("
-                SELECT * FROM hotel_seasonal_pricing 
-                WHERE hotel_id = ? AND room_type = ? AND is_weekend = ? 
-                AND ? BETWEEN start_date AND end_date
-            ");
-            $stmt->execute([$hotel_id, $room_type, $is_weekend_val, $current_date]);
-            $rule = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($rule) {
-                $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
-                $total += $night_price;
-                $nights++;
-                
-                if ($extra_bed) {
-                    $extra_bed_price = ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
-                    $extra_bed_total += $extra_bed_price;
-                }
-                
-                $breakdown[] = [
-                    'date' => $current_date,
-                    'price' => $night_price,
-                    'is_weekend' => $is_weekend_val,
-                    'rule_name' => date('d M Y', strtotime($rule['start_date'])) . ' - ' . date('d M Y', strtotime($rule['end_date']))
-                ];
-                
-                $found = true;
-            }
         }
         
         if (!$found) {
@@ -317,6 +315,148 @@ if ($hotel_id == 41) {
         'nights' => $nights,
         'breakdown' => $breakdown,
         'is_full_board' => $is_full_board
+    ]);
+    exit();
+}
+
+// ============================================================
+// MAKKAH TOWERS (hotel_id = 44) — SIRF ROOMS + EXTRA BED
+// ============================================================
+if ($hotel_id == 44) {
+    $extra_bed = $raw['extra_bed'] ?? 0;
+    
+    $start = new DateTime($check_in);
+    $end = new DateTime($check_out);
+    $interval = new DateInterval('P1D');
+    $period = new DatePeriod($start, $interval, $end);
+    
+    $total = 0;
+    $extra_bed_total = 0;
+    $nights = 0;
+    $breakdown = [];
+    
+    foreach ($period as $date) {
+        $current_date = $date->format('Y-m-d');
+        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
+        $found = false;
+        
+        // Pehle room_type se try karein
+        $stmt = $pdo->prepare("
+            SELECT * FROM hotel_seasonal_pricing 
+            WHERE hotel_id = ? AND room_type = ? AND is_weekend = ? 
+            AND ? BETWEEN start_date AND end_date
+        ");
+        $stmt->execute([$hotel_id, $room_type, $is_weekend_val, $current_date]);
+        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Agar na mile to room_type_code se try karein — book_hotel_room.php
+        // isi tarah fallback karta hai, isliye preview aur final booking
+        // hamesha same price dikhayenge.
+        if (!$rule) {
+            $stmt = $pdo->prepare("
+                SELECT * FROM hotel_seasonal_pricing 
+                WHERE hotel_id = ? AND room_type_code = ? AND is_weekend = ? 
+                AND ? BETWEEN start_date AND end_date
+            ");
+            $stmt->execute([$hotel_id, $room_type, $is_weekend_val, $current_date]);
+            $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+        
+        if ($rule) {
+            $night_price = $rule['base_price_sar'];
+            $total += $night_price;
+            $nights++;
+            
+            if ($extra_bed) {
+                $extra_bed_price = $rule['extra_bed_base'] ?? 0;
+                $extra_bed_total += $extra_bed_price;
+            }
+            
+            $breakdown[] = [
+                'date' => $current_date,
+                'price' => $night_price,
+                'is_weekend' => $is_weekend_val,
+                'rule_name' => date('d M Y', strtotime($rule['start_date'])) . ' - ' . date('d M Y', strtotime($rule['end_date']))
+            ];
+            
+            $found = true;
+        }
+        
+        if (!$found) {
+            echo json_encode([
+                'success' => false,
+                'error' => "No pricing for date: $current_date (Room: $room_type, Weekend: $is_weekend_val)"
+            ]);
+            exit();
+        }
+    }
+    
+    $grand_total = $total + $extra_bed_total;
+    
+    echo json_encode([
+        'success' => true,
+        'room_total' => $total,
+        'extra_bed_total' => $extra_bed_total,
+        'grand_total' => $grand_total,
+        'nights' => $nights,
+        'breakdown' => $breakdown
+    ]);
+    exit();
+}
+
+// ============================================================
+// FAIRMONT CLOCK TOWER HOTEL MAKKAH & SWISSOTEL MAKKAH
+// Same structure: room_type_code + is_weekend, base+70 hidden markup,
+// no extra bed, no meal addon -- just room selection + total price.
+// ============================================================
+if ($hotel_id == FAIRMONT_HOTEL_ID || $hotel_id == SWISSOTEL_HOTEL_ID) {
+    $start = new DateTime($check_in);
+    $end = new DateTime($check_out);
+    $interval = new DateInterval('P1D');
+    $period = new DatePeriod($start, $interval, $end);
+
+    $total = 0;
+    $nights = 0;
+    $breakdown = [];
+
+    foreach ($period as $date) {
+        $current_date = $date->format('Y-m-d');
+        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
+
+        $stmt = $pdo->prepare("
+            SELECT * FROM hotel_seasonal_pricing 
+            WHERE hotel_id = ? AND room_type_code = ? AND is_weekend = ? 
+            AND ? BETWEEN start_date AND end_date
+        ");
+        $stmt->execute([$hotel_id, $room_type, $is_weekend_val, $current_date]);
+        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$rule) {
+            echo json_encode([
+                'success' => false,
+                'error' => "No pricing available for date: $current_date (Room: $room_type, Weekend: $is_weekend_val)"
+            ]);
+            exit();
+        }
+
+        $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
+        $total += $night_price;
+        $nights++;
+
+        $breakdown[] = [
+            'date' => $current_date,
+            'price' => $night_price,
+            'is_weekend' => $is_weekend_val,
+            'rule_name' => date('d M Y', strtotime($rule['start_date'])) . ' - ' . date('d M Y', strtotime($rule['end_date']))
+        ];
+    }
+
+    echo json_encode([
+        'success' => true,
+        'room_total' => $total,
+        'grand_total' => $total,
+        'nights' => $nights,
+        'breakdown' => $breakdown
     ]);
     exit();
 }

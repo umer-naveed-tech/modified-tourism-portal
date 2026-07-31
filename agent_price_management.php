@@ -5,6 +5,7 @@ if(!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'agent') {
     exit();
 }
 require_once 'config.php';
+require_once 'hotel_handlers/handler_factory.php';
 
 $section = $_GET['section'] ?? 'hotels';
 $city = $_GET['city'] ?? '';
@@ -12,6 +13,15 @@ $hotel_id = $_GET['hotel_id'] ?? 0;
 $room_id = $_GET['room_id'] ?? 0;
 $car_id = $_GET['car_id'] ?? 0;
 $meal_type = $_GET['meal_type'] ?? '';
+
+// ============================================================
+// 🔴 HAR HOTEL KA APNA HANDLER
+// ============================================================
+$handler = null;
+if ($hotel_id > 0) {
+    $handler = HotelHandlerFactory::getHandler($hotel_id);
+    $handlerClass = HotelHandlerFactory::getHandlerClass($hotel_id);
+}
 
 // Get all cities with hotels
 $stmt = $pdo->query("SELECT DISTINCT city FROM hotels_saudi WHERE city IS NOT NULL ORDER BY city");
@@ -25,13 +35,11 @@ if($city) {
     $hotels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Get rooms for a specific hotel
+// Get rooms for a specific hotel - 🔴 HANDLER SE
 $rooms = [];
 $hotel_name = '';
-if($hotel_id) {
-    $stmt = $pdo->prepare("SELECT * FROM hotel_rooms WHERE hotel_id = ? ORDER BY room_type");
-    $stmt->execute([$hotel_id]);
-    $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
+if($hotel_id && $handler) {
+    $rooms = $handler->getRooms($hotel_id);
     
     $stmt = $pdo->prepare("SELECT hotel_name FROM hotels_saudi WHERE id = ?");
     $stmt->execute([$hotel_id]);
@@ -42,14 +50,59 @@ if($hotel_id) {
 // MOVENPICK: Get Meal Categories
 $meal_categories = [];
 if($hotel_id == 63) {
-    $stmt = $pdo->prepare("SELECT DISTINCT meal_type FROM hotel_seasonal_pricing WHERE hotel_id = ? ORDER BY meal_type");
-    $stmt->execute([$hotel_id]);
-    $meal_categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $options = $handler->getBookingOptions($hotel_id);
+    if (isset($options['meal_types'])) {
+        $meal_categories = $options['meal_types'];
+    } else {
+        $stmt = $pdo->prepare("SELECT DISTINCT meal_type FROM hotel_seasonal_pricing WHERE hotel_id = ? ORDER BY meal_type");
+        $stmt->execute([$hotel_id]);
+        $meal_categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
 }
 
-// Get seasonal pricing for Movenpick with meal type filter
+// ============================================================
+// 🔴 MAKKAH HOTEL (ID: 43) - Seasonal Pricing Fetch
+// ============================================================
 $seasonal_rules = [];
-if($hotel_id == 63 && $meal_type) {
+$seasonal_rules_room = [];
+$room_type = '';
+$room_capacity = 0;
+$seasonal_room_label = '';
+
+if ($room_id > 0) {
+    if ($handler) {
+        $room = $handler->getRoomDetails($room_id);
+        if ($room) {
+            $room_type = $room['room_type'] ?? '';
+            $room_capacity = $room['capacity'] ?? 0;
+            $seasonal_room_label = $room['display_name'] ?? $room['room_type'] ?? 'Room';
+            
+            // 🔴 MAKKAH HOTEL (43), FAIRMONT (145), SWISSOTEL (146) - room_type_code use karein
+            if ($hotel_id == 43 || $hotel_id == FAIRMONT_HOTEL_ID || $hotel_id == SWISSOTEL_HOTEL_ID) {
+                $stmt = $pdo->prepare("
+                    SELECT * FROM hotel_seasonal_pricing 
+                    WHERE hotel_id = ? AND room_type_code = ? 
+                    ORDER BY start_date
+                ");
+                $stmt->execute([$hotel_id, $room_type]);
+                $seasonal_rules_room = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+            } else {
+                // Other hotels: room_type = separate, double, triple, quad
+                $stmt = $pdo->prepare("
+                    SELECT * FROM hotel_seasonal_pricing 
+                    WHERE hotel_id = ? AND room_type = ? 
+                    ORDER BY start_date
+                ");
+                $stmt->execute([$hotel_id, strtolower($room_type)]);
+                $seasonal_rules_room = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+        }
+    }
+}
+
+// MOVENPICK Seasonal Pricing (with meal type)
+if ($hotel_id == 63 && $meal_type) {
     $stmt = $pdo->prepare("
         SELECT 
             room_type,
@@ -71,28 +124,6 @@ if($hotel_id == 63 && $meal_type) {
     $seasonal_rules = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Get seasonal pricing for a specific room (Marriot style)
-$seasonal_rules_room = [];
-$room_type = '';
-$room_capacity = 0;
-if($room_id && $hotel_id != 63) {
-    $stmt = $pdo->prepare("SELECT room_type, capacity FROM hotel_rooms WHERE id = ?");
-    $stmt->execute([$room_id]);
-    $room = $stmt->fetch();
-    if($room) {
-        $room_type = $room['room_type'];
-        $room_capacity = $room['capacity'];
-        
-        $stmt = $pdo->prepare("
-            SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type = ? 
-            ORDER BY start_date
-        ");
-        $stmt->execute([$hotel_id, strtolower($room_type)]);
-        $seasonal_rules_room = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-}
-
 // Get all cars for taxi fares
 $stmt = $pdo->query("SELECT id, car_name, car_model FROM cars ORDER BY car_name");
 $cars = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -103,14 +134,6 @@ if($car_id) {
     $stmt = $pdo->prepare("SELECT id, from_city, to_city, price_sar FROM car_fares WHERE car_id = ? ORDER BY from_city, to_city");
     $stmt->execute([$car_id]);
     $fares = $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-$seasonal_room_label = '';
-if($room_id) {
-    $stmt = $pdo->prepare("SELECT room_type FROM hotel_rooms WHERE id = ?");
-    $stmt->execute([$room_id]);
-    $r = $stmt->fetch();
-    $seasonal_room_label = $r['room_type'] ?? '';
 }
 ?>
 <!DOCTYPE html>
@@ -158,11 +181,17 @@ if($room_id) {
         .content-header { padding: 16px 24px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.04); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .content-header h3 { font-size: 16px; font-weight: 600; color: white; }
         .content-header h3 span { color: #d4af37; }
+        .content-header .handler-badge { 
+            background: rgba(212, 175, 55, 0.1); 
+            color: #d4af37; 
+            padding: 4px 14px; 
+            border-radius: 50px; 
+            font-size: 11px; 
+            font-weight: 500;
+            border: 1px solid rgba(212, 175, 55, 0.05);
+        }
         .content-body { padding: 20px 24px; }
         
-        /* ============================================================
-           ROOM GRID (Marriot style)
-           ============================================================ */
         .room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
         .room-card { 
             display: block; 
@@ -181,9 +210,6 @@ if($room_id) {
         .room-card .room-capacity { color: rgba(255,255,255,0.3); font-size: 12px; display: block; margin-top: 3px; }
         .room-card .seasonal-badge { display: inline-block; background: rgba(16,185,129,0.1); color: #34d399; font-size: 10px; padding: 2px 10px; border-radius: 12px; margin-top: 5px; }
         
-        /* ============================================================
-           MOVENPICK: 3 MEAL CATEGORY CARDS (Marriot style)
-           ============================================================ */
         .meal-category-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -220,9 +246,6 @@ if($room_id) {
             color: rgba(255,255,255,0.3);
         }
         
-        /* ============================================================
-           TABLE
-           ============================================================ */
         table { width: 100%; border-collapse: collapse; }
         th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.04); }
         td { padding: 10px 12px; font-size: 13px; color: rgba(255,255,255,0.7); border-bottom: 1px solid rgba(255,255,255,0.02); vertical-align: middle; }
@@ -250,6 +273,69 @@ if($room_id) {
         .weekday-tag { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 10px; font-weight: 500; background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.3); }
         .weekend-tag { display: inline-block; padding: 2px 10px; border-radius: 4px; font-size: 10px; font-weight: 500; background: rgba(212,175,55,0.1); color: #d4af37; }
         .no-extra { color: rgba(255,255,255,0.2); font-size: 11px; }
+        
+        /* ============================================================
+           MAKKAH HOTEL PRICE MANAGEMENT - NO MARKUP COLUMN
+           ============================================================ */
+        .seasonal-rules-container {
+            overflow-x: auto;
+        }
+        .seasonal-rules-container table {
+            min-width: 600px;
+        }
+        /* Collapsible date-range groups -- taake lambi list default mein
+           minimized rahe, agent jo period chahe wahi expand kare */
+        .period-group {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .period-group summary {
+            padding: 14px 18px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            list-style: none;
+        }
+        .period-group summary::-webkit-details-marker { display: none; }
+        .period-group summary::before {
+            content: '▸';
+            color: #d4af37;
+            margin-right: 10px;
+            font-size: 12px;
+            display: inline-block;
+            transition: transform 0.2s ease;
+        }
+        .period-group[open] summary::before { transform: rotate(90deg); }
+        .period-group summary:hover { background: rgba(212, 175, 55, 0.04); }
+        .period-group .row-count { color: rgba(255,255,255,0.3); font-size: 12px; font-weight: 400; }
+        .period-group table { margin: 0; min-width: unset; width: 100%; }
+        .period-group table th { background: rgba(255,255,255,0.02); }
+        .room-type-code-badge {
+            display: inline-block;
+            background: rgba(212, 175, 55, 0.1);
+            color: #d4af37;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-left: 8px;
+        }
+        .makkah-price-display {
+            color: #34d399;
+            font-weight: 600;
+        }
+        .makkah-label {
+            color: rgba(255,255,255,0.3);
+            font-size: 11px;
+            font-weight: 400;
+        }
         
         @media (max-width: 768px) {
             .management-layout { flex-direction: column; }
@@ -308,12 +394,15 @@ if($room_id) {
             <div class="content-card">
                 <div class="content-header">
                     <h3>
-                        <?php if($hotel_id == 63 && $meal_type): ?>
+                        <?php if($room_id > 0): ?>
+                            <span><?php echo htmlspecialchars($hotel_name); ?></span> — <?php echo htmlspecialchars($seasonal_room_label); ?>
+                            <?php if($hotel_id == 43 || $hotel_id == 44): ?>
+                                <span class="room-type-code-badge"><?php echo htmlspecialchars($room_type); ?></span>
+                            <?php endif; ?>
+                        <?php elseif($hotel_id == 63 && $meal_type): ?>
                             <span><?php echo htmlspecialchars($hotel_name); ?></span> — <?php echo ucfirst(str_replace('board', ' Board', $meal_type)); ?>
                         <?php elseif($hotel_id == 63): ?>
                             <span><?php echo htmlspecialchars($hotel_name); ?></span> — Select Meal Plan
-                        <?php elseif($room_id): ?>
-                            <span><?php echo htmlspecialchars($hotel_name); ?></span> — <?php echo htmlspecialchars($seasonal_room_label); ?> Room
                         <?php elseif($hotel_id): ?>
                             <span><?php echo htmlspecialchars($hotel_name); ?></span> — Rooms
                         <?php elseif($city): ?>
@@ -322,20 +411,196 @@ if($room_id) {
                             Select a city from the sidebar
                         <?php endif; ?>
                     </h3>
-                    <?php if($hotel_id == 63 && $meal_type): ?>
-                        <a href="?section=hotels&city=<?php echo urlencode($city); ?>&hotel_id=<?php echo $hotel_id; ?>" class="btn-back">← Back to Meal Plans</a>
-                    <?php elseif($room_id): ?>
-                        <a href="?section=hotels&city=<?php echo urlencode($city); ?>&hotel_id=<?php echo $hotel_id; ?>" class="btn-back">← Back to Rooms</a>
-                    <?php elseif($hotel_id): ?>
-                        <a href="?section=hotels&city=<?php echo urlencode($city); ?>" class="btn-back">← Back to Hotels</a>
-                    <?php elseif($city): ?>
-                        <a href="?section=hotels" class="btn-back">← Back to Cities</a>
-                    <?php endif; ?>
+                    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                        <?php if($room_id > 0): ?>
+                            <a href="?section=hotels&city=<?php echo urlencode($city); ?>&hotel_id=<?php echo $hotel_id; ?>" class="btn-back">← Back to Rooms</a>
+                        <?php elseif($hotel_id == 63 && $meal_type): ?>
+                            <a href="?section=hotels&city=<?php echo urlencode($city); ?>&hotel_id=<?php echo $hotel_id; ?>" class="btn-back">← Back to Meal Plans</a>
+                        <?php elseif($hotel_id): ?>
+                            <a href="?section=hotels&city=<?php echo urlencode($city); ?>" class="btn-back">← Back to Hotels</a>
+                        <?php elseif($city): ?>
+                            <a href="?section=hotels" class="btn-back">← Back to Cities</a>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <div class="content-body">
-                    <?php if($hotel_id == 63 && !$meal_type): ?>
+                    <?php if($room_id > 0): ?>
                         <!-- ============================================================
-                        MOVENPICK: Show 3 Meal Categories (Marriot style)
+                        🔴 SHOW SEASONAL PRICING FOR SELECTED ROOM
+                        ============================================================ -->
+                        <?php if(!empty($seasonal_rules_room)): ?>
+                            <div class="seasonal-rules-container">
+                                <?php
+                                    // Rows ko date-range ke hisaab se group karo -- taake lambi
+                                    // flat list ki jagah collapsible sections banein (minimize).
+                                    // Har group mein us period ke saare bed-type/weekend rows hain.
+                                    $periodGroups = [];
+                                    foreach ($seasonal_rules_room as $rule) {
+                                        $gkey = $rule['start_date'] . '_' . $rule['end_date'];
+                                        if (!isset($periodGroups[$gkey])) {
+                                            $periodGroups[$gkey] = [
+                                                'label' => date('d M Y', strtotime($rule['start_date'])) . ' — ' . date('d M Y', strtotime($rule['end_date'])),
+                                                'rows' => [],
+                                            ];
+                                        }
+                                        $periodGroups[$gkey]['rows'][] = $rule;
+                                    }
+                                    $isFirstGroup = true;
+                                ?>
+                                <?php if($hotel_id == 43 || $hotel_id == 44): ?>
+                                    <!-- ============================================================
+                                    MAKKAH HOTEL (43) & MAKKAH TOWERS (44) - NO MARKUP COLUMN
+                                    Booking/preview code for these two hotels only ever reads
+                                    base_price_sar / extra_bed_base and NEVER adds markup_sar.
+                                    So the agent must not be shown an editable Markup field here —
+                                    it would silently do nothing to the price the customer pays.
+                                    ============================================================ -->
+                                    <?php foreach ($periodGroups as $group): ?>
+                                    <details class="period-group" <?php echo $isFirstGroup ? 'open' : ''; ?>>
+                                        <summary>
+                                            <span><?php echo htmlspecialchars($group['label']); ?></span>
+                                            <span class="row-count"><?php echo count($group['rows']); ?> rates</span>
+                                        </summary>
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Room Price (SAR)</th>
+                                                    <th>Weekend</th>
+                                                    <th>Extra Bed (SAR)</th>
+                                                    <th>Meal Type</th>
+                                                    <th style="width:80px;">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach($group['rows'] as $rule): 
+                                                    // Sirf base price (markup is not used by booking code for these hotels)
+                                                    $room_final = $rule['base_price_sar'];
+                                                    $extra_bed_final = $rule['extra_bed_base'] ?? 0;
+                                                ?>
+                                                <tr>
+                                                    <td>
+                                                        <input type="number" class="price-input" id="base-<?php echo $rule['id']; ?>" 
+                                                               value="<?php echo $room_final; ?>" step="1" min="0">
+                                                    </td>
+                                                    <td>
+                                                        <?php if($rule['is_weekend']): ?>
+                                                            <span class="weekend-tag">Weekend</span>
+                                                        <?php else: ?>
+                                                            <span class="weekday-tag">Weekday</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
+                                                        <input type="number" class="price-input" id="eb-base-<?php echo $rule['id']; ?>" 
+                                                               value="<?php echo $extra_bed_final; ?>" step="1" min="0" style="width:80px;">
+                                                    </td>
+                                                    <td>
+                                                        <?php echo $rule['meal_type'] ?? 'N/A'; ?>
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn-update" onclick="updateMakkahPrice(<?php echo $rule['id']; ?>)">Update</button>
+                                                    </td>
+                                                </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </details>
+                                    <?php $isFirstGroup = false; endforeach; ?>
+                                    <div style="margin-top:12px; padding:12px 16px; background:rgba(16,185,129,0.04); border-radius:8px; border:1px solid rgba(16,185,129,0.06); font-size:13px; color:#34d399;">
+                                        💡 <strong>Note:</strong> This hotel has no separate markup — the Room Price above is exactly what the customer is charged per night. Changes will automatically reflect on the booking page.
+                                    </div>
+                                    
+                                <?php else: ?>
+                                    <!-- ============================================================
+                                    ALL OTHER HOTELS (Marriot, Fairmont, Swissotel, future hotels) -
+                                    HIDDEN MARKUP
+                                    Standing rule: every hotel here gets a 70 SAR/night hidden markup
+                                    that must NEVER be shown or editable on any frontend (customer OR
+                                    agent). Agent edits the single "Room Price" field (= what the
+                                    customer sees); the JS subtracts the fixed 70 SAR and reuses
+                                    update_seasonal_price.php. Bed Type column is shown because each
+                                    room category can have multiple bed configs (Double/Triple/Quad)
+                                    sharing the same date range -- without it the rows look like
+                                    duplicates.
+                                    ============================================================ -->
+                                    <?php foreach ($periodGroups as $group): ?>
+                                    <details class="period-group" <?php echo $isFirstGroup ? 'open' : ''; ?>>
+                                        <summary>
+                                            <span><?php echo htmlspecialchars($group['label']); ?></span>
+                                            <span class="row-count"><?php echo count($group['rows']); ?> rates</span>
+                                        </summary>
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Bed Type</th>
+                                                    <th>Room Price (SAR)</th>
+                                                    <th>Weekend</th>
+                                                    <th style="width:80px;">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php foreach($group['rows'] as $rule): 
+                                                    $room_final = $rule['base_price_sar'] + $rule['markup_sar'];
+                                                ?>
+                                                <tr>
+                                                    <td><strong><?php echo htmlspecialchars(ucfirst($rule['room_type'])); ?></strong></td>
+                                                    <td>
+                                                        <input type="number" class="price-input" id="fs-price-<?php echo $rule['id']; ?>" 
+                                                               value="<?php echo $room_final; ?>" step="1" min="0">
+                                                    </td>
+                                                    <td>
+                                                        <?php if($rule['is_weekend']): ?>
+                                                            <span class="weekend-tag">Weekend</span>
+                                                        <?php else: ?>
+                                                            <span class="weekday-tag">Weekday</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
+                                                        <button class="btn-update" onclick="updateHiddenMarkupPrice(<?php echo $rule['id']; ?>)">Update</button>
+                                                    </td>
+                                                </tr>
+                                                <?php endforeach; ?>
+                                            </tbody>
+                                        </table>
+                                    </details>
+                                    <?php $isFirstGroup = false; endforeach; ?>
+                                    <div style="margin-top:12px; padding:12px 16px; background:rgba(16,185,129,0.04); border-radius:8px; border:1px solid rgba(16,185,129,0.06); font-size:13px; color:#34d399;">
+                                        💡 <strong>Note:</strong> Room Price is exactly what the customer is charged per night. Changes will automatically reflect on the booking page.
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="empty-state">
+                                <p>No seasonal pricing found for this room.</p>
+                                <p style="font-size:12px; margin-top:8px; color:rgba(255,255,255,0.2);">
+                                    Search value used: <strong style="color:#d4af37;"><?php echo htmlspecialchars($room_type); ?></strong>
+                                    (hotel_id = <?php echo (int)$hotel_id; ?>)
+                                </p>
+                                <?php
+                                    // Diagnostic: kitni rows total is hotel ke liye DB mein hain (kisi bhi
+                                    // room_type_code ke sath) -- taake pata chale ke masla "koi data hi
+                                    // nahi hai" hai ya "room_type_code mismatch" hai.
+                                    $diag = $pdo->prepare("SELECT room_type_code, COUNT(*) as cnt FROM hotel_seasonal_pricing WHERE hotel_id = ? GROUP BY room_type_code");
+                                    $diag->execute([$hotel_id]);
+                                    $diagRows = $diag->fetchAll(PDO::FETCH_ASSOC);
+                                ?>
+                                <?php if(empty($diagRows)): ?>
+                                    <p style="font-size:12px; margin-top:8px; color:#f87171;">
+                                        Is hotel (id <?php echo (int)$hotel_id; ?>) ke liye database mein koi bhi seasonal pricing row nahi mili. Seed SQL check karo -- shayad run nahi hua ya beech mein rukh gaya tha.
+                                    </p>
+                                <?php else: ?>
+                                    <p style="font-size:12px; margin-top:8px; color:rgba(255,255,255,0.3);">
+                                        Is hotel ke liye database mein ye room_type_codes maujood hain:
+                                        <?php foreach($diagRows as $d): ?>
+                                            <span style="color:#34d399;"><?php echo htmlspecialchars($d['room_type_code'] ?? 'NULL'); ?> (<?php echo $d['cnt']; ?>)</span>&nbsp;&nbsp;
+                                        <?php endforeach; ?>
+                                    </p>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+
+                    <?php elseif($hotel_id == 63 && !$meal_type): ?>
+                        <!-- ============================================================
+                        MOVENPICK: Show 3 Meal Categories
                         ============================================================ -->
                         <div class="meal-category-grid">
                             <?php 
@@ -382,7 +647,10 @@ if($room_id) {
                                         $eb_final = ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
                                         $has_extra = $eb_final > 0;
                                     ?>
-                                    <tr id="seasonal-row-<?php echo $rule['room_type']; ?>">
+                                    <tr id="seasonal-row-<?php echo $rule['room_type']; ?>"
+                                        data-wd-markup="<?php echo (float)($rule['weekday_markup'] ?? 0); ?>"
+                                        data-we-markup="<?php echo (float)($rule['weekend_markup'] ?? 0); ?>"
+                                        data-eb-markup="<?php echo (float)($rule['extra_bed_markup'] ?? 0); ?>">
                                         <td><strong><?php echo ucfirst($rule['room_type']); ?></strong></td>
                                         <td>
                                             <?php echo date('d M Y', strtotime($rule['start_date'])); ?> 
@@ -422,20 +690,12 @@ if($room_id) {
 
                     <?php elseif($hotel_id && !empty($rooms)): ?>
                         <!-- ============================================================
-                        SHOW ROOMS (Marriot style)
+                        SHOW ROOMS (Handler se aayenge)
                         ============================================================ -->
                         <div class="room-grid">
-                            <?php foreach($rooms as $r): 
-                                $stmt = $pdo->prepare("SELECT COUNT(*) FROM hotel_seasonal_pricing WHERE hotel_id = ? AND room_type = ?");
-                                $stmt->execute([$hotel_id, strtolower($r['room_type'])]);
-                                $hasSeasonal = $stmt->fetchColumn() > 0;
-                            ?>
+                            <?php foreach($rooms as $r): ?>
                                 <a href="?section=hotels&city=<?php echo urlencode($city); ?>&hotel_id=<?php echo $hotel_id; ?>&room_id=<?php echo $r['id']; ?>" class="room-card">
-                                    <?php echo htmlspecialchars($r['room_type']); ?>
-                                    <span class="room-capacity"><?php echo $r['capacity']; ?> person<?php echo $r['capacity'] > 1 ? 's' : ''; ?></span>
-                                    <?php if($hasSeasonal): ?>
-                                        <span class="seasonal-badge">Seasonal</span>
-                                    <?php endif; ?>
+                                    <?php echo htmlspecialchars($r['display_name'] ?? $r['room_type']); ?>
                                 </a>
                             <?php endforeach; ?>
                         </div>
@@ -446,10 +706,15 @@ if($room_id) {
                     <?php elseif($city && !empty($hotels)): ?>
                         <!-- SHOW HOTELS -->
                         <div class="room-grid">
-                            <?php foreach($hotels as $h): ?>
+                            <?php foreach($hotels as $h): 
+                                $hasCustomHandler = HotelHandlerFactory::hasCustomHandler($h['id']);
+                            ?>
                                 <a href="?section=hotels&city=<?php echo urlencode($city); ?>&hotel_id=<?php echo $h['id']; ?>" class="room-card" style="padding:18px 20px;">
                                     <?php echo htmlspecialchars($h['hotel_name']); ?>
                                     <span class="room-capacity" style="font-size:12px; color:#d4af37; margin-top:4px;"><?php echo str_repeat('★', (int)$h['rating']); ?></span>
+                                    <?php if($hasCustomHandler): ?>
+                                        <span class="seasonal-badge" style="background:rgba(212,175,55,0.1); color:#d4af37;">Custom</span>
+                                    <?php endif; ?>
                                 </a>
                             <?php endforeach; ?>
                         </div>
@@ -547,21 +812,123 @@ function showToast(message, type = 'success') {
 }
 
 // ============================================================
+// 🔴 MAKKAH HOTEL: Update Price (No Markup)
+// ============================================================
+function updateMakkahPrice(ruleId) {
+    const base = document.getElementById('base-' + ruleId).value;
+    const ebBase = document.getElementById('eb-base-' + ruleId)?.value || 0;
+    const btn = event.target;
+    
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
+    const body = 'id=' + encodeURIComponent(ruleId) + 
+                 '&base=' + encodeURIComponent(base) + 
+                 '&markup=0' +
+                 '&extra_bed_base=' + encodeURIComponent(ebBase) +
+                 '&extra_bed_markup=0' +
+                 '&csrf_token=' + encodeURIComponent(csrfToken);
+    
+    fetch('update_seasonal_price.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.success) {
+            showToast('Price updated successfully!', 'success');
+            document.getElementById('base-' + ruleId).classList.add('updated');
+            if (document.getElementById('eb-base-' + ruleId)) {
+                document.getElementById('eb-base-' + ruleId).classList.add('updated');
+            }
+        } else {
+            showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(() => {
+        showToast('Network error. Please try again.', 'error');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.textContent = 'Update';
+    });
+}
+
+// ============================================================
+// UPDATE FAIRMONT / SWISSOTEL PRICE (hidden 70 SAR markup)
+// Agent sirf ek final price field dekhta/edit karta hai. 70 SAR ek
+// fixed business rule hai (kabhi badalti nahi), isliye yahan client
+// side subtract karna safe hai -- Movenpick jaisa fragile guess-work
+// nahi hai (wahan markup DB se aa sakti thi, yahan hamesha 70 fixed).
+// Reuses the existing update_seasonal_price.php endpoint -- koi nayi
+// file nahi banayi.
+// ============================================================
+function updateHiddenMarkupPrice(ruleId) {
+    const price = parseFloat(document.getElementById('fs-price-' + ruleId).value);
+    const btn = event.target;
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    // 70 SAR fixed rule (kabhi badalti nahi) -- isliye yahan subtract
+    // karna safe hai, Movenpick jaisa fragile guess-work nahi hai.
+    // Existing update_seasonal_price.php hi reuse kar rahe hain, koi
+    // nayi file nahi banayi.
+    const base = price - 70;
+
+    const body = 'id=' + encodeURIComponent(ruleId) +
+                 '&base=' + encodeURIComponent(base) +
+                 '&markup=70' +
+                 '&csrf_token=' + encodeURIComponent(csrfToken);
+
+    fetch('update_seasonal_price.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Price updated successfully!', 'success');
+            document.getElementById('fs-price-' + ruleId).classList.add('updated');
+        } else {
+            showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(() => {
+        showToast('Network error. Please try again.', 'error');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.textContent = 'Update';
+    });
+}
+
+// ============================================================
 // MOVENPICK: Update Prices
 // ============================================================
 function updateMovenpickPrice(roomType, mealType, startDate, endDate, isFullBoard) {
     const wdPrice = document.getElementById('wd-' + roomType).value;
     const wePrice = document.getElementById('we-' + roomType).value;
     const extraBed = document.getElementById('eb-' + roomType)?.value || 0;
+    const row = document.getElementById('seasonal-row-' + roomType);
     const btn = event.target;
     
     btn.disabled = true;
     btn.textContent = 'Saving...';
     
-    // Calculate base prices (final price - 70 markup)
-    const wdBase = parseFloat(wdPrice) - 70;
-    const weBase = parseFloat(wePrice) - 70;
-    const ebBase = parseFloat(extraBed) - 25;
+    // Pehle hardcoded -70/-25 subtract hota tha, jo sirf coincidentally
+    // sahi tha (kyunki DB mein markup abhi 70/25 hai). Ab asal markup
+    // value row ke data-attribute se li jaati hai — chahe kabhi markup
+    // koi aur value ho, ye hamesha sahi base price nikalega.
+    const wdMarkup = parseFloat(row?.dataset.wdMarkup || 0);
+    const weMarkup = parseFloat(row?.dataset.weMarkup || 0);
+    const ebMarkup = parseFloat(row?.dataset.ebMarkup || 0);
+    
+    const wdBase = parseFloat(wdPrice) - wdMarkup;
+    const weBase = parseFloat(wePrice) - weMarkup;
+    const ebBase = parseFloat(extraBed) - ebMarkup;
     
     fetch('update_movenpick_prices.php', {
         method: 'POST',

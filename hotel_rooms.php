@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'config.php';
+require_once 'hotel_handlers/handler_factory.php';
 
 $hotel_id = $_GET['hotel_id'] ?? 0;
 
@@ -15,126 +16,19 @@ if(!$hotel) {
 }
 
 // ============================================================
-// MAKKAH HOTEL (ID: 43) - DELUXE HV REMOVED
+// 🔴 HAR HOTEL KA APNA HANDLER — SARI COMPLEXITY YAHAAN SE GAYI
 // ============================================================
-$roomsForJs = [];
-
-if($hotel_id == 43) {
-    // Deluxe HV ko filter karo
-    $stmt = $pdo->prepare("
-        SELECT * FROM hotel_room_types 
-        WHERE hotel_id = ? AND room_type != 'deluxe_hv'
-        ORDER BY room_type
-    ");
-    $stmt->execute([$hotel_id]);
-    $room_types = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    foreach($room_types as $rt) {
-        $seasonalStmt = $pdo->prepare("
-            SELECT 
-                COUNT(*) as has_seasonal,
-                MIN(base_price_sar + markup_sar) as min_price,
-                MAX(base_price_sar + markup_sar) as max_price
-            FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type_code = ?
-        ");
-        $seasonalStmt->execute([$hotel_id, $rt['room_type']]);
-        $seasonal = $seasonalStmt->fetch(PDO::FETCH_ASSOC);
-        
-        $has_seasonal = $seasonal['has_seasonal'] > 0;
-        $min_price = $seasonal['min_price'] ?? 0;
-        $max_price = $seasonal['max_price'] ?? 0;
-        
-        if ($has_seasonal && $min_price > 0) {
-            $display_price = $min_price;
-            $price_label = 'From SAR ' . number_format($min_price);
-        } else {
-            $display_price = 0;
-            $price_label = 'Pricing Available';
-        }
-        
-        $roomsForJs[] = [
-            'id'          => (int)$rt['id'],
-            'type'        => $rt['room_type'],
-            'label'       => $rt['display_name'],
-            'display_name' => $rt['display_name'],
-            'price'       => (float)$display_price,
-            'capacity'    => (int)$rt['capacity'],
-            'image'       => null,
-            'hasImage'    => false,
-            'description' => $rt['description'] ?? 'Comfortable room with premium amenities',
-            'amenities'   => ['Attached Washroom', 'Air Conditioning', 'WiFi', 'TV'],
-            'has_seasonal' => $has_seasonal,
-            'price_label' => $price_label,
-            'min_price'   => (float)$min_price,
-            'max_price'   => (float)$max_price
-        ];
-    }
-} else {
-    // Other hotels - standard logic
-    $stmt = $pdo->prepare("SELECT * FROM hotel_rooms WHERE hotel_id = ? ORDER BY FIELD(room_type, 'Separate', 'Double', 'Triple', 'Quad')");
-    $stmt->execute([$hotel_id]);
-    $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    $capacityMap = ['Separate' => 1, 'Double' => 2, 'Triple' => 3, 'Quad' => 4];
-    $roomTypeToSeasonal = ['Separate' => 'separate', 'Double' => 'double', 'Triple' => 'triple', 'Quad' => 'quad'];
-    
-    foreach($rooms as $room) {
-        $seasonalStmt = $pdo->prepare("
-            SELECT 
-                COUNT(*) as has_seasonal,
-                MIN(base_price_sar + markup_sar) as min_price,
-                MAX(base_price_sar + markup_sar) as max_price
-            FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type = ?
-        ");
-        $seasonalStmt->execute([$hotel_id, $roomTypeToSeasonal[$room['room_type']]]);
-        $seasonal = $seasonalStmt->fetch(PDO::FETCH_ASSOC);
-        
-        $has_seasonal = $seasonal['has_seasonal'] > 0;
-        $min_price = $seasonal['min_price'] ?? 0;
-        $max_price = $seasonal['max_price'] ?? 0;
-        
-        if ($has_seasonal && $min_price > 0) {
-            $display_price = $min_price;
-            $price_label = 'From SAR ' . number_format($min_price);
-        } else {
-            $display_price = $room['price_per_night_sar'] ?? 0;
-            $price_label = $display_price > 0 ? 'SAR ' . number_format($display_price) : 'Pricing Available';
-        }
-        
-        $amenities = !empty($room['amenities'])
-            ? array_map('trim', explode(',', $room['amenities']))
-            : ['Attached Washroom', 'Air Conditioning', 'WiFi'];
-        
-        $amenities = array_filter($amenities, function($item) {
-            return strtolower(trim($item)) !== 'mini bar';
-        });
-        $amenities = array_values($amenities);
-
-        $roomsForJs[] = [
-            'id'          => (int)$room['id'],
-            'type'        => $room['room_type'],
-            'label'       => $room['room_type'] . ' Room',
-            'price'       => (float)$display_price,
-            'capacity'    => $capacityMap[$room['room_type']] ?? 1,
-            'image'       => !empty($room['image_url']) ? $room['image_url'] : null,
-            'hasImage'    => !empty($room['image_url']),
-            'description' => $room['description'] ?? 'Comfortable room with all amenities',
-            'amenities'   => $amenities,
-            'has_seasonal' => $has_seasonal,
-            'price_label' => $price_label,
-            'min_price'   => (float)$min_price,
-            'max_price'   => (float)$max_price
-        ];
-    }
-}
+$handler = HotelHandlerFactory::getHandler($hotel_id);
+$rooms = $handler->getRooms($hotel_id);
 
 $error = '';
 $is_movenpick = ($hotel_id == 63);
 $is_makkah = ($hotel_id == 43);
+$is_marriot = ($hotel_id == 41);
+$is_makkah_towers = ($hotel_id == 44);
+$is_fairmont = ($hotel_id == FAIRMONT_HOTEL_ID);
+$is_swissotel = ($hotel_id == SWISSOTEL_HOTEL_ID);
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -672,6 +566,29 @@ $is_makkah = ($hotel_id == 43);
         }
         .empty-state h4 { color: #ffffff; margin-bottom: 6px; }
 
+        /* ============================================================
+           MAKKAH TOWERS - Custom Options Styles
+           ============================================================ */
+        .makkah-towers-options .form-check {
+            padding: 4px 0;
+        }
+        .makkah-towers-options .form-check-label {
+            font-size: 13px;
+            color: rgba(255,255,255,0.6);
+        }
+        .makkah-towers-options .form-check-input {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .makkah-towers-options .form-check-input:checked {
+            background-color: #d4af37;
+            border-color: #d4af37;
+        }
+        .makkah-towers-options .meal-plan-options,
+        .makkah-towers-options .extra-bed-option {
+            display: block !important;
+        }
+
         @media (max-width: 768px) {
             .hotel-header h2 { font-size: 24px; }
             .price { font-size: 22px; }
@@ -683,6 +600,9 @@ $is_makkah = ($hotel_id == 43);
             .selector-panel { padding: 20px !important; }
             .price-breakdown { padding: 16px; }
             .meal-category-grid { grid-template-columns: 1fr; }
+            .makkah-towers-options .form-check {
+                padding: 6px 0;
+            }
         }
     </style>
 </head>
@@ -725,15 +645,18 @@ $is_makkah = ($hotel_id == 43);
             <div class="alert alert-danger" style="background:rgba(239,68,68,0.06); border-color:rgba(239,68,68,0.08); color:#f87171; border-radius:12px;">Booking failed. Please try again.</div>
         <?php endif; ?>
 
-        <?php if(count($roomsForJs) > 0): ?>
+        <?php if(count($rooms) > 0): ?>
             <div class="panel selector-panel">
                 <label class="selector-label" for="roomTypeSelect">Select Room Type</label>
                 <div class="room-select-wrap">
                     <select id="roomTypeSelect" class="room-select">
                         <option value="" style="color:rgba(255,255,255,0.3);">— Choose a room type —</option>
-                        <?php foreach($roomsForJs as $i => $r): ?>
-                            <option value="<?php echo $i; ?>" data-has-seasonal="<?php echo $r['has_seasonal'] ? 'true' : 'false'; ?>">
-                                <?php echo htmlspecialchars($r['label']); ?> — <?php echo htmlspecialchars($r['price_label']); ?> (<?php echo $r['capacity']; ?> <?php echo $r['capacity'] > 1 ? 'persons' : 'person'; ?>)
+                        <?php foreach($rooms as $i => $r): ?>
+                            <option value="<?php echo $i; ?>" 
+                                    data-room-id="<?php echo $r['id']; ?>"
+                                    data-room-type="<?php echo htmlspecialchars($r['room_type']); ?>"
+                                    data-has-seasonal="<?php echo isset($r['has_seasonal']) && $r['has_seasonal'] ? 'true' : 'false'; ?>">
+                                <?php echo htmlspecialchars($r['display_name'] ?? $r['room_type']); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -849,6 +772,13 @@ $is_makkah = ($hotel_id == 43);
                     </div>
                     <?php endif; ?>
 
+                    <!-- ============================================================
+                    🔴 HANDLER-SPECIFIC OPTIONS (Makkah Towers, etc.)
+                    ============================================================ -->
+                    <div id="handlerOptions">
+                        <?php echo $handler->renderRoomSelection($hotel_id, $rooms); ?>
+                    </div>
+
                     <div class="row g-3 mt-2">
                         <div class="col-md-4">
                             <label class="form-label">Check-in</label>
@@ -897,10 +827,14 @@ $is_makkah = ($hotel_id == 43);
 
 <script>
 // Room data
-const roomsData = <?php echo json_encode($roomsForJs, JSON_UNESCAPED_SLASHES); ?>;
+const roomsData = <?php echo json_encode($rooms, JSON_UNESCAPED_SLASHES); ?>;
 let selectedRoom = null;
 const isMovenpick = <?php echo $is_movenpick ? 'true' : 'false'; ?>;
 const isMakkah = <?php echo $is_makkah ? 'true' : 'false'; ?>;
+const isMarriot = <?php echo $is_marriot ? 'true' : 'false'; ?>;
+const isMakkahTowers = <?php echo $is_makkah_towers ? 'true' : 'false'; ?>;
+const isFairmont = <?php echo $is_fairmont ? 'true' : 'false'; ?>;
+const isSwissotel = <?php echo $is_swissotel ? 'true' : 'false'; ?>;
 
 function calculateNights() {
     const checkIn = document.getElementById('check_in').value;
@@ -990,7 +924,7 @@ function calculateTotal() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 hotel_id: hotelId,
-                room_type: room.type,
+                room_type: room.room_type,
                 check_in: checkIn,
                 check_out: checkOut,
                 meal_type: mealType,
@@ -1018,12 +952,12 @@ function calculateTotal() {
                     const existing = ranges.find(r => r.rule_name === key);
                     if (existing) {
                         existing.count++;
-                        existing.total += item.price;
+                        existing.total += parseFloat(item.price);
                     } else {
                         ranges.push({
                             rule_name: key,
                             count: 1,
-                            total: item.price
+                            total: parseFloat(item.price)
                         });
                     }
                 });
@@ -1098,7 +1032,7 @@ function calculateTotal() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 hotel_id: hotelId,
-                room_type: room.type.toLowerCase(),
+                room_type: room.room_type,
                 check_in: checkIn,
                 check_out: checkOut,
                 meal_type: mealType,
@@ -1124,12 +1058,12 @@ function calculateTotal() {
                     const existing = ranges.find(r => r.rule_name === key);
                     if (existing) {
                         existing.count++;
-                        existing.total += item.price;
+                        existing.total += parseFloat(item.price);
                     } else {
                         ranges.push({
                             rule_name: key,
                             count: 1,
-                            total: item.price
+                            total: parseFloat(item.price)
                         });
                     }
                 });
@@ -1183,7 +1117,185 @@ function calculateTotal() {
     }
     
     // ============================================================
-    // OTHER HOTELS - Fallback
+    // MAKKAH TOWERS (hotel_id = 44)
+    // ============================================================
+    if (isMakkahTowers) {
+        const mealType = document.querySelector('input[name="meal_type"]:checked')?.value || 'breakfast';
+        const extraBed = document.getElementById('extra_bed_makkah_towers')?.checked ? 1 : 0;
+        const guests = document.getElementById('guests_makkah_towers')?.value || 2;
+        
+        document.getElementById('total_amount').value = 'Calculating...';
+        document.getElementById('btnBook').disabled = true;
+        
+        fetch('get_hotel_room_price.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                hotel_id: hotelId,
+                room_type: room.room_type,
+                check_in: checkIn,
+                check_out: checkOut,
+                meal_type: mealType,
+                extra_bed: extraBed,
+                guests: parseInt(guests),
+                hotel_type: 'makkah_towers'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.nights > 0) {
+                    document.getElementById('nights').value = data.nights;
+                }
+                
+                document.getElementById('grandTotal').textContent = 'SAR ' + data.grand_total.toFixed(2);
+                document.getElementById('total_amount').value = 'SAR ' + data.grand_total.toFixed(2);
+                
+                let breakdownHtml = '';
+                const ranges = [];
+                
+                data.breakdown.forEach(item => {
+                    const key = item.rule_name + (item.is_weekend ? ' (Weekend)' : ' (Weekday)');
+                    const existing = ranges.find(r => r.rule_name === key);
+                    if (existing) {
+                        existing.count++;
+                        existing.total += parseFloat(item.price);
+                    } else {
+                        ranges.push({
+                            rule_name: key,
+                            count: 1,
+                            total: parseFloat(item.price)
+                        });
+                    }
+                });
+                
+                ranges.forEach(range => {
+                    breakdownHtml += `
+                        <div class="breakdown-range">
+                            <div>
+                                <span class="range-label">${range.rule_name}</span>
+                                <span class="range-nights">${range.count} night${range.count > 1 ? 's' : ''}</span>
+                            </div>
+                            <span class="range-price">SAR ${range.total.toFixed(2)}</span>
+                        </div>
+                    `;
+                });
+                
+                if (data.extra_bed_total > 0) {
+                    breakdownHtml += `
+                        <div class="breakdown-range" style="border-left-color: #34d399;">
+                            <div>
+                                <span class="range-label">Extra Bed</span>
+                                <span class="range-nights">${data.nights} nights</span>
+                            </div>
+                            <span class="range-price" style="color:#34d399;">SAR ${data.extra_bed_total.toFixed(2)}</span>
+                        </div>
+                    `;
+                }
+                
+                if (data.meal_total > 0) {
+                    breakdownHtml += `
+                        <div class="breakdown-range" style="border-left-color: #d4af37;">
+                            <div>
+                                <span class="range-label">Meal Plan (${data.meal_type})</span>
+                                <span class="range-nights">${data.guest_count} persons × ${data.nights} nights</span>
+                            </div>
+                            <span class="range-price" style="color:#d4af37;">SAR ${data.meal_total.toFixed(2)}</span>
+                        </div>
+                    `;
+                }
+                
+                document.getElementById('breakdownDetails').innerHTML = breakdownHtml;
+                document.getElementById('priceBreakdown').style.display = 'block';
+                document.getElementById('btnBook').disabled = false;
+            } else {
+                alert('Error: ' + data.error);
+                document.getElementById('total_amount').value = 'SAR 0';
+                document.getElementById('btnBook').disabled = true;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('total_amount').value = 'Error calculating price';
+            document.getElementById('btnBook').disabled = true;
+        });
+        
+        return;
+    }
+    
+    // ============================================================
+    // FAIRMONT CLOCK TOWER & SWISSOTEL MAKKAH
+    // ============================================================
+    if (isFairmont || isSwissotel) {
+        document.getElementById('total_amount').value = 'Calculating...';
+        document.getElementById('btnBook').disabled = true;
+
+        fetch('get_hotel_room_price.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                hotel_id: hotelId,
+                room_type: room.room_type,
+                check_in: checkIn,
+                check_out: checkOut
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.nights > 0) {
+                    document.getElementById('nights').value = data.nights;
+                }
+
+                document.getElementById('grandTotal').textContent = 'SAR ' + data.grand_total.toFixed(2);
+                document.getElementById('total_amount').value = 'SAR ' + data.grand_total.toFixed(2);
+
+                let breakdownHtml = '';
+                const ranges = [];
+
+                data.breakdown.forEach(item => {
+                    const key = item.rule_name + (item.is_weekend ? ' (Weekend)' : ' (Weekday)');
+                    const existing = ranges.find(r => r.rule_name === key);
+                    if (existing) {
+                        existing.count++;
+                        existing.total += parseFloat(item.price);
+                    } else {
+                        ranges.push({ rule_name: key, count: 1, total: parseFloat(item.price) });
+                    }
+                });
+
+                ranges.forEach(range => {
+                    breakdownHtml += `
+                        <div class="breakdown-range">
+                            <div>
+                                <span class="range-label">${range.rule_name}</span>
+                                <span class="range-nights">${range.count} night${range.count > 1 ? 's' : ''}</span>
+                            </div>
+                            <span class="range-price">SAR ${range.total.toFixed(2)}</span>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('breakdownDetails').innerHTML = breakdownHtml;
+                document.getElementById('priceBreakdown').style.display = 'block';
+                document.getElementById('btnBook').disabled = false;
+            } else {
+                alert('Error: ' + data.error);
+                document.getElementById('total_amount').value = 'SAR 0';
+                document.getElementById('btnBook').disabled = true;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('total_amount').value = 'Error calculating price';
+            document.getElementById('btnBook').disabled = true;
+        });
+
+        return;
+    }
+    
+    // ============================================================
+    // OTHER HOTELS (Including Marriot) - Fallback
     // ============================================================
     if (room.has_seasonal) {
         document.getElementById('total_amount').value = 'Calculating...';
@@ -1194,7 +1306,7 @@ function calculateTotal() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 hotel_id: hotelId,
-                room_type: room.type.toLowerCase(),
+                room_type: room.room_type.toLowerCase(),
                 check_in: checkIn,
                 check_out: checkOut,
                 hotel_type: 'other'
@@ -1217,12 +1329,12 @@ function calculateTotal() {
                     const existing = ranges.find(r => r.rule_name === item.rule_name);
                     if (existing) {
                         existing.count++;
-                        existing.total += item.price;
+                        existing.total += parseFloat(item.price);
                     } else {
                         ranges.push({
                             rule_name: item.rule_name,
                             count: 1,
-                            total: item.price
+                            total: parseFloat(item.price)
                         });
                     }
                 });
@@ -1260,7 +1372,11 @@ function calculateTotal() {
             document.getElementById('btnBook').disabled = true;
         });
     } else {
-        const total = room.price * nights;
+        // Simple/normal hotels (NormalHotelHandler) ka room object mein
+        // price field ka naam "price_per_night_sar" hai, "price" nahi —
+        // isliye pehle "room.price" hamesha undefined tha aur total "NaN"
+        // ban jata tha.
+        const total = room.price_per_night_sar * nights;
         document.getElementById('total_amount').value = 'SAR ' + total.toFixed(2);
         document.getElementById('btnBook').disabled = total > 0 ? false : true;
         document.getElementById('priceBreakdown').style.display = 'none';
@@ -1269,23 +1385,35 @@ function calculateTotal() {
 
 function renderRoomDetail(room) {
     const imgWrap = document.getElementById('rd_image_wrap');
-    if(room.hasImage) {
-        imgWrap.innerHTML = '<img src="' + room.image + '" alt="' + room.type + ' Room" onerror="this.onerror=null;this.parentElement.innerHTML=noImageMarkup(\'' + room.type + '\');">';
+    if(room.image_url) {
+        imgWrap.innerHTML = '<img src="' + room.image_url + '" alt="' + room.room_type + ' Room" onerror="this.onerror=null;this.parentElement.innerHTML=noImageMarkup(\'' + room.room_type + '\');">';
     } else {
-        imgWrap.innerHTML = noImageMarkup(room.type);
+        imgWrap.innerHTML = noImageMarkup(room.room_type);
     }
 
-    document.getElementById('rd_badge').textContent = room.type;
-    document.getElementById('rd_title').textContent = room.label;
-    document.getElementById('rd_desc').textContent = room.description;
+    document.getElementById('rd_badge').textContent = room.room_type;
+    document.getElementById('rd_title').textContent = room.display_name || room.room_type + ' Room';
+    document.getElementById('rd_desc').textContent = room.description || 'Comfortable room with premium amenities';
     
     const amenitiesBox = document.getElementById('rd_amenities');
     amenitiesBox.innerHTML = '';
-    room.amenities.forEach(a => {
-        const span = document.createElement('span');
-        span.className = 'amenity';
-        span.textContent = a;
-        amenitiesBox.appendChild(span);
+    
+    let amenities = room.amenities || [];
+    if (typeof amenities === 'string') {
+        amenities = amenities.split(',').map(a => a.trim());
+    }
+    
+    if (amenities.length === 0) {
+        amenities = ['Attached Washroom', 'Air Conditioning', 'WiFi'];
+    }
+    
+    amenities.forEach(a => {
+        if (a && a.toLowerCase() !== 'mini bar') {
+            const span = document.createElement('span');
+            span.className = 'amenity';
+            span.textContent = a;
+            amenitiesBox.appendChild(span);
+        }
     });
 }
 
@@ -1311,7 +1439,7 @@ if(select) {
         selectedRoom = roomsData[parseInt(this.value)];
         renderRoomDetail(selectedRoom);
         document.getElementById('selected_room_id').value = selectedRoom.id;
-        document.getElementById('selected_room_type_code').value = selectedRoom.type;
+        document.getElementById('selected_room_type_code').value = selectedRoom.room_type;
         document.getElementById('roomDetail').classList.add('active');
         document.getElementById('bookingSection').classList.add('active');
         calculateNights();
@@ -1348,6 +1476,17 @@ document.getElementById('extra_bed')?.addEventListener('change', calculateTotal)
 
 // Movenpick extra bed
 document.getElementById('extra_bed_movenpick')?.addEventListener('change', calculateTotal);
+
+// Makkah Towers extra bed
+document.getElementById('extra_bed_makkah_towers')?.addEventListener('change', calculateTotal);
+
+// Makkah Towers guests
+document.getElementById('guests_makkah_towers')?.addEventListener('change', calculateTotal);
+
+// Makkah Towers meal plan change
+document.querySelectorAll('#handlerOptions input[name="meal_type"]').forEach(el => {
+    el.addEventListener('change', calculateTotal);
+});
 </script>
 
 </body>
