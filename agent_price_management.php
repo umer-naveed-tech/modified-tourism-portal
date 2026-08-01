@@ -511,8 +511,8 @@ if($car_id) {
                                     
                                 <?php else: ?>
                                     <!-- ============================================================
-                                    ALL OTHER HOTELS (Marriot, Fairmont, Swissotel, future hotels) -
-                                    HIDDEN MARKUP
+                                    ALL OTHER HOTELS (Marriot, Fairmont, Swissotel, Al Safwah, Conrad,
+                                    future hotels) - HIDDEN MARKUP
                                     Standing rule: every hotel here gets a 70 SAR/night hidden markup
                                     that must NEVER be shown or editable on any frontend (customer OR
                                     agent). Agent edits the single "Room Price" field (= what the
@@ -521,7 +521,10 @@ if($car_id) {
                                     room category can have multiple bed configs (Double/Triple/Quad)
                                     sharing the same date range -- without it the rows look like
                                     duplicates.
+                                    Al Safwah Tower 3 also gets an Extra Bed column (same hidden-25
+                                    markup pattern) since it's the only new hotel with that feature.
                                     ============================================================ -->
+                                    <?php $show_extra_bed_col = ($hotel_id == ALSAFWAH_HOTEL_ID); ?>
                                     <?php foreach ($periodGroups as $group): ?>
                                     <details class="period-group" <?php echo $isFirstGroup ? 'open' : ''; ?>>
                                         <summary>
@@ -533,6 +536,7 @@ if($car_id) {
                                                 <tr>
                                                     <th>Bed Type</th>
                                                     <th>Room Price (SAR)</th>
+                                                    <?php if($show_extra_bed_col): ?><th>Extra Bed (SAR)</th><?php endif; ?>
                                                     <th>Weekend</th>
                                                     <th style="width:80px;">Action</th>
                                                 </tr>
@@ -540,6 +544,7 @@ if($car_id) {
                                             <tbody>
                                                 <?php foreach($group['rows'] as $rule): 
                                                     $room_final = $rule['base_price_sar'] + $rule['markup_sar'];
+                                                    $extra_bed_final = ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
                                                 ?>
                                                 <tr>
                                                     <td><strong><?php echo htmlspecialchars(ucfirst($rule['room_type'])); ?></strong></td>
@@ -547,6 +552,12 @@ if($car_id) {
                                                         <input type="number" class="price-input" id="fs-price-<?php echo $rule['id']; ?>" 
                                                                value="<?php echo $room_final; ?>" step="1" min="0">
                                                     </td>
+                                                    <?php if($show_extra_bed_col): ?>
+                                                    <td>
+                                                        <input type="number" class="price-input" id="fs-extrabed-<?php echo $rule['id']; ?>" 
+                                                               value="<?php echo $extra_bed_final; ?>" step="1" min="0" style="width:90px;">
+                                                    </td>
+                                                    <?php endif; ?>
                                                     <td>
                                                         <?php if($rule['is_weekend']): ?>
                                                             <span class="weekend-tag">Weekend</span>
@@ -555,7 +566,7 @@ if($car_id) {
                                                         <?php endif; ?>
                                                     </td>
                                                     <td>
-                                                        <button class="btn-update" onclick="updateHiddenMarkupPrice(<?php echo $rule['id']; ?>)">Update</button>
+                                                        <button class="btn-update" onclick="updateHiddenMarkupPrice(<?php echo $rule['id']; ?>, <?php echo $show_extra_bed_col ? 'true' : 'false'; ?>)">Update</button>
                                                     </td>
                                                 </tr>
                                                 <?php endforeach; ?>
@@ -864,7 +875,7 @@ function updateMakkahPrice(ruleId) {
 // Reuses the existing update_seasonal_price.php endpoint -- koi nayi
 // file nahi banayi.
 // ============================================================
-function updateHiddenMarkupPrice(ruleId) {
+function updateHiddenMarkupPrice(ruleId, hasExtraBed) {
     const price = parseFloat(document.getElementById('fs-price-' + ruleId).value);
     const btn = event.target;
 
@@ -877,10 +888,19 @@ function updateHiddenMarkupPrice(ruleId) {
     // nayi file nahi banayi.
     const base = price - 70;
 
-    const body = 'id=' + encodeURIComponent(ruleId) +
+    let body = 'id=' + encodeURIComponent(ruleId) +
                  '&base=' + encodeURIComponent(base) +
-                 '&markup=70' +
-                 '&csrf_token=' + encodeURIComponent(csrfToken);
+                 '&markup=70';
+
+    if (hasExtraBed) {
+        // Extra Bed ka hidden markup bhi hamesha fixed 25 hai (jaisa
+        // base fare ke liye 70 hai) -- isi tarah subtract kiya.
+        const extraBedPrice = parseFloat(document.getElementById('fs-extrabed-' + ruleId).value);
+        const extraBedBase = extraBedPrice - 25;
+        body += '&extra_bed_base=' + encodeURIComponent(extraBedBase) + '&extra_bed_markup=25';
+    }
+
+    body += '&csrf_token=' + encodeURIComponent(csrfToken);
 
     fetch('update_seasonal_price.php', {
         method: 'POST',

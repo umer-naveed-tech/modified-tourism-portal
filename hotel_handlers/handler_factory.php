@@ -2,12 +2,13 @@
 // hotel_handlers/handler_factory.php
 
 // NAYE HOTELS KE IDs -- inhi constants ko poori codebase mein use karo
-// (agent_price_management.php, get_hotel_room_price.php, book_hotel_room.php,
-// hotel_rooms.php) taake ID kahin bhi mismatch na ho.
+// taake ID kahin bhi mismatch na ho.
 define('FAIRMONT_HOTEL_ID', 145);
 define('SWISSOTEL_HOTEL_ID', 146);
 define('SWISSOTEL_ALMAQAM_HOTEL_ID', 147);
 define('ALMARWA_HOTEL_ID', 148);
+define('ALSAFWAH_HOTEL_ID', 149);
+define('CONRAD_HOTEL_ID', 150);
 
 require_once __DIR__ . '/base_handler.php';
 require_once __DIR__ . '/normal_hotel.php';
@@ -17,8 +18,10 @@ require_once __DIR__ . '/makkah_hotel.php';
 require_once __DIR__ . '/makkah_towers.php';
 require_once __DIR__ . '/fairmont_clocktower.php';
 require_once __DIR__ . '/swissotel_makkah.php';
-require_once __DIR__ . '/swissotel_almaqam.php';   // NAYA
-require_once __DIR__ . '/al_marwa_rayhaan.php';    // NAYA
+require_once __DIR__ . '/swissotel_almaqam.php';
+require_once __DIR__ . '/al_marwa_rayhaan.php';
+require_once __DIR__ . '/al_safwah_tower3.php';   // NAYA
+require_once __DIR__ . '/conrad_makkah.php';      // NAYA
 
 class HotelHandlerFactory {
 
@@ -31,14 +34,14 @@ class HotelHandlerFactory {
         146 => 'SwissotelMakkahHandler',
         147 => 'SwissotelAlMaqamHandler',
         148 => 'AlMarwaRayhaanHandler',
+        149 => 'AlSafwahTower3Handler',
+        150 => 'ConradMakkahHandler',
     ];
 
     // "Simple" pattern hotels: room_type_code + is_weekend, 70 SAR hidden
-    // markup, koi extra bed nahi, koi meal add-on nahi. Naya aisa hotel
-    // add karte waqt bas iske array mein ID daal do -- get_hotel_room_price.php,
-    // book_hotel_room.php, hotel_rooms.php, agent_price_management.php
-    // sab is ek list se check karte hain, kahin bhi lambi || chain nahi
-    // badhani padti.
+    // markup, koi extra bed nahi, koi meal add-on nahi, koi supplement
+    // nahi. Al Safwah/Conrad is list mein NAHI hain kyunki unke apne
+    // bespoke blocks hain (extra bed / supplements) -- Makkah Hotel jaisa.
     private static $simpleHiddenMarkupHotels = [145, 146, 147, 148];
 
     public static function isSimpleHiddenMarkupHotel($hotel_id) {
@@ -67,7 +70,6 @@ class HotelHandlerFactory {
         return isset(self::$handlers[$hotel_id]);
     }
 
-    // NAYA HOTEL ADD KARNE KE LIYE YE FUNCTION USE KAREN
     public static function registerHandler($hotel_id, $handler_class) {
         self::$handlers[$hotel_id] = $handler_class;
     }

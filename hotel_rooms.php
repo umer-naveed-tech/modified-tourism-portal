@@ -27,6 +27,8 @@ $is_makkah = ($hotel_id == 43);
 $is_marriot = ($hotel_id == 41);
 $is_makkah_towers = ($hotel_id == 44);
 $is_simple_hidden_markup = HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id);
+$is_safwah = ($hotel_id == ALSAFWAH_HOTEL_ID);
+$is_conrad = ($hotel_id == CONRAD_HOTEL_ID);
 ?>
 <!DOCTYPE html>
 <html>
@@ -855,6 +857,8 @@ const isMakkah = <?php echo $is_makkah ? 'true' : 'false'; ?>;
 const isMarriot = <?php echo $is_marriot ? 'true' : 'false'; ?>;
 const isMakkahTowers = <?php echo $is_makkah_towers ? 'true' : 'false'; ?>;
 const isSimpleHiddenMarkupHotel = <?php echo $is_simple_hidden_markup ? 'true' : 'false'; ?>;
+const isSafwah = <?php echo $is_safwah ? 'true' : 'false'; ?>;
+const isConrad = <?php echo $is_conrad ? 'true' : 'false'; ?>;
 
 function calculateNights() {
     const checkIn = document.getElementById('check_in').value;
@@ -1240,6 +1244,100 @@ function calculateTotal() {
             document.getElementById('btnBook').disabled = true;
         });
         
+        return;
+    }
+    
+    // ============================================================
+    // AL SAFWAH TOWER 3 & CONRAD HOTEL MAKKAH
+    // ============================================================
+    if (isSafwah || isConrad) {
+        const extraBed = isSafwah ? (document.getElementById('safwah_extra_bed')?.checked ? 1 : 0) : 0;
+        const supplementEl = document.querySelector('input[name="supplement"]:checked');
+        const supplement = supplementEl ? supplementEl.value : '';
+
+        document.getElementById('total_amount').value = 'Calculating...';
+        document.getElementById('btnBook').disabled = true;
+
+        fetch('get_hotel_room_price.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                hotel_id: hotelId,
+                room_type: room.room_type,
+                check_in: checkIn,
+                check_out: checkOut,
+                extra_bed: extraBed,
+                supplement: supplement
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.nights > 0) {
+                    document.getElementById('nights').value = data.nights;
+                }
+
+                document.getElementById('grandTotal').textContent = 'SAR ' + data.grand_total.toFixed(2);
+                document.getElementById('total_amount').value = 'SAR ' + data.grand_total.toFixed(2);
+
+                let breakdownHtml = '';
+                const ranges = [];
+
+                data.breakdown.forEach(item => {
+                    const key = item.rule_name + (item.is_weekend ? ' (Weekend)' : ' (Weekday)');
+                    const existing = ranges.find(r => r.rule_name === key);
+                    if (existing) {
+                        existing.count++;
+                        existing.total += parseFloat(item.price);
+                    } else {
+                        ranges.push({ rule_name: key, count: 1, total: parseFloat(item.price) });
+                    }
+                });
+
+                ranges.forEach(range => {
+                    breakdownHtml += `
+                        <div class="breakdown-range">
+                            <div>
+                                <span class="range-label">${range.rule_name}</span>
+                                <span class="range-nights">${range.count} night${range.count > 1 ? 's' : ''}</span>
+                            </div>
+                            <span class="range-price">SAR ${range.total.toFixed(2)}</span>
+                        </div>
+                    `;
+                });
+
+                if (data.extra_bed_total > 0) {
+                    breakdownHtml += `
+                        <div class="breakdown-range" style="border-left-color: #d4af37;">
+                            <div><span class="range-label">Extra Bed</span></div>
+                            <span class="range-price" style="color:#d4af37;">SAR ${data.extra_bed_total.toFixed(2)}</span>
+                        </div>
+                    `;
+                }
+                if (data.supplement_total > 0) {
+                    breakdownHtml += `
+                        <div class="breakdown-range" style="border-left-color: #d4af37;">
+                            <div><span class="range-label">Room Supplement</span></div>
+                            <span class="range-price" style="color:#d4af37;">SAR ${data.supplement_total.toFixed(2)}</span>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('breakdownDetails').innerHTML = breakdownHtml;
+                document.getElementById('priceBreakdown').style.display = 'block';
+                document.getElementById('btnBook').disabled = false;
+            } else {
+                alert('Error: ' + data.error);
+                document.getElementById('total_amount').value = 'SAR 0';
+                document.getElementById('btnBook').disabled = true;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('total_amount').value = 'Error calculating price';
+            document.getElementById('btnBook').disabled = true;
+        });
+
         return;
     }
     

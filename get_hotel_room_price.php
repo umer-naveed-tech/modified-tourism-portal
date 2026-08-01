@@ -40,6 +40,8 @@ $raw = json_decode(file_get_contents('php://input'), true);
 $hotel_id = $raw['hotel_id'] ?? 0;
 $room_type = $raw['room_type'] ?? '';
 $bed_type = $raw['bed_type'] ?? '';
+$extra_bed = $raw['extra_bed'] ?? 0;
+$supplement = $raw['supplement'] ?? null;
 $check_in = $raw['check_in'] ?? '';
 $check_out = $raw['check_out'] ?? '';
 $hotel_type = $raw['hotel_type'] ?? '';
@@ -398,6 +400,133 @@ if ($hotel_id == 44) {
         'success' => true,
         'room_total' => $total,
         'extra_bed_total' => $extra_bed_total,
+        'grand_total' => $grand_total,
+        'nights' => $nights,
+        'breakdown' => $breakdown
+    ]);
+    exit();
+}
+
+// ============================================================
+// AL SAFWAH TOWER 3 HOTEL -- single room type, extra bed + supplement
+// ============================================================
+if ($hotel_id == ALSAFWAH_HOTEL_ID) {
+    $supplement_prices = ['standard_hv' => 110, 'junior_suite' => 350];
+
+    $start = new DateTime($check_in);
+    $end = new DateTime($check_out);
+    $interval = new DateInterval('P1D');
+    $period = new DatePeriod($start, $interval, $end);
+
+    $total = 0;
+    $extra_bed_total = 0;
+    $nights = 0;
+    $breakdown = [];
+
+    foreach ($period as $date) {
+        $current_date = $date->format('Y-m-d');
+        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
+
+        $stmt = $pdo->prepare("
+            SELECT * FROM hotel_seasonal_pricing 
+            WHERE hotel_id = ? AND room_type = 'double' AND is_weekend = ? 
+            AND ? BETWEEN start_date AND end_date
+        ");
+        $stmt->execute([$hotel_id, $is_weekend_val, $current_date]);
+        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$rule) {
+            echo json_encode(['success' => false, 'error' => "No pricing available for date: $current_date"]);
+            exit();
+        }
+
+        $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
+        $total += $night_price;
+        $nights++;
+
+        if ($extra_bed) {
+            $extra_bed_total += ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
+        }
+
+        $breakdown[] = [
+            'date' => $current_date,
+            'price' => $night_price,
+            'is_weekend' => $is_weekend_val,
+            'rule_name' => date('d M Y', strtotime($rule['start_date'])) . ' - ' . date('d M Y', strtotime($rule['end_date']))
+        ];
+    }
+
+    $supplement_total = ($supplement && isset($supplement_prices[$supplement])) ? $supplement_prices[$supplement] : 0;
+    $grand_total = $total + $extra_bed_total + $supplement_total;
+
+    echo json_encode([
+        'success' => true,
+        'room_total' => $total,
+        'extra_bed_total' => $extra_bed_total,
+        'supplement_total' => $supplement_total,
+        'grand_total' => $grand_total,
+        'nights' => $nights,
+        'breakdown' => $breakdown
+    ]);
+    exit();
+}
+
+// ============================================================
+// CONRAD HOTEL MAKKAH -- single room type, supplement only (no extra bed)
+// ============================================================
+if ($hotel_id == CONRAD_HOTEL_ID) {
+    $supplement_prices = [
+        'superior_partial_hv' => 120, 'deluxe_suite_partial_hv' => 630,
+        'executive_cv' => 300, 'executive_partial_hv' => 415,
+        'grand_premier' => 2820, 'two_bedroom_partial_haram' => 1560,
+        'three_bedroom_partial_haram' => 4910, 'royal_suite' => 8610,
+    ];
+
+    $start = new DateTime($check_in);
+    $end = new DateTime($check_out);
+    $interval = new DateInterval('P1D');
+    $period = new DatePeriod($start, $interval, $end);
+
+    $total = 0;
+    $nights = 0;
+    $breakdown = [];
+
+    foreach ($period as $date) {
+        $current_date = $date->format('Y-m-d');
+        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
+
+        $stmt = $pdo->prepare("
+            SELECT * FROM hotel_seasonal_pricing 
+            WHERE hotel_id = ? AND room_type = 'double' AND is_weekend = ? 
+            AND ? BETWEEN start_date AND end_date
+        ");
+        $stmt->execute([$hotel_id, $is_weekend_val, $current_date]);
+        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$rule) {
+            echo json_encode(['success' => false, 'error' => "No pricing available for date: $current_date"]);
+            exit();
+        }
+
+        $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
+        $total += $night_price;
+        $nights++;
+
+        $breakdown[] = [
+            'date' => $current_date,
+            'price' => $night_price,
+            'is_weekend' => $is_weekend_val,
+            'rule_name' => date('d M Y', strtotime($rule['start_date'])) . ' - ' . date('d M Y', strtotime($rule['end_date']))
+        ];
+    }
+
+    $supplement_total = ($supplement && isset($supplement_prices[$supplement])) ? $supplement_prices[$supplement] : 0;
+    $grand_total = $total + $supplement_total;
+
+    echo json_encode([
+        'success' => true,
+        'room_total' => $total,
+        'supplement_total' => $supplement_total,
         'grand_total' => $grand_total,
         'nights' => $nights,
         'breakdown' => $breakdown
