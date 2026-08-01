@@ -1,22 +1,18 @@
 <?php
-// hotel_handlers/fairmont_clocktower.php
+// hotel_handlers/al_marwa_rayhaan.php
 //
-// Fairmont Clock Tower Hotel Makkah -- 5 Star
-// Structure: room_type_code = room category (city/haram/kaaba/gold view),
-// room_type = bed config (double/triple/quad), is_weekend split.
-// Breakfast is always included in the room rate. No extra bed, no meal
-// add-on -- just room selection and total price.
-//
-// Pricing rule for ALL new hotels going forward: base_price_sar in the DB
-// is (hotel rate sheet price - 70), and markup_sar is always 70 -- so the
-// customer always sees the rate-sheet price, but it's stored as
-// base+markup on the backend (matches Marriot/Movenpick convention).
+// Al Marwa Rayhaan by Rotana Makkah -- same structure as Fairmont/
+// Swissotel: room_type_code = room category, room_type = bed config,
+// is_weekend split. Breakfast always included. No extra bed, no meal
+// add-on. Many room categories (Family/Two-bedroom/Royal suites) only
+// have a Quad price -- Double/Triple simply have no row for those, so
+// they won't appear as bookable bed options for those room types.
 
 require_once __DIR__ . '/base_handler.php';
 
-class FairmontClockTowerHandler implements HotelHandlerInterface {
+class AlMarwaRayhaanHandler implements HotelHandlerInterface {
 
-    private $hotel_id = FAIRMONT_HOTEL_ID; // set via define() in handler_factory.php
+    private $hotel_id = ALMARWA_HOTEL_ID; // set via define() in handler_factory.php
 
     public function getRooms($hotel_id) {
         global $pdo;

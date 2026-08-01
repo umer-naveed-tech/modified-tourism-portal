@@ -39,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $raw = json_decode(file_get_contents('php://input'), true);
 $hotel_id = $raw['hotel_id'] ?? 0;
 $room_type = $raw['room_type'] ?? '';
+$bed_type = $raw['bed_type'] ?? '';
 $check_in = $raw['check_in'] ?? '';
 $check_out = $raw['check_out'] ?? '';
 $hotel_type = $raw['hotel_type'] ?? '';
@@ -409,7 +410,16 @@ if ($hotel_id == 44) {
 // Same structure: room_type_code + is_weekend, base+70 hidden markup,
 // no extra bed, no meal addon -- just room selection + total price.
 // ============================================================
-if ($hotel_id == FAIRMONT_HOTEL_ID || $hotel_id == SWISSOTEL_HOTEL_ID) {
+if (HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
+    // Bed Type (Double/Triple/Quad) ek ALAG required selection hai --
+    // iske bina room_type_code+date se 3 rows (har bed type ki) match ho
+    // jaati thin aur fetch() unme se koi bhi ek utha leta tha (galat,
+    // undefined price). Ab dono (room category + bed type) filter hote hain.
+    if ($bed_type === '') {
+        echo json_encode(['success' => false, 'error' => 'Please select a bed type (Double/Triple/Quad)']);
+        exit();
+    }
+
     $start = new DateTime($check_in);
     $end = new DateTime($check_out);
     $interval = new DateInterval('P1D');
@@ -425,16 +435,16 @@ if ($hotel_id == FAIRMONT_HOTEL_ID || $hotel_id == SWISSOTEL_HOTEL_ID) {
 
         $stmt = $pdo->prepare("
             SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type_code = ? AND is_weekend = ? 
+            WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND is_weekend = ? 
             AND ? BETWEEN start_date AND end_date
         ");
-        $stmt->execute([$hotel_id, $room_type, $is_weekend_val, $current_date]);
+        $stmt->execute([$hotel_id, $room_type, $bed_type, $is_weekend_val, $current_date]);
         $rule = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$rule) {
             echo json_encode([
                 'success' => false,
-                'error' => "No pricing available for date: $current_date (Room: $room_type, Weekend: $is_weekend_val)"
+                'error' => "No pricing available for date: $current_date (Room: $room_type, Bed: $bed_type, Weekend: $is_weekend_val)"
             ]);
             exit();
         }

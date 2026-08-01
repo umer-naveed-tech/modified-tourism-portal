@@ -78,7 +78,7 @@ if ($room_id > 0) {
             $seasonal_room_label = $room['display_name'] ?? $room['room_type'] ?? 'Room';
             
             // 🔴 MAKKAH HOTEL (43), FAIRMONT (145), SWISSOTEL (146) - room_type_code use karein
-            if ($hotel_id == 43 || $hotel_id == FAIRMONT_HOTEL_ID || $hotel_id == SWISSOTEL_HOTEL_ID) {
+            if ($hotel_id == 43 || HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
                 $stmt = $pdo->prepare("
                     SELECT * FROM hotel_seasonal_pricing 
                     WHERE hotel_id = ? AND room_type_code = ? 

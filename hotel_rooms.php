@@ -26,8 +26,7 @@ $is_movenpick = ($hotel_id == 63);
 $is_makkah = ($hotel_id == 43);
 $is_marriot = ($hotel_id == 41);
 $is_makkah_towers = ($hotel_id == 44);
-$is_fairmont = ($hotel_id == FAIRMONT_HOTEL_ID);
-$is_swissotel = ($hotel_id == SWISSOTEL_HOTEL_ID);
+$is_simple_hidden_markup = HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id);
 ?>
 <!DOCTYPE html>
 <html>
@@ -663,6 +662,27 @@ $is_swissotel = ($hotel_id == SWISSOTEL_HOTEL_ID);
                 </div>
             </div>
 
+            <?php if($is_simple_hidden_markup): ?>
+            <!-- ============================================================
+            BED TYPE SELECTOR (Fairmont, Swissotel Makkah, Swissotel Al
+            Maqam, Al Marwa Rayhaan). Room Type dropdown above only picks
+            the room CATEGORY (view/location) -- each category has 2 or 3
+            bed configs (Double/Triple/Quad) at different prices, so this
+            second selection is required before a price can be calculated.
+            Hidden until a room type is chosen; options are filled in from
+            that room's actual available bed types (some rooms don't offer
+            Quad, per the rate sheet).
+            ============================================================ -->
+            <div class="panel selector-panel" id="bedTypePanel" style="display:none;">
+                <label class="selector-label" for="bedTypeSelect">Select Bed Type</label>
+                <div class="room-select-wrap">
+                    <select id="bedTypeSelect" class="room-select">
+                        <option value="">— Choose a bed type —</option>
+                    </select>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div class="panel room-detail" id="roomDetail">
                 <div id="rd_image_wrap"></div>
                 <div class="room-detail-body">
@@ -686,6 +706,7 @@ $is_swissotel = ($hotel_id == SWISSOTEL_HOTEL_ID);
                     <input type="hidden" name="hotel_id" value="<?php echo (int)$hotel_id; ?>">
                     <input type="hidden" name="hotel_name" value="<?php echo htmlspecialchars($hotel['hotel_name']); ?>">
                     <input type="hidden" name="room_type_code" id="selected_room_type_code" value="">
+                    <input type="hidden" name="bed_type" id="selected_bed_type" value="">
                     
                     <?php if($is_makkah): ?>
                     <!-- ============================================================
@@ -833,8 +854,7 @@ const isMovenpick = <?php echo $is_movenpick ? 'true' : 'false'; ?>;
 const isMakkah = <?php echo $is_makkah ? 'true' : 'false'; ?>;
 const isMarriot = <?php echo $is_marriot ? 'true' : 'false'; ?>;
 const isMakkahTowers = <?php echo $is_makkah_towers ? 'true' : 'false'; ?>;
-const isFairmont = <?php echo $is_fairmont ? 'true' : 'false'; ?>;
-const isSwissotel = <?php echo $is_swissotel ? 'true' : 'false'; ?>;
+const isSimpleHiddenMarkupHotel = <?php echo $is_simple_hidden_markup ? 'true' : 'false'; ?>;
 
 function calculateNights() {
     const checkIn = document.getElementById('check_in').value;
@@ -1226,7 +1246,17 @@ function calculateTotal() {
     // ============================================================
     // FAIRMONT CLOCK TOWER & SWISSOTEL MAKKAH
     // ============================================================
-    if (isFairmont || isSwissotel) {
+    if (isSimpleHiddenMarkupHotel) {
+        const bedType = document.getElementById('selected_bed_type')?.value || '';
+        if (!bedType) {
+            // Room type select ho chuka hai lekin bed type abhi nahi --
+            // is state mein calculate hi mat karo, warna galat/undefined
+            // price aane ka wahi purana risk wapas aa jayega.
+            document.getElementById('total_amount').value = 'Select a bed type';
+            document.getElementById('btnBook').disabled = true;
+            return;
+        }
+
         document.getElementById('total_amount').value = 'Calculating...';
         document.getElementById('btnBook').disabled = true;
 
@@ -1236,6 +1266,7 @@ function calculateTotal() {
             body: JSON.stringify({
                 hotel_id: hotelId,
                 room_type: room.room_type,
+                bed_type: bedType,
                 check_in: checkIn,
                 check_out: checkOut
             })
@@ -1443,8 +1474,45 @@ if(select) {
         document.getElementById('roomDetail').classList.add('active');
         document.getElementById('bookingSection').classList.add('active');
         calculateNights();
-        calculateTotal();
+
+        if (isSimpleHiddenMarkupHotel) {
+            // Bed Type dropdown ko is room ke actual available options se
+            // bharo (kuch rooms mein Quad N/A hota hai). Jab tak bed type
+            // select na ho, price calculate nahi hoti -- isliye yahan
+            // calculateTotal() nahi bulaya, sirf bed type select hone par.
+            const bedSelect = document.getElementById('bedTypeSelect');
+            const bedPanel = document.getElementById('bedTypePanel');
+            bedSelect.innerHTML = '<option value="">— Choose a bed type —</option>';
+            (selectedRoom.bed_types || []).forEach(bt => {
+                const opt = document.createElement('option');
+                opt.value = bt;
+                opt.textContent = bt.charAt(0).toUpperCase() + bt.slice(1);
+                bedSelect.appendChild(opt);
+            });
+            bedPanel.style.display = 'block';
+            document.getElementById('selected_bed_type').value = '';
+            document.getElementById('total_amount').value = 'Select a bed type';
+            document.getElementById('btnBook').disabled = true;
+            document.getElementById('priceBreakdown').style.display = 'none';
+        } else {
+            calculateTotal();
+        }
+
         document.getElementById('roomDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+}
+
+const bedTypeSelectEl = document.getElementById('bedTypeSelect');
+if (bedTypeSelectEl) {
+    bedTypeSelectEl.addEventListener('change', function() {
+        document.getElementById('selected_bed_type').value = this.value;
+        if (this.value === '') {
+            document.getElementById('total_amount').value = 'Select a bed type';
+            document.getElementById('btnBook').disabled = true;
+            document.getElementById('priceBreakdown').style.display = 'none';
+            return;
+        }
+        calculateTotal();
     });
 }
 

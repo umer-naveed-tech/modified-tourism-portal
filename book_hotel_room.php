@@ -10,6 +10,7 @@ $room_id = $_POST['room_id'] ?? 0;
 $hotel_id = $_POST['hotel_id'] ?? 0;
 $hotel_name = $_POST['hotel_name'] ?? '';
 $room_type_code = $_POST['room_type_code'] ?? '';
+$bed_type = $_POST['bed_type'] ?? '';
 $check_in = $_POST['check_in'] ?? '';
 $check_out = $_POST['check_out'] ?? '';
 $meal_type = $_POST['meal_type'] ?? 'breakfast';
@@ -244,23 +245,37 @@ if ($hotel_id == 43) {
     }
     $grand_total = $total + $extra_bed_total;
     
-} elseif ($hotel_id == FAIRMONT_HOTEL_ID || $hotel_id == SWISSOTEL_HOTEL_ID) {
-    // FAIRMONT CLOCK TOWER & SWISSOTEL MAKKAH
+} elseif (HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
+    // FAIRMONT / SWISSOTEL / SWISSOTEL AL MAQAM / AL MARWA RAYHAAN
+    // Bed Type (Double/Triple/Quad) zaroori hai -- iske bina room
+    // category+date se 3 rows match hoti thin aur galat/random price
+    // select ho jaati thi.
+    if ($bed_type === '') {
+        header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
+        exit();
+    }
+
     for ($i = 0; $i < $nights; $i++) {
         $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
         $is_weekend_val = isWeekend($current_date) ? 1 : 0;
 
         $stmt = $pdo->prepare("
             SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type_code = ? AND is_weekend = ? 
+            WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND is_weekend = ? 
             AND ? BETWEEN start_date AND end_date
         ");
-        $stmt->execute([$hotel_id, $room_type_code, $is_weekend_val, $current_date]);
+        $stmt->execute([$hotel_id, $room_type_code, $bed_type, $is_weekend_val, $current_date]);
         $rule = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($rule) {
-            $total += $rule['base_price_sar'] + $rule['markup_sar'];
+        if (!$rule) {
+            // Chup-chaap skip karne ki bajaye booking fail karo -- warna
+            // customer se kam nights ka paisa lag jata (ek missing date
+            // silently total se bahar reh jaati).
+            header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
+            exit();
         }
+
+        $total += $rule['base_price_sar'] + $rule['markup_sar'];
     }
 
     $grand_total = $total;
