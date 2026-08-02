@@ -551,18 +551,59 @@ if($car_id) {
                                         foreach ($seasonal_rules_room as $r) {
                                             if (!empty($r['meal_type'])) { $show_meal_type_col = true; break; }
                                         }
+                                        $meal_labels_map = [];
+                                        if ($show_meal_type_col) {
+                                            $opts_meal = HotelHandlerFactory::getHandler($hotel_id)->getBookingOptions($hotel_id);
+                                            $meal_labels_map = $opts_meal['meal_labels'] ?? [];
+                                        }
                                     ?>
                                     <?php foreach ($periodGroups as $group): ?>
+                                    <?php
+                                        // Weekday/weekend dedupe (jaisa pehle tha)
+                                        $displayRows = [];
+                                        if ($has_weekend_split_agent) {
+                                            $displayRows = array_map(function($r) { return ['row' => $r, 'paired_id' => null]; }, $group['rows']);
+                                        } else {
+                                            $seen = [];
+                                            foreach ($group['rows'] as $rule) {
+                                                $dedupeKey = $rule['room_type'] . '|' . ($rule['meal_type'] ?? '');
+                                                if (!isset($seen[$dedupeKey])) {
+                                                    $seen[$dedupeKey] = ['row' => $rule, 'paired_id' => null];
+                                                } else {
+                                                    $seen[$dedupeKey]['paired_id'] = $rule['id'];
+                                                }
+                                            }
+                                            $displayRows = array_values($seen);
+                                        }
+
+                                        // Meal Plan ke hisaab se sub-groups banao (professional look --
+                                        // "ro"/"bb_intl" jaisi raw codes ki jagah readable labels, aur
+                                        // 16 rows ek lambi list ki jagah 4 chhote, saaf sections).
+                                        $mealGroups = [];
+                                        if ($show_meal_type_col) {
+                                            foreach ($displayRows as $entry) {
+                                                $mk = $entry['row']['meal_type'] ?? '';
+                                                $mealGroups[$mk][] = $entry;
+                                            }
+                                        } else {
+                                            $mealGroups[''] = $displayRows;
+                                        }
+                                    ?>
                                     <details class="period-group" <?php echo $isFirstGroup ? 'open' : ''; ?>>
                                         <summary>
                                             <span><?php echo htmlspecialchars($group['label']); ?></span>
-                                            <span class="row-count"><?php echo count($group['rows']); ?> rates</span>
+                                            <span class="row-count"><?php echo count($displayRows); ?> rates</span>
                                         </summary>
+                                        <?php foreach ($mealGroups as $mealCode => $rowsForMeal): ?>
+                                        <?php if($show_meal_type_col): ?>
+                                        <div style="padding:10px 16px; font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:#d4af37; background:rgba(212,175,55,0.03); border-top:1px solid rgba(255,255,255,0.04);">
+                                            <?php echo htmlspecialchars($meal_labels_map[$mealCode] ?? ucfirst($mealCode)); ?>
+                                        </div>
+                                        <?php endif; ?>
                                         <table>
                                             <thead>
                                                 <tr>
                                                     <th>Bed Type</th>
-                                                    <?php if($show_meal_type_col): ?><th>Meal Plan</th><?php endif; ?>
                                                     <th>Room Price (SAR)</th>
                                                     <?php if($show_extra_bed_col): ?><th>Extra Bed (SAR)</th><?php endif; ?>
                                                     <?php if($has_weekend_split_agent): ?><th>Weekend</th><?php endif; ?>
@@ -570,41 +611,13 @@ if($car_id) {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <?php
-                                                    // Jab hotel mein asal weekday/weekend price farak nahi hai (jaise
-                                                    // Sheraton, M Hotel, Le Meridien), to display rows ko ek hi row
-                                                    // mein merge karo (weekday+weekend dono ki id yaad rakh ke),
-                                                    // taake agent ko ek hi dafa dikhe aur "Update" dabane pe DONO
-                                                    // underlying rows sath update hon.
-                                                    // Dedupe key mein meal_type bhi shamil hai -- warna Le Meridien
-                                                    // jaisi hotels mein DIFFERENT meal-plan rows (jinki alag price
-                                                    // hoti hai) ghalti se ek hi maan li jaatin.
-                                                    $displayRows = [];
-                                                    if ($has_weekend_split_agent) {
-                                                        $displayRows = array_map(function($r) { return ['row' => $r, 'paired_id' => null]; }, $group['rows']);
-                                                    } else {
-                                                        $seen = [];
-                                                        foreach ($group['rows'] as $rule) {
-                                                            $dedupeKey = $rule['room_type'] . '|' . ($rule['meal_type'] ?? '');
-                                                            if (!isset($seen[$dedupeKey])) {
-                                                                $seen[$dedupeKey] = ['row' => $rule, 'paired_id' => null];
-                                                            } else {
-                                                                $seen[$dedupeKey]['paired_id'] = $rule['id'];
-                                                            }
-                                                        }
-                                                        $displayRows = array_values($seen);
-                                                    }
-                                                ?>
-                                                <?php foreach($displayRows as $entry): 
+                                                <?php foreach($rowsForMeal as $entry): 
                                                     $rule = $entry['row'];
                                                     $room_final = $rule['base_price_sar'] + $rule['markup_sar'];
                                                     $extra_bed_final = ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
                                                 ?>
                                                 <tr>
                                                     <td><strong><?php echo htmlspecialchars(ucfirst($rule['room_type'])); ?></strong></td>
-                                                    <?php if($show_meal_type_col): ?>
-                                                    <td><?php echo htmlspecialchars($rule['meal_type'] ?? '—'); ?></td>
-                                                    <?php endif; ?>
                                                     <td>
                                                         <input type="number" class="price-input" id="fs-price-<?php echo $rule['id']; ?>" 
                                                                value="<?php echo $room_final; ?>" step="1" min="0">
@@ -631,6 +644,7 @@ if($car_id) {
                                                 <?php endforeach; ?>
                                             </tbody>
                                         </table>
+                                        <?php endforeach; ?>
                                     </details>
                                     <?php $isFirstGroup = false; endforeach; ?>
                                     <div style="margin-top:12px; padding:12px 16px; background:rgba(16,185,129,0.04); border-radius:8px; border:1px solid rgba(16,185,129,0.06); font-size:13px; color:#34d399;">
