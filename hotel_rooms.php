@@ -29,9 +29,11 @@ $is_makkah_towers = ($hotel_id == 44);
 $is_simple_hidden_markup = HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id);
 $is_single_room_supplement = HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id);
 $hotel_has_extra_bed = false;
+$hotel_has_weekend_split = true;
 if ($is_single_room_supplement || $is_simple_hidden_markup) {
     $opts_for_flags = HotelHandlerFactory::getHandler($hotel_id)->getBookingOptions($hotel_id);
     $hotel_has_extra_bed = $opts_for_flags['extra_bed_available'] ?? false;
+    $hotel_has_weekend_split = $opts_for_flags['has_weekend_split'] ?? true;
 }
 ?>
 <!DOCTYPE html>
@@ -867,6 +869,7 @@ const isMakkahTowers = <?php echo $is_makkah_towers ? 'true' : 'false'; ?>;
 const isSimpleHiddenMarkupHotel = <?php echo $is_simple_hidden_markup ? 'true' : 'false'; ?>;
 const isSingleRoomSupplementHotel = <?php echo $is_single_room_supplement ? 'true' : 'false'; ?>;
 const hotelHasExtraBed = <?php echo $hotel_has_extra_bed ? 'true' : 'false'; ?>;
+const hotelHasWeekendSplit = <?php echo $hotel_has_weekend_split ? 'true' : 'false'; ?>;
 
 function calculateNights() {
     const checkIn = document.getElementById('check_in').value;
@@ -1397,7 +1400,7 @@ function calculateTotal() {
                 const ranges = [];
 
                 data.breakdown.forEach(item => {
-                    const key = item.rule_name + (item.is_weekend ? ' (Weekend)' : ' (Weekday)');
+                    const key = hotelHasWeekendSplit ? (item.rule_name + (item.is_weekend ? ' (Weekend)' : ' (Weekday)')) : item.rule_name;
                     const existing = ranges.find(r => r.rule_name === key);
                     if (existing) {
                         existing.count++;

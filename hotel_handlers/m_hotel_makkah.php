@@ -75,7 +75,7 @@ class MHotelMakkahHandler implements HotelHandlerInterface {
     }
 
     public function getBookingOptions($hotel_id) {
-        return ['extra_bed_available' => false];
+        return ['extra_bed_available' => false, 'has_weekend_split' => false];
     }
 
     public function renderRoomSelection($hotel_id, $rooms) {

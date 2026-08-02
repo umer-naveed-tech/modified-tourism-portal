@@ -526,9 +526,11 @@ if($car_id) {
                                     ============================================================ -->
                                     <?php 
                                         $show_extra_bed_col = false;
+                                        $has_weekend_split_agent = true;
                                         if (HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id) || HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
                                             $opts_for_agent = HotelHandlerFactory::getHandler($hotel_id)->getBookingOptions($hotel_id);
                                             $show_extra_bed_col = $opts_for_agent['extra_bed_available'] ?? false;
+                                            $has_weekend_split_agent = $opts_for_agent['has_weekend_split'] ?? true;
                                         }
                                     ?>
                                     <?php foreach ($periodGroups as $group): ?>
@@ -543,12 +545,36 @@ if($car_id) {
                                                     <th>Bed Type</th>
                                                     <th>Room Price (SAR)</th>
                                                     <?php if($show_extra_bed_col): ?><th>Extra Bed (SAR)</th><?php endif; ?>
-                                                    <th>Weekend</th>
+                                                    <?php if($has_weekend_split_agent): ?><th>Weekend</th><?php endif; ?>
                                                     <th style="width:80px;">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <?php foreach($group['rows'] as $rule): 
+                                                <?php
+                                                    // Jab hotel mein asal weekday/weekend price farak nahi hai (jaise
+                                                    // Sheraton, M Hotel), to display rows ko ek hi row mein merge karo
+                                                    // (weekday+weekend dono ki id yaad rakh ke), taake agent ko ek hi
+                                                    // dafa dikhe aur "Update" dabane pe DONO underlying rows sath
+                                                    // update hon -- warna kabhi galti se sirf ek row edit ho jati aur
+                                                    // weekday/weekend prices chupke se alag ho jaatin.
+                                                    $displayRows = [];
+                                                    if ($has_weekend_split_agent) {
+                                                        $displayRows = array_map(function($r) { return ['row' => $r, 'paired_id' => null]; }, $group['rows']);
+                                                    } else {
+                                                        $seen = [];
+                                                        foreach ($group['rows'] as $rule) {
+                                                            $dedupeKey = $rule['room_type'];
+                                                            if (!isset($seen[$dedupeKey])) {
+                                                                $seen[$dedupeKey] = ['row' => $rule, 'paired_id' => null];
+                                                            } else {
+                                                                $seen[$dedupeKey]['paired_id'] = $rule['id'];
+                                                            }
+                                                        }
+                                                        $displayRows = array_values($seen);
+                                                    }
+                                                ?>
+                                                <?php foreach($displayRows as $entry): 
+                                                    $rule = $entry['row'];
                                                     $room_final = $rule['base_price_sar'] + $rule['markup_sar'];
                                                     $extra_bed_final = ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
                                                 ?>
@@ -564,6 +590,7 @@ if($car_id) {
                                                                value="<?php echo $extra_bed_final; ?>" step="1" min="0" style="width:90px;">
                                                     </td>
                                                     <?php endif; ?>
+                                                    <?php if($has_weekend_split_agent): ?>
                                                     <td>
                                                         <?php if($rule['is_weekend']): ?>
                                                             <span class="weekend-tag">Weekend</span>
@@ -571,8 +598,9 @@ if($car_id) {
                                                             <span class="weekday-tag">Weekday</span>
                                                         <?php endif; ?>
                                                     </td>
+                                                    <?php endif; ?>
                                                     <td>
-                                                        <button class="btn-update" onclick="updateHiddenMarkupPrice(<?php echo $rule['id']; ?>, <?php echo $show_extra_bed_col ? 'true' : 'false'; ?>)">Update</button>
+                                                        <button class="btn-update" onclick="updateHiddenMarkupPrice(<?php echo $rule['id']; ?>, <?php echo $show_extra_bed_col ? 'true' : 'false'; ?>, <?php echo $entry['paired_id'] !== null ? (int)$entry['paired_id'] : 'null'; ?>)">Update</button>
                                                     </td>
                                                 </tr>
                                                 <?php endforeach; ?>
@@ -881,7 +909,7 @@ function updateMakkahPrice(ruleId) {
 // Reuses the existing update_seasonal_price.php endpoint -- koi nayi
 // file nahi banayi.
 // ============================================================
-function updateHiddenMarkupPrice(ruleId, hasExtraBed) {
+function updateHiddenMarkupPrice(ruleId, hasExtraBed, pairedId) {
     const price = parseFloat(document.getElementById('fs-price-' + ruleId).value);
     const btn = event.target;
 
@@ -894,32 +922,47 @@ function updateHiddenMarkupPrice(ruleId, hasExtraBed) {
     // nayi file nahi banayi.
     const base = price - 70;
 
-    let body = 'id=' + encodeURIComponent(ruleId) +
+    function buildBody(id) {
+        let b = 'id=' + encodeURIComponent(id) +
                  '&base=' + encodeURIComponent(base) +
                  '&markup=70';
-
-    if (hasExtraBed) {
-        // Extra Bed ka hidden markup bhi hamesha fixed 25 hai (jaisa
-        // base fare ke liye 70 hai) -- isi tarah subtract kiya.
-        const extraBedPrice = parseFloat(document.getElementById('fs-extrabed-' + ruleId).value);
-        const extraBedBase = extraBedPrice - 25;
-        body += '&extra_bed_base=' + encodeURIComponent(extraBedBase) + '&extra_bed_markup=25';
+        if (hasExtraBed) {
+            // Extra Bed ka hidden markup bhi hamesha fixed 25 hai (jaisa
+            // base fare ke liye 70 hai) -- isi tarah subtract kiya.
+            const extraBedPrice = parseFloat(document.getElementById('fs-extrabed-' + ruleId).value);
+            const extraBedBase = extraBedPrice - 25;
+            b += '&extra_bed_base=' + encodeURIComponent(extraBedBase) + '&extra_bed_markup=25';
+        }
+        b += '&csrf_token=' + encodeURIComponent(csrfToken);
+        return b;
     }
 
-    body += '&csrf_token=' + encodeURIComponent(csrfToken);
-
-    fetch('update_seasonal_price.php', {
+    // Agar is hotel mein weekday/weekend ki asal price farak nahi hai,
+    // to displayed row ke pichhe DO underlying DB rows hain (weekday +
+    // weekend) jo hamesha sath update honi chahiye -- warna kabhi ek
+    // edit reh jaye aur dono chupke se alag ho jaayein.
+    const requests = [fetch('update_seasonal_price.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: body
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+        body: buildBody(ruleId)
+    })];
+    if (pairedId !== null && pairedId !== undefined) {
+        requests.push(fetch('update_seasonal_price.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: buildBody(pairedId)
+        }));
+    }
+
+    Promise.all(requests)
+    .then(responses => Promise.all(responses.map(r => r.json())))
+    .then(results => {
+        const allOk = results.every(d => d.success);
+        if (allOk) {
             showToast('Price updated successfully!', 'success');
             document.getElementById('fs-price-' + ruleId).classList.add('updated');
         } else {
-            showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+            showToast('Error: ' + (results.find(d => !d.success)?.error || 'Unknown error'), 'error');
         }
     })
     .catch(() => {

@@ -81,7 +81,7 @@ class SheratonMakkahHandler implements HotelHandlerInterface {
     }
 
     public function getBookingOptions($hotel_id) {
-        return ['extra_bed_available' => true];
+        return ['extra_bed_available' => true, 'has_weekend_split' => false];
     }
 
     public function renderRoomSelection($hotel_id, $rooms) {
