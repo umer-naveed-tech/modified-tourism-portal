@@ -576,7 +576,15 @@ if (HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
     }
 
     $handler = HotelHandlerFactory::getHandler($hotel_id);
-    $has_extra_bed = $handler->getBookingOptions($hotel_id)['extra_bed_available'] ?? false;
+    $opts = $handler->getBookingOptions($hotel_id);
+    $has_extra_bed = $opts['extra_bed_available'] ?? false;
+    $requires_meal_type = $opts['requires_meal_type'] ?? false;
+    $meal_labels_valid = $opts['meal_labels'] ?? [];
+
+    if ($requires_meal_type && (!isset($meal_labels_valid[$meal_type]))) {
+        echo json_encode(['success' => false, 'error' => 'Please select a meal plan']);
+        exit();
+    }
 
     $start = new DateTime($check_in);
     $end = new DateTime($check_out);
@@ -592,12 +600,21 @@ if (HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
         $current_date = $date->format('Y-m-d');
         $is_weekend_val = isWeekend($current_date) ? 1 : 0;
 
-        $stmt = $pdo->prepare("
-            SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND is_weekend = ? 
-            AND ? BETWEEN start_date AND end_date
-        ");
-        $stmt->execute([$hotel_id, $room_type, $bed_type, $is_weekend_val, $current_date]);
+        if ($requires_meal_type) {
+            $stmt = $pdo->prepare("
+                SELECT * FROM hotel_seasonal_pricing 
+                WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND meal_type = ? AND is_weekend = ? 
+                AND ? BETWEEN start_date AND end_date
+            ");
+            $stmt->execute([$hotel_id, $room_type, $bed_type, $meal_type, $is_weekend_val, $current_date]);
+        } else {
+            $stmt = $pdo->prepare("
+                SELECT * FROM hotel_seasonal_pricing 
+                WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND is_weekend = ? 
+                AND ? BETWEEN start_date AND end_date
+            ");
+            $stmt->execute([$hotel_id, $room_type, $bed_type, $is_weekend_val, $current_date]);
+        }
         $rule = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$rule) {

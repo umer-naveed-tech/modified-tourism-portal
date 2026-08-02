@@ -331,18 +331,35 @@ if ($hotel_id == 43) {
     }
 
     $simple_handler = HotelHandlerFactory::getHandler($hotel_id);
-    $simple_has_extra_bed = $simple_handler->getBookingOptions($hotel_id)['extra_bed_available'] ?? false;
+    $simple_opts = $simple_handler->getBookingOptions($hotel_id);
+    $simple_has_extra_bed = $simple_opts['extra_bed_available'] ?? false;
+    $simple_requires_meal = $simple_opts['requires_meal_type'] ?? false;
+    $simple_meal_labels = $simple_opts['meal_labels'] ?? [];
+
+    if ($simple_requires_meal && !isset($simple_meal_labels[$meal_type])) {
+        header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
+        exit();
+    }
 
     for ($i = 0; $i < $nights; $i++) {
         $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
         $is_weekend_val = isWeekend($current_date) ? 1 : 0;
 
-        $stmt = $pdo->prepare("
-            SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND is_weekend = ? 
-            AND ? BETWEEN start_date AND end_date
-        ");
-        $stmt->execute([$hotel_id, $room_type_code, $bed_type, $is_weekend_val, $current_date]);
+        if ($simple_requires_meal) {
+            $stmt = $pdo->prepare("
+                SELECT * FROM hotel_seasonal_pricing 
+                WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND meal_type = ? AND is_weekend = ? 
+                AND ? BETWEEN start_date AND end_date
+            ");
+            $stmt->execute([$hotel_id, $room_type_code, $bed_type, $meal_type, $is_weekend_val, $current_date]);
+        } else {
+            $stmt = $pdo->prepare("
+                SELECT * FROM hotel_seasonal_pricing 
+                WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND is_weekend = ? 
+                AND ? BETWEEN start_date AND end_date
+            ");
+            $stmt->execute([$hotel_id, $room_type_code, $bed_type, $is_weekend_val, $current_date]);
+        }
         $rule = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$rule) {

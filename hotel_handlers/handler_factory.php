@@ -16,6 +16,21 @@ define('SHERATON_HOTEL_ID', 157);
 define('MHOTEL_HOTEL_ID', 158);
 define('SAJA_HOTEL_ID', 159);
 define('LEMERIDIEN_HOTEL_ID', 160);
+define('GRANDALMASSAH_HOTEL_ID', 161);
+define('ROYALMAJESTIC_HOTEL_ID', 162);
+define('MAYSANMASHAER_HOTEL_ID', 163);
+define('MAYSANMAQAM_HOTEL_ID', 164);
+define('BADRALMASSAH_HOTEL_ID', 165);
+define('RAMADAALFAYZEN_HOTEL_ID', 166);
+define('EMAARGRAND_HOTEL_ID', 167);
+define('SNOODAJYAD_HOTEL_ID', 168);
+define('MHOTELALDANA_HOTEL_ID', 69);
+define('EMAARALMANAR_HOTEL_ID', 83);
+define('EMAARALANDALUSIA_HOTEL_ID', 84);
+define('EMAARWORTHELITE_HOTEL_ID', 85);
+define('EMAARALKHALIL_HOTEL_ID', 86);
+define('MAKAREMAJYAD_HOTEL_ID', 67);
+define('MANZELAJYAD_HOTEL_ID', 70);
 // Four Points by Sheraton (155) aur Voco Hotel Makkah (156) ke liye koi
 // handler register nahi karte -- inke paas abhi koi room data nahi hai,
 // isliye NormalHotelHandler (default fallback) khud-ba-khud 'Coming Soon'
@@ -40,7 +55,22 @@ require_once __DIR__ . '/elaf_kinda_makkah.php';
 require_once __DIR__ . '/sheraton_makkah.php';   // NAYA
 require_once __DIR__ . '/m_hotel_makkah.php';
 require_once __DIR__ . '/saja_hotel_makkah.php';
-require_once __DIR__ . '/lemeridien_tower_makkah.php';  // NAYA (bespoke)
+require_once __DIR__ . '/lemeridien_tower_makkah.php';  // bespoke
+require_once __DIR__ . '/grand_al_massah.php';    // NAYA
+require_once __DIR__ . '/royal_majestic.php';     // NAYA
+require_once __DIR__ . '/maysan_al_mashaer.php';  // NAYA
+require_once __DIR__ . '/maysan_al_maqam.php';    // NAYA
+require_once __DIR__ . '/badr_al_massah.php';     // NAYA
+require_once __DIR__ . '/ramada_al_fayzen.php';   // NAYA
+require_once __DIR__ . '/emaar_grand.php';
+require_once __DIR__ . '/snood_ajyad.php';         // NAYA
+require_once __DIR__ . '/m_hotel_al_dana.php';     // NAYA (existing hotel id 69)
+require_once __DIR__ . '/emaar_al_manar.php';      // NAYA (existing hotel id 83)
+require_once __DIR__ . '/emaar_al_andalusia.php';  // NAYA (existing hotel id 84)
+require_once __DIR__ . '/emaar_worth_elite.php';   // NAYA (existing hotel id 85)
+require_once __DIR__ . '/emaar_al_khalil.php';     // NAYA (existing hotel id 86)
+require_once __DIR__ . '/makarem_ajyad.php';       // NAYA (existing hotel id 67)
+require_once __DIR__ . '/manzel_ajyad.php';        // NAYA (existing hotel id 70)
 
 class HotelHandlerFactory {
 
@@ -63,13 +93,28 @@ class HotelHandlerFactory {
         158 => 'MHotelMakkahHandler',
         159 => 'SajaHotelMakkahHandler',
         160 => 'LeMeridienTowerMakkahHandler', // bespoke -- simpleHiddenMarkupHotels mein NAHI (apna khud ka block hai)
+        161 => 'GrandAlMassahHandler',
+        162 => 'RoyalMajesticHandler',
+        163 => 'MaysanAlMashaerHandler',
+        164 => 'MaysanAlMaqamHandler',
+        165 => 'BadrAlMassahHandler',
+        166 => 'RamadaAlFayzenHandler',
+        167 => 'EmaarGrandHandler',
+        168 => 'SnoodAjyadHandler',
+        69 => 'MHotelAlDanaHandler',
+        83 => 'EmaarAlManarHandler',
+        84 => 'EmaarAlAndalusiaHandler',
+        85 => 'EmaarWorthEliteHandler',
+        86 => 'EmaarAlKhalilHandler',
+        67 => 'MakaremAjyadHandler',
+        70 => 'ManzelAjyadHandler',
         // 155 (Four Points), 156 (Voco) -- deliberately NOT registered,
         // falls back to NormalHotelHandler -> empty rooms -> Coming Soon UI
     ];
 
     // "Simple" hotels: room_type_code + is_weekend, 70 SAR hidden markup,
     // koi extra bed nahi, koi meal add-on nahi, koi supplement nahi.
-    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148, 154, 157, 158, 159];
+    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148, 154, 157, 158, 159, 161, 162, 163, 164, 165, 166, 167, 168, 69, 83, 84, 85, 86, 67, 70];
 
     // "Single-room + supplement" hotels: EK room type ('double'),
     // weekday/weekend, 70 SAR hidden markup on room, optional extra bed

@@ -31,10 +31,14 @@ $is_simple_hidden_markup = HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel
 $is_single_room_supplement = HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id);
 $hotel_has_extra_bed = false;
 $hotel_has_weekend_split = true;
+$hotel_requires_meal_type = false;
+$hotel_meal_labels = [];
 if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
     $opts_for_flags = HotelHandlerFactory::getHandler($hotel_id)->getBookingOptions($hotel_id);
     $hotel_has_extra_bed = $opts_for_flags['extra_bed_available'] ?? false;
     $hotel_has_weekend_split = $opts_for_flags['has_weekend_split'] ?? true;
+    $hotel_requires_meal_type = $opts_for_flags['requires_meal_type'] ?? false;
+    $hotel_meal_labels = $opts_for_flags['meal_labels'] ?? [];
 }
 ?>
 <!DOCTYPE html>
@@ -692,6 +696,26 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
             </div>
             <?php endif; ?>
 
+            <?php if($hotel_requires_meal_type): ?>
+            <!-- ============================================================
+            MEAL PLAN SELECTOR (generic -- any hotel where the handler
+            declares requires_meal_type=true, e.g. Emaar Al Khalil, where
+            Room Only vs Breakfast are genuinely different prices, not
+            just informational text). Shown after Bed Type is chosen.
+            ============================================================ -->
+            <div class="panel selector-panel" id="mealTypePanel" style="display:none;">
+                <label class="selector-label" for="mealTypeSelect">Select Meal Plan</label>
+                <div class="room-select-wrap">
+                    <select id="mealTypeSelect" class="room-select">
+                        <option value="">— Choose a meal plan —</option>
+                        <?php foreach($hotel_meal_labels as $mcode => $mlabel): ?>
+                            <option value="<?php echo htmlspecialchars($mcode); ?>"><?php echo htmlspecialchars($mlabel); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div class="panel room-detail" id="roomDetail">
                 <div id="rd_image_wrap"></div>
                 <div class="room-detail-body">
@@ -716,6 +740,7 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
                     <input type="hidden" name="hotel_name" value="<?php echo htmlspecialchars($hotel['hotel_name']); ?>">
                     <input type="hidden" name="room_type_code" id="selected_room_type_code" value="">
                     <input type="hidden" name="bed_type" id="selected_bed_type" value="">
+                    <input type="hidden" name="meal_type" id="selected_meal_type_generic" value="">
                     
                     <?php if($is_makkah): ?>
                     <!-- ============================================================
@@ -871,6 +896,7 @@ const isSimpleHiddenMarkupHotel = <?php echo $is_simple_hidden_markup ? 'true' :
 const isSingleRoomSupplementHotel = <?php echo $is_single_room_supplement ? 'true' : 'false'; ?>;
 const hotelHasExtraBed = <?php echo $hotel_has_extra_bed ? 'true' : 'false'; ?>;
 const hotelHasWeekendSplit = <?php echo $hotel_has_weekend_split ? 'true' : 'false'; ?>;
+const hotelRequiresMealType = <?php echo $hotel_requires_meal_type ? 'true' : 'false'; ?>;
 const isLeMeridien = <?php echo $is_lemeridien ? 'true' : 'false'; ?>;
 
 function calculateNights() {
@@ -1467,6 +1493,13 @@ function calculateTotal() {
             return;
         }
 
+        const mealTypeVal = hotelRequiresMealType ? (document.getElementById('mealTypeSelect')?.value || '') : '';
+        if (hotelRequiresMealType && !mealTypeVal) {
+            document.getElementById('total_amount').value = 'Select a meal plan';
+            document.getElementById('btnBook').disabled = true;
+            return;
+        }
+
         document.getElementById('total_amount').value = 'Calculating...';
         document.getElementById('btnBook').disabled = true;
 
@@ -1480,6 +1513,7 @@ function calculateTotal() {
                 hotel_id: hotelId,
                 room_type: room.room_type,
                 bed_type: bedType,
+                meal_type: mealTypeVal,
                 check_in: checkIn,
                 check_out: checkOut,
                 extra_bed: extraBed2
@@ -1737,6 +1771,11 @@ if(select) {
                     document.getElementById('lemeridienMealPanel').style.display = 'block';
                     document.getElementById('total_amount').value = 'Select a meal plan';
                     document.getElementById('btnBook').disabled = true;
+                } else if (hotelRequiresMealType) {
+                    document.getElementById('mealTypePanel').style.display = 'block';
+                    document.getElementById('mealTypeSelect').value = '';
+                    document.getElementById('total_amount').value = 'Select a meal plan';
+                    document.getElementById('btnBook').disabled = true;
                 } else {
                     calculateTotal();
                 }
@@ -1771,6 +1810,7 @@ if (bedTypeSelectEl) {
             document.getElementById('btnBook').disabled = true;
             document.getElementById('priceBreakdown').style.display = 'none';
             if (isLeMeridien) document.getElementById('lemeridienMealPanel').style.display = 'none';
+            if (hotelRequiresMealType) document.getElementById('mealTypePanel').style.display = 'none';
             return;
         }
         if (isLeMeridien) {
@@ -1779,6 +1819,26 @@ if (bedTypeSelectEl) {
             // ki alag price hai is hotel mein).
             document.getElementById('lemeridienMealPanel').style.display = 'block';
             document.getElementById('lemeridienMealSelect').value = '';
+            document.getElementById('total_amount').value = 'Select a meal plan';
+            document.getElementById('btnBook').disabled = true;
+            return;
+        }
+        if (hotelRequiresMealType) {
+            document.getElementById('mealTypePanel').style.display = 'block';
+            document.getElementById('mealTypeSelect').value = '';
+            document.getElementById('total_amount').value = 'Select a meal plan';
+            document.getElementById('btnBook').disabled = true;
+            return;
+        }
+        calculateTotal();
+    });
+}
+
+const mealTypeSelectEl = document.getElementById('mealTypeSelect');
+if (mealTypeSelectEl) {
+    mealTypeSelectEl.addEventListener('change', function() {
+        document.getElementById('selected_meal_type_generic').value = this.value;
+        if (this.value === '') {
             document.getElementById('total_amount').value = 'Select a meal plan';
             document.getElementById('btnBook').disabled = true;
             return;
