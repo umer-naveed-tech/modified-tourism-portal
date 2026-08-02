@@ -40,6 +40,7 @@ $raw = json_decode(file_get_contents('php://input'), true);
 $hotel_id = $raw['hotel_id'] ?? 0;
 $room_type = $raw['room_type'] ?? '';
 $bed_type = $raw['bed_type'] ?? '';
+$meal_type = $raw['meal_type'] ?? '';
 $extra_bed = $raw['extra_bed'] ?? 0;
 $supplement = $raw['supplement'] ?? null;
 $check_in = $raw['check_in'] ?? '';
@@ -396,6 +397,81 @@ if ($hotel_id == 44) {
     
     $grand_total = $total + $extra_bed_total;
     
+    echo json_encode([
+        'success' => true,
+        'room_total' => $total,
+        'extra_bed_total' => $extra_bed_total,
+        'grand_total' => $grand_total,
+        'nights' => $nights,
+        'breakdown' => $breakdown
+    ]);
+    exit();
+}
+
+// ============================================================
+// LE MERIDIEN TOWER HOTEL MAKKAH -- bespoke (3 categories x subtypes x
+// REQUIRED meal plan, Extra Bed sirf Royal Suite ke liye, price meal
+// plan ke hisaab se alag). $room_type = category (ds/es/rs),
+// $bed_type = subtype, $meal_type = ro/bb_intl/hb_pk/fb_pk.
+// ============================================================
+if ($hotel_id == LEMERIDIEN_HOTEL_ID) {
+    if ($bed_type === '') {
+        echo json_encode(['success' => false, 'error' => 'Please select a room subtype']);
+        exit();
+    }
+    $lm_meal_labels = ['ro' => 1, 'bb_intl' => 1, 'hb_pk' => 1, 'fb_pk' => 1];
+    if ($meal_type === '' || !isset($lm_meal_labels[$meal_type])) {
+        echo json_encode(['success' => false, 'error' => 'Please select a meal plan']);
+        exit();
+    }
+
+    $lm_extra_bed = ($room_type === 'rs') ? $extra_bed : 0;
+
+    $start = new DateTime($check_in);
+    $end = new DateTime($check_out);
+    $interval = new DateInterval('P1D');
+    $period = new DatePeriod($start, $interval, $end);
+
+    $total = 0;
+    $extra_bed_total = 0;
+    $nights = 0;
+    $breakdown = [];
+
+    foreach ($period as $date) {
+        $current_date = $date->format('Y-m-d');
+        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
+
+        $stmt = $pdo->prepare("
+            SELECT * FROM hotel_seasonal_pricing 
+            WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND meal_type = ? AND is_weekend = ? 
+            AND ? BETWEEN start_date AND end_date
+        ");
+        $stmt->execute([$hotel_id, $room_type, $bed_type, $meal_type, $is_weekend_val, $current_date]);
+        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$rule) {
+            echo json_encode(['success' => false, 'error' => "No pricing available for date: $current_date"]);
+            exit();
+        }
+
+        $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
+        $total += $night_price;
+        $nights++;
+
+        if ($lm_extra_bed) {
+            $extra_bed_total += ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
+        }
+
+        $breakdown[] = [
+            'date' => $current_date,
+            'price' => $night_price,
+            'is_weekend' => $is_weekend_val,
+            'rule_name' => date('d M Y', strtotime($rule['start_date'])) . ' - ' . date('d M Y', strtotime($rule['end_date']))
+        ];
+    }
+
+    $grand_total = $total + $extra_bed_total;
+
     echo json_encode([
         'success' => true,
         'room_total' => $total,

@@ -26,11 +26,12 @@ $is_movenpick = ($hotel_id == 63);
 $is_makkah = ($hotel_id == 43);
 $is_marriot = ($hotel_id == 41);
 $is_makkah_towers = ($hotel_id == 44);
+$is_lemeridien = ($hotel_id == LEMERIDIEN_HOTEL_ID);
 $is_simple_hidden_markup = HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id);
 $is_single_room_supplement = HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id);
 $hotel_has_extra_bed = false;
 $hotel_has_weekend_split = true;
-if ($is_single_room_supplement || $is_simple_hidden_markup) {
+if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
     $opts_for_flags = HotelHandlerFactory::getHandler($hotel_id)->getBookingOptions($hotel_id);
     $hotel_has_extra_bed = $opts_for_flags['extra_bed_available'] ?? false;
     $hotel_has_weekend_split = $opts_for_flags['has_weekend_split'] ?? true;
@@ -670,16 +671,16 @@ if ($is_single_room_supplement || $is_simple_hidden_markup) {
                 </div>
             </div>
 
-            <?php if($is_simple_hidden_markup): ?>
+            <?php if($is_simple_hidden_markup || $is_lemeridien): ?>
             <!-- ============================================================
             BED TYPE SELECTOR (Fairmont, Swissotel Makkah, Swissotel Al
-            Maqam, Al Marwa Rayhaan). Room Type dropdown above only picks
-            the room CATEGORY (view/location) -- each category has 2 or 3
-            bed configs (Double/Triple/Quad) at different prices, so this
-            second selection is required before a price can be calculated.
-            Hidden until a room type is chosen; options are filled in from
-            that room's actual available bed types (some rooms don't offer
-            Quad, per the rate sheet).
+            Maqam, Al Marwa Rayhaan, Le Meridien Tower). Room Type dropdown
+            above only picks the room CATEGORY (view/location) -- each
+            category has multiple bed configs (Double/Triple/Quad/etc) at
+            different prices, so this second selection is required before
+            a price can be calculated. Hidden until a room type is chosen;
+            options are filled in from that room's actual available bed
+            types (some rooms don't offer every config, per the rate sheet).
             ============================================================ -->
             <div class="panel selector-panel" id="bedTypePanel" style="display:none;">
                 <label class="selector-label" for="bedTypeSelect">Select Bed Type</label>
@@ -870,6 +871,7 @@ const isSimpleHiddenMarkupHotel = <?php echo $is_simple_hidden_markup ? 'true' :
 const isSingleRoomSupplementHotel = <?php echo $is_single_room_supplement ? 'true' : 'false'; ?>;
 const hotelHasExtraBed = <?php echo $hotel_has_extra_bed ? 'true' : 'false'; ?>;
 const hotelHasWeekendSplit = <?php echo $hotel_has_weekend_split ? 'true' : 'false'; ?>;
+const isLeMeridien = <?php echo $is_lemeridien ? 'true' : 'false'; ?>;
 
 function calculateNights() {
     const checkIn = document.getElementById('check_in').value;
@@ -1259,6 +1261,103 @@ function calculateTotal() {
     }
     
     // ============================================================
+    // LE MERIDIEN TOWER HOTEL MAKKAH -- bespoke. Category (room_type),
+    // Subtype (bed_type), Meal Plan (REQUIRED -- changes price), Extra
+    // Bed (Royal Suite only).
+    // ============================================================
+    if (isLeMeridien) {
+        const bedType = document.getElementById('selected_bed_type')?.value || '';
+        const mealType = document.getElementById('lemeridienMealSelect')?.value || '';
+
+        if (!bedType || !mealType) {
+            document.getElementById('total_amount').value = mealType ? 'Select a bed type' : 'Select a meal plan';
+            document.getElementById('btnBook').disabled = true;
+            return;
+        }
+
+        const lmExtraBedEl = document.getElementById('lemeridien_extra_bed');
+        const lmExtraBed = (lmExtraBedEl && lmExtraBedEl.checked) ? 1 : 0;
+
+        document.getElementById('total_amount').value = 'Calculating...';
+        document.getElementById('btnBook').disabled = true;
+
+        fetch('get_hotel_room_price.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                hotel_id: hotelId,
+                room_type: room.room_type,
+                bed_type: bedType,
+                meal_type: mealType,
+                check_in: checkIn,
+                check_out: checkOut,
+                extra_bed: lmExtraBed
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (data.nights > 0) {
+                    document.getElementById('nights').value = data.nights;
+                }
+
+                document.getElementById('grandTotal').textContent = 'SAR ' + data.grand_total.toFixed(2);
+                document.getElementById('total_amount').value = 'SAR ' + data.grand_total.toFixed(2);
+
+                let breakdownHtml = '';
+                const ranges = [];
+
+                data.breakdown.forEach(item => {
+                    const key = hotelHasWeekendSplit ? (item.rule_name + (item.is_weekend ? ' (Weekend)' : ' (Weekday)')) : item.rule_name;
+                    const existing = ranges.find(r => r.rule_name === key);
+                    if (existing) {
+                        existing.count++;
+                        existing.total += parseFloat(item.price);
+                    } else {
+                        ranges.push({ rule_name: key, count: 1, total: parseFloat(item.price) });
+                    }
+                });
+
+                ranges.forEach(range => {
+                    breakdownHtml += `
+                        <div class="breakdown-range">
+                            <div>
+                                <span class="range-label">${range.rule_name}</span>
+                                <span class="range-nights">${range.count} night${range.count > 1 ? 's' : ''}</span>
+                            </div>
+                            <span class="range-price">SAR ${range.total.toFixed(2)}</span>
+                        </div>
+                    `;
+                });
+
+                if (data.extra_bed_total > 0) {
+                    breakdownHtml += `
+                        <div class="breakdown-range" style="border-left-color: #d4af37;">
+                            <div><span class="range-label">Extra Bed</span></div>
+                            <span class="range-price" style="color:#d4af37;">SAR ${data.extra_bed_total.toFixed(2)}</span>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('breakdownDetails').innerHTML = breakdownHtml;
+                document.getElementById('priceBreakdown').style.display = 'block';
+                document.getElementById('btnBook').disabled = false;
+            } else {
+                alert('Error: ' + data.error);
+                document.getElementById('total_amount').value = 'SAR 0';
+                document.getElementById('btnBook').disabled = true;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('total_amount').value = 'Error calculating price';
+            document.getElementById('btnBook').disabled = true;
+        });
+
+        return;
+    }
+    
+    // ============================================================
     // SINGLE-ROOM SUPPLEMENT HOTELS (Al Safwah, Conrad, Hilton Suites,
     // Hilton Convention, future hotels of this pattern)
     // ============================================================
@@ -1599,12 +1698,32 @@ if(select) {
         document.getElementById('bookingSection').classList.add('active');
         calculateNights();
 
-        if (isSimpleHiddenMarkupHotel) {
+        if (isLeMeridien) {
+            // Extra Bed sirf Royal Suite (rs) category ke liye hai --
+            // is room object ka apna extra_bed_available flag check karo
+            // (Fairmont/Sheraton jaisi hotels ke uske ulat, yahan ye
+            // PER-CATEGORY farak hai, poori hotel ke liye nahi).
+            const ebPanel = document.getElementById('lemeridienExtraBedPanel');
+            if (ebPanel) {
+                if (selectedRoom.extra_bed_available) {
+                    ebPanel.style.display = 'block';
+                } else {
+                    ebPanel.style.display = 'none';
+                    document.getElementById('lemeridien_extra_bed').checked = false;
+                }
+            }
+            // Meal Plan panel abhi hide rakho -- bed type select hone ke
+            // baad hi dikhega (neeche).
+            const mealPanel = document.getElementById('lemeridienMealPanel');
+            if (mealPanel) mealPanel.style.display = 'none';
+            document.getElementById('lemeridienMealSelect').value = '';
+        }
+
+        if (isSimpleHiddenMarkupHotel || isLeMeridien) {
             // Bed Type dropdown ko is room ke actual available options se
             // bharo. Agar sirf EK hi bed type hai (jaisa Elaf Kinda mein --
             // har room category ka apna sirf ek hi config hai), to dropdown
-            // dikhane ki zaroorat nahi -- khud-ba-khud select ho jayega aur
-            // seedha price calculate ho jayegi.
+            // dikhane ki zaroorat nahi -- khud-ba-khud select ho jayega.
             const bedTypes = selectedRoom.bed_types || [];
             const bedSelect = document.getElementById('bedTypeSelect');
             const bedPanel = document.getElementById('bedTypePanel');
@@ -1612,7 +1731,15 @@ if(select) {
             if (bedTypes.length <= 1) {
                 bedPanel.style.display = 'none';
                 document.getElementById('selected_bed_type').value = bedTypes[0] || '';
-                calculateTotal();
+                if (isLeMeridien) {
+                    // Bed type auto-select ho gaya, lekin Meal Plan abhi
+                    // bhi zaroori hai -- seedha calculate mat karo.
+                    document.getElementById('lemeridienMealPanel').style.display = 'block';
+                    document.getElementById('total_amount').value = 'Select a meal plan';
+                    document.getElementById('btnBook').disabled = true;
+                } else {
+                    calculateTotal();
+                }
             } else {
                 bedSelect.innerHTML = '<option value="">— Choose a bed type —</option>';
                 bedTypes.forEach(bt => {
@@ -1643,6 +1770,17 @@ if (bedTypeSelectEl) {
             document.getElementById('total_amount').value = 'Select a bed type';
             document.getElementById('btnBook').disabled = true;
             document.getElementById('priceBreakdown').style.display = 'none';
+            if (isLeMeridien) document.getElementById('lemeridienMealPanel').style.display = 'none';
+            return;
+        }
+        if (isLeMeridien) {
+            // Bed type mil gaya, ab Meal Plan chahiye pehle calculate
+            // karne se -- warna galat price aa sakti hai (har meal plan
+            // ki alag price hai is hotel mein).
+            document.getElementById('lemeridienMealPanel').style.display = 'block';
+            document.getElementById('lemeridienMealSelect').value = '';
+            document.getElementById('total_amount').value = 'Select a meal plan';
+            document.getElementById('btnBook').disabled = true;
             return;
         }
         calculateTotal();

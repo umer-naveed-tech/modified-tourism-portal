@@ -78,7 +78,7 @@ if ($room_id > 0) {
             $seasonal_room_label = $room['display_name'] ?? $room['room_type'] ?? 'Room';
             
             // 🔴 MAKKAH HOTEL (43), FAIRMONT (145), SWISSOTEL (146) - room_type_code use karein
-            if ($hotel_id == 43 || HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
+            if ($hotel_id == 43 || $hotel_id == LEMERIDIEN_HOTEL_ID || HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
                 $stmt = $pdo->prepare("
                     SELECT * FROM hotel_seasonal_pricing 
                     WHERE hotel_id = ? AND room_type_code = ? 
@@ -525,12 +525,31 @@ if($car_id) {
                                     markup pattern) since it's the only new hotel with that feature.
                                     ============================================================ -->
                                     <?php 
+                                        // Data-driven check: is SPECIFIC room (jo abhi select hui hai) ke
+                                        // rows mein actually extra bed values hain? Hotel-level flag ki
+                                        // jagah ye zyada sahi hai -- Le Meridien jaisi hotels mein Extra
+                                        // Bed sirf EK category (Royal Suite) ke liye hota hai, poori hotel
+                                        // ke liye nahi -- agar hotel-level flag use karte to DS/ES rooms
+                                        // pe bhi ek fizool/silently-ignored Extra Bed field dikh jata
+                                        // (bilkul wahi "Makkah Towers markup trap" wapas aata).
                                         $show_extra_bed_col = false;
+                                        foreach ($seasonal_rules_room as $r) {
+                                            if (($r['extra_bed_base'] ?? 0) > 0 || ($r['extra_bed_markup'] ?? 0) > 0) {
+                                                $show_extra_bed_col = true;
+                                                break;
+                                            }
+                                        }
                                         $has_weekend_split_agent = true;
-                                        if (HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id) || HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
+                                        if (HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id) || HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id) || $hotel_id == LEMERIDIEN_HOTEL_ID) {
                                             $opts_for_agent = HotelHandlerFactory::getHandler($hotel_id)->getBookingOptions($hotel_id);
-                                            $show_extra_bed_col = $opts_for_agent['extra_bed_available'] ?? false;
                                             $has_weekend_split_agent = $opts_for_agent['has_weekend_split'] ?? true;
+                                        }
+                                        // Meal Plan column: Le Meridien jaisi hotels mein har row ka apna
+                                        // meal_type hota hai (row ki price isi se decide hoti hai) -- agar
+                                        // koi row mein meal_type set hai to ye column dikhao.
+                                        $show_meal_type_col = false;
+                                        foreach ($seasonal_rules_room as $r) {
+                                            if (!empty($r['meal_type'])) { $show_meal_type_col = true; break; }
                                         }
                                     ?>
                                     <?php foreach ($periodGroups as $group): ?>
@@ -543,6 +562,7 @@ if($car_id) {
                                             <thead>
                                                 <tr>
                                                     <th>Bed Type</th>
+                                                    <?php if($show_meal_type_col): ?><th>Meal Plan</th><?php endif; ?>
                                                     <th>Room Price (SAR)</th>
                                                     <?php if($show_extra_bed_col): ?><th>Extra Bed (SAR)</th><?php endif; ?>
                                                     <?php if($has_weekend_split_agent): ?><th>Weekend</th><?php endif; ?>
@@ -552,18 +572,20 @@ if($car_id) {
                                             <tbody>
                                                 <?php
                                                     // Jab hotel mein asal weekday/weekend price farak nahi hai (jaise
-                                                    // Sheraton, M Hotel), to display rows ko ek hi row mein merge karo
-                                                    // (weekday+weekend dono ki id yaad rakh ke), taake agent ko ek hi
-                                                    // dafa dikhe aur "Update" dabane pe DONO underlying rows sath
-                                                    // update hon -- warna kabhi galti se sirf ek row edit ho jati aur
-                                                    // weekday/weekend prices chupke se alag ho jaatin.
+                                                    // Sheraton, M Hotel, Le Meridien), to display rows ko ek hi row
+                                                    // mein merge karo (weekday+weekend dono ki id yaad rakh ke),
+                                                    // taake agent ko ek hi dafa dikhe aur "Update" dabane pe DONO
+                                                    // underlying rows sath update hon.
+                                                    // Dedupe key mein meal_type bhi shamil hai -- warna Le Meridien
+                                                    // jaisi hotels mein DIFFERENT meal-plan rows (jinki alag price
+                                                    // hoti hai) ghalti se ek hi maan li jaatin.
                                                     $displayRows = [];
                                                     if ($has_weekend_split_agent) {
                                                         $displayRows = array_map(function($r) { return ['row' => $r, 'paired_id' => null]; }, $group['rows']);
                                                     } else {
                                                         $seen = [];
                                                         foreach ($group['rows'] as $rule) {
-                                                            $dedupeKey = $rule['room_type'];
+                                                            $dedupeKey = $rule['room_type'] . '|' . ($rule['meal_type'] ?? '');
                                                             if (!isset($seen[$dedupeKey])) {
                                                                 $seen[$dedupeKey] = ['row' => $rule, 'paired_id' => null];
                                                             } else {
@@ -580,6 +602,9 @@ if($car_id) {
                                                 ?>
                                                 <tr>
                                                     <td><strong><?php echo htmlspecialchars(ucfirst($rule['room_type'])); ?></strong></td>
+                                                    <?php if($show_meal_type_col): ?>
+                                                    <td><?php echo htmlspecialchars($rule['meal_type'] ?? '—'); ?></td>
+                                                    <?php endif; ?>
                                                     <td>
                                                         <input type="number" class="price-input" id="fs-price-<?php echo $rule['id']; ?>" 
                                                                value="<?php echo $room_final; ?>" step="1" min="0">

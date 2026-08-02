@@ -246,6 +246,43 @@ if ($hotel_id == 43) {
     }
     $grand_total = $total + $extra_bed_total;
     
+} elseif ($hotel_id == LEMERIDIEN_HOTEL_ID) {
+    // LE MERIDIEN TOWER HOTEL MAKKAH -- bespoke. $room_type_code =
+    // category (ds/es/rs), $bed_type = subtype, $meal_type =
+    // ro/bb_intl/hb_pk/fb_pk (REQUIRED, changes price). Extra Bed
+    // sirf Royal Suite (rs) ke liye.
+    $lm_meal_valid = ['ro' => 1, 'bb_intl' => 1, 'hb_pk' => 1, 'fb_pk' => 1];
+    if ($bed_type === '' || !isset($lm_meal_valid[$meal_type])) {
+        header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
+        exit();
+    }
+    $lm_extra_bed = ($room_type_code === 'rs') ? $extra_bed : 0;
+
+    for ($i = 0; $i < $nights; $i++) {
+        $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
+        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
+
+        $stmt = $pdo->prepare("
+            SELECT * FROM hotel_seasonal_pricing 
+            WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND meal_type = ? AND is_weekend = ? 
+            AND ? BETWEEN start_date AND end_date
+        ");
+        $stmt->execute([$hotel_id, $room_type_code, $bed_type, $meal_type, $is_weekend_val, $current_date]);
+        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$rule) {
+            header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
+            exit();
+        }
+
+        $total += $rule['base_price_sar'] + $rule['markup_sar'];
+        if ($lm_extra_bed) {
+            $extra_bed_total += ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
+        }
+    }
+
+    $grand_total = $total + $extra_bed_total;
+
 } elseif (HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id)) {
     // SINGLE-ROOM SUPPLEMENT HOTELS (Al Safwah, Conrad, Hilton Suites,
     // Hilton Convention, future hotels) -- ek generic block, supplement

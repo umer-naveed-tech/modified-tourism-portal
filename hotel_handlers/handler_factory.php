@@ -14,6 +14,8 @@ define('DOUBLETREE_HOTEL_ID', 153);
 define('ELAFKINDA_HOTEL_ID', 154);
 define('SHERATON_HOTEL_ID', 157);
 define('MHOTEL_HOTEL_ID', 158);
+define('SAJA_HOTEL_ID', 159);
+define('LEMERIDIEN_HOTEL_ID', 160);
 // Four Points by Sheraton (155) aur Voco Hotel Makkah (156) ke liye koi
 // handler register nahi karte -- inke paas abhi koi room data nahi hai,
 // isliye NormalHotelHandler (default fallback) khud-ba-khud 'Coming Soon'
@@ -36,7 +38,9 @@ require_once __DIR__ . '/hilton_convention_makkah.php';
 require_once __DIR__ . '/doubletree_hilton_makkah.php';  // NAYA
 require_once __DIR__ . '/elaf_kinda_makkah.php';
 require_once __DIR__ . '/sheraton_makkah.php';   // NAYA
-require_once __DIR__ . '/m_hotel_makkah.php';    // NAYA
+require_once __DIR__ . '/m_hotel_makkah.php';
+require_once __DIR__ . '/saja_hotel_makkah.php';
+require_once __DIR__ . '/lemeridien_tower_makkah.php';  // NAYA (bespoke)
 
 class HotelHandlerFactory {
 
@@ -57,13 +61,15 @@ class HotelHandlerFactory {
         154 => 'ElafKindaMakkahHandler',
         157 => 'SheratonMakkahHandler',
         158 => 'MHotelMakkahHandler',
+        159 => 'SajaHotelMakkahHandler',
+        160 => 'LeMeridienTowerMakkahHandler', // bespoke -- simpleHiddenMarkupHotels mein NAHI (apna khud ka block hai)
         // 155 (Four Points), 156 (Voco) -- deliberately NOT registered,
         // falls back to NormalHotelHandler -> empty rooms -> Coming Soon UI
     ];
 
     // "Simple" hotels: room_type_code + is_weekend, 70 SAR hidden markup,
     // koi extra bed nahi, koi meal add-on nahi, koi supplement nahi.
-    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148, 154, 157, 158];
+    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148, 154, 157, 158, 159];
 
     // "Single-room + supplement" hotels: EK room type ('double'),
     // weekday/weekend, 70 SAR hidden markup on room, optional extra bed
