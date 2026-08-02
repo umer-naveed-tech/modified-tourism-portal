@@ -27,8 +27,12 @@ $is_makkah = ($hotel_id == 43);
 $is_marriot = ($hotel_id == 41);
 $is_makkah_towers = ($hotel_id == 44);
 $is_simple_hidden_markup = HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id);
-$is_safwah = ($hotel_id == ALSAFWAH_HOTEL_ID);
-$is_conrad = ($hotel_id == CONRAD_HOTEL_ID);
+$is_single_room_supplement = HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id);
+$hotel_has_extra_bed = false;
+if ($is_single_room_supplement || $is_simple_hidden_markup) {
+    $opts_for_flags = HotelHandlerFactory::getHandler($hotel_id)->getBookingOptions($hotel_id);
+    $hotel_has_extra_bed = $opts_for_flags['extra_bed_available'] ?? false;
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -839,10 +843,14 @@ $is_conrad = ($hotel_id == CONRAD_HOTEL_ID);
                 </form>
             </div>
         <?php else: ?>
-            <div class="panel empty-state">
-                <h4>Coming Soon</h4>
-                <p>Room details for this hotel will be added soon.</p>
-                <a href="services.php?type=hotels&city=<?php echo urlencode($hotel['city']); ?>" class="btn btn-secondary" style="margin-top:14px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.05); color:rgba(255,255,255,0.5); padding:8px 24px; border-radius:8px; text-decoration:none;">Back to Hotels</a>
+            <div class="panel empty-state" style="padding:60px 24px;">
+                <div style="font-size:48px; margin-bottom:16px;">🏨</div>
+                <h4 style="font-size:22px;">Coming Soon</h4>
+                <p style="max-width:380px; margin:0 auto; line-height:1.6;">Online booking for <strong style="color:rgba(255,255,255,0.6);"><?php echo htmlspecialchars($hotel['hotel_name']); ?></strong> is being set up. In the meantime, our team can help you book this hotel directly.</p>
+                <div style="display:flex; gap:12px; justify-content:center; margin-top:24px; flex-wrap:wrap;">
+                    <a href="https://wa.me/923001234567?text=<?php echo urlencode('Hi! I want to book ' . $hotel['hotel_name']); ?>" target="_blank" class="btn" style="background:#25D366; color:white; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:500;">📱 Chat on WhatsApp</a>
+                    <a href="services.php?type=hotels&city=<?php echo urlencode($hotel['city']); ?>" class="btn btn-secondary" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.05); color:rgba(255,255,255,0.5); padding:10px 24px; border-radius:8px; text-decoration:none;">← Back to Hotels</a>
+                </div>
             </div>
         <?php endif; ?>
     </div>
@@ -857,8 +865,8 @@ const isMakkah = <?php echo $is_makkah ? 'true' : 'false'; ?>;
 const isMarriot = <?php echo $is_marriot ? 'true' : 'false'; ?>;
 const isMakkahTowers = <?php echo $is_makkah_towers ? 'true' : 'false'; ?>;
 const isSimpleHiddenMarkupHotel = <?php echo $is_simple_hidden_markup ? 'true' : 'false'; ?>;
-const isSafwah = <?php echo $is_safwah ? 'true' : 'false'; ?>;
-const isConrad = <?php echo $is_conrad ? 'true' : 'false'; ?>;
+const isSingleRoomSupplementHotel = <?php echo $is_single_room_supplement ? 'true' : 'false'; ?>;
+const hotelHasExtraBed = <?php echo $hotel_has_extra_bed ? 'true' : 'false'; ?>;
 
 function calculateNights() {
     const checkIn = document.getElementById('check_in').value;
@@ -1248,10 +1256,12 @@ function calculateTotal() {
     }
     
     // ============================================================
-    // AL SAFWAH TOWER 3 & CONRAD HOTEL MAKKAH
+    // SINGLE-ROOM SUPPLEMENT HOTELS (Al Safwah, Conrad, Hilton Suites,
+    // Hilton Convention, future hotels of this pattern)
     // ============================================================
-    if (isSafwah || isConrad) {
-        const extraBed = isSafwah ? (document.getElementById('safwah_extra_bed')?.checked ? 1 : 0) : 0;
+    if (isSingleRoomSupplementHotel) {
+        const extraBedEl = hotelHasExtraBed ? document.querySelector('input[name="extra_bed"]') : null;
+        const extraBed = extraBedEl?.checked ? 1 : 0;
         const supplementEl = document.querySelector('input[name="supplement"]:checked');
         const supplement = supplementEl ? supplementEl.value : '';
 
@@ -1358,6 +1368,9 @@ function calculateTotal() {
         document.getElementById('total_amount').value = 'Calculating...';
         document.getElementById('btnBook').disabled = true;
 
+        const extraBedEl2 = hotelHasExtraBed ? document.querySelector('input[name="extra_bed"]') : null;
+        const extraBed2 = extraBedEl2?.checked ? 1 : 0;
+
         fetch('get_hotel_room_price.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1366,7 +1379,8 @@ function calculateTotal() {
                 room_type: room.room_type,
                 bed_type: bedType,
                 check_in: checkIn,
-                check_out: checkOut
+                check_out: checkOut,
+                extra_bed: extraBed2
             })
         })
         .then(response => response.json())
@@ -1404,6 +1418,15 @@ function calculateTotal() {
                         </div>
                     `;
                 });
+
+                if (data.extra_bed_total > 0) {
+                    breakdownHtml += `
+                        <div class="breakdown-range" style="border-left-color: #d4af37;">
+                            <div><span class="range-label">Extra Bed</span></div>
+                            <span class="range-price" style="color:#d4af37;">SAR ${data.extra_bed_total.toFixed(2)}</span>
+                        </div>
+                    `;
+                }
 
                 document.getElementById('breakdownDetails').innerHTML = breakdownHtml;
                 document.getElementById('priceBreakdown').style.display = 'block';
@@ -1575,23 +1598,32 @@ if(select) {
 
         if (isSimpleHiddenMarkupHotel) {
             // Bed Type dropdown ko is room ke actual available options se
-            // bharo (kuch rooms mein Quad N/A hota hai). Jab tak bed type
-            // select na ho, price calculate nahi hoti -- isliye yahan
-            // calculateTotal() nahi bulaya, sirf bed type select hone par.
+            // bharo. Agar sirf EK hi bed type hai (jaisa Elaf Kinda mein --
+            // har room category ka apna sirf ek hi config hai), to dropdown
+            // dikhane ki zaroorat nahi -- khud-ba-khud select ho jayega aur
+            // seedha price calculate ho jayegi.
+            const bedTypes = selectedRoom.bed_types || [];
             const bedSelect = document.getElementById('bedTypeSelect');
             const bedPanel = document.getElementById('bedTypePanel');
-            bedSelect.innerHTML = '<option value="">— Choose a bed type —</option>';
-            (selectedRoom.bed_types || []).forEach(bt => {
-                const opt = document.createElement('option');
-                opt.value = bt;
-                opt.textContent = bt.charAt(0).toUpperCase() + bt.slice(1);
-                bedSelect.appendChild(opt);
-            });
-            bedPanel.style.display = 'block';
-            document.getElementById('selected_bed_type').value = '';
-            document.getElementById('total_amount').value = 'Select a bed type';
-            document.getElementById('btnBook').disabled = true;
-            document.getElementById('priceBreakdown').style.display = 'none';
+
+            if (bedTypes.length <= 1) {
+                bedPanel.style.display = 'none';
+                document.getElementById('selected_bed_type').value = bedTypes[0] || '';
+                calculateTotal();
+            } else {
+                bedSelect.innerHTML = '<option value="">— Choose a bed type —</option>';
+                bedTypes.forEach(bt => {
+                    const opt = document.createElement('option');
+                    opt.value = bt;
+                    opt.textContent = bt.charAt(0).toUpperCase() + bt.slice(1);
+                    bedSelect.appendChild(opt);
+                });
+                bedPanel.style.display = 'block';
+                document.getElementById('selected_bed_type').value = '';
+                document.getElementById('total_amount').value = 'Select a bed type';
+                document.getElementById('btnBook').disabled = true;
+                document.getElementById('priceBreakdown').style.display = 'none';
+            }
         } else {
             calculateTotal();
         }

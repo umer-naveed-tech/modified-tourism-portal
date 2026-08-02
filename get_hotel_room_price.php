@@ -408,10 +408,20 @@ if ($hotel_id == 44) {
 }
 
 // ============================================================
-// AL SAFWAH TOWER 3 HOTEL -- single room type, extra bed + supplement
+// SINGLE-ROOM SUPPLEMENT HOTELS (Al Safwah, Conrad, Hilton Suites,
+// Hilton Convention, aur future hotels isi pattern ke): EK room type
+// ('double'), weekday/weekend, 70 SAR hidden markup on room, optional
+// extra bed (25 SAR hidden markup), optional flat supplements (no
+// markup). Supplement prices aur extra-bed availability handler class
+// se dynamically aate hain -- naya aisa hotel add karne ke liye is
+// block mein kuch badalna nahi padta, bas handler_factory.php ke
+// $singleRoomSupplementHotels array mein ek line add karni hoti hai.
 // ============================================================
-if ($hotel_id == ALSAFWAH_HOTEL_ID) {
-    $supplement_prices = ['standard_hv' => 110, 'junior_suite' => 350];
+if (HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id)) {
+    $handler = HotelHandlerFactory::getHandler($hotel_id);
+    $opts = $handler->getBookingOptions($hotel_id);
+    $supplement_prices = $opts['supplements'] ?? [];
+    $has_extra_bed = $opts['extra_bed_available'] ?? false;
 
     $start = new DateTime($check_in);
     $end = new DateTime($check_out);
@@ -444,7 +454,7 @@ if ($hotel_id == ALSAFWAH_HOTEL_ID) {
         $total += $night_price;
         $nights++;
 
-        if ($extra_bed) {
+        if ($has_extra_bed && $extra_bed) {
             $extra_bed_total += ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
         }
 
@@ -472,72 +482,12 @@ if ($hotel_id == ALSAFWAH_HOTEL_ID) {
 }
 
 // ============================================================
-// CONRAD HOTEL MAKKAH -- single room type, supplement only (no extra bed)
-// ============================================================
-if ($hotel_id == CONRAD_HOTEL_ID) {
-    $supplement_prices = [
-        'superior_partial_hv' => 120, 'deluxe_suite_partial_hv' => 630,
-        'executive_cv' => 300, 'executive_partial_hv' => 415,
-        'grand_premier' => 2820, 'two_bedroom_partial_haram' => 1560,
-        'three_bedroom_partial_haram' => 4910, 'royal_suite' => 8610,
-    ];
-
-    $start = new DateTime($check_in);
-    $end = new DateTime($check_out);
-    $interval = new DateInterval('P1D');
-    $period = new DatePeriod($start, $interval, $end);
-
-    $total = 0;
-    $nights = 0;
-    $breakdown = [];
-
-    foreach ($period as $date) {
-        $current_date = $date->format('Y-m-d');
-        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
-
-        $stmt = $pdo->prepare("
-            SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type = 'double' AND is_weekend = ? 
-            AND ? BETWEEN start_date AND end_date
-        ");
-        $stmt->execute([$hotel_id, $is_weekend_val, $current_date]);
-        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$rule) {
-            echo json_encode(['success' => false, 'error' => "No pricing available for date: $current_date"]);
-            exit();
-        }
-
-        $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
-        $total += $night_price;
-        $nights++;
-
-        $breakdown[] = [
-            'date' => $current_date,
-            'price' => $night_price,
-            'is_weekend' => $is_weekend_val,
-            'rule_name' => date('d M Y', strtotime($rule['start_date'])) . ' - ' . date('d M Y', strtotime($rule['end_date']))
-        ];
-    }
-
-    $supplement_total = ($supplement && isset($supplement_prices[$supplement])) ? $supplement_prices[$supplement] : 0;
-    $grand_total = $total + $supplement_total;
-
-    echo json_encode([
-        'success' => true,
-        'room_total' => $total,
-        'supplement_total' => $supplement_total,
-        'grand_total' => $grand_total,
-        'nights' => $nights,
-        'breakdown' => $breakdown
-    ]);
-    exit();
-}
-
-// ============================================================
-// FAIRMONT CLOCK TOWER HOTEL MAKKAH & SWISSOTEL MAKKAH
-// Same structure: room_type_code + is_weekend, base+70 hidden markup,
-// no extra bed, no meal addon -- just room selection + total price.
+// SIMPLE HIDDEN-MARKUP HOTELS (multi room-type, room_type_code +
+// is_weekend, base+70 hidden markup). Extra bed is OPTIONAL and driven
+// dynamically per-hotel via the handler's getBookingOptions() -- most
+// of these hotels (Fairmont, Swissotel, Elaf Kinda, M Hotel) don't have
+// it, but Sheraton does, so this one block now covers both cases
+// instead of needing a separate bespoke block per hotel.
 // ============================================================
 if (HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
     // Bed Type (Double/Triple/Quad) ek ALAG required selection hai --
@@ -549,12 +499,16 @@ if (HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
         exit();
     }
 
+    $handler = HotelHandlerFactory::getHandler($hotel_id);
+    $has_extra_bed = $handler->getBookingOptions($hotel_id)['extra_bed_available'] ?? false;
+
     $start = new DateTime($check_in);
     $end = new DateTime($check_out);
     $interval = new DateInterval('P1D');
     $period = new DatePeriod($start, $interval, $end);
 
     $total = 0;
+    $extra_bed_total = 0;
     $nights = 0;
     $breakdown = [];
 
@@ -582,6 +536,10 @@ if (HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
         $total += $night_price;
         $nights++;
 
+        if ($has_extra_bed && $extra_bed) {
+            $extra_bed_total += ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
+        }
+
         $breakdown[] = [
             'date' => $current_date,
             'price' => $night_price,
@@ -590,10 +548,13 @@ if (HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
         ];
     }
 
+    $grand_total = $total + $extra_bed_total;
+
     echo json_encode([
         'success' => true,
         'room_total' => $total,
-        'grand_total' => $total,
+        'extra_bed_total' => $extra_bed_total,
+        'grand_total' => $grand_total,
         'nights' => $nights,
         'breakdown' => $breakdown
     ]);

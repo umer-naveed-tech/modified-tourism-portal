@@ -524,7 +524,13 @@ if($car_id) {
                                     Al Safwah Tower 3 also gets an Extra Bed column (same hidden-25
                                     markup pattern) since it's the only new hotel with that feature.
                                     ============================================================ -->
-                                    <?php $show_extra_bed_col = ($hotel_id == ALSAFWAH_HOTEL_ID); ?>
+                                    <?php 
+                                        $show_extra_bed_col = false;
+                                        if (HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id) || HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
+                                            $opts_for_agent = HotelHandlerFactory::getHandler($hotel_id)->getBookingOptions($hotel_id);
+                                            $show_extra_bed_col = $opts_for_agent['extra_bed_available'] ?? false;
+                                        }
+                                    ?>
                                     <?php foreach ($periodGroups as $group): ?>
                                     <details class="period-group" <?php echo $isFirstGroup ? 'open' : ''; ?>>
                                         <summary>

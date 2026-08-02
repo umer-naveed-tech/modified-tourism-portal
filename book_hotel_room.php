@@ -17,6 +17,7 @@ $meal_type = $_POST['meal_type'] ?? 'breakfast';
 $extra_bed = isset($_POST['extra_bed']) ? 1 : 0;
 $guests = $_POST['guests'] ?? 2;
 $supplements = $_POST['supplements'] ?? [];
+$supplement = $_POST['supplement'] ?? null; // Al Safwah / Conrad: single-select radio
 $meals = $_POST['meals'] ?? [];
 
 if (!$room_id || !$hotel_id || !$check_in || !$check_out) {
@@ -245,8 +246,45 @@ if ($hotel_id == 43) {
     }
     $grand_total = $total + $extra_bed_total;
     
+} elseif (HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id)) {
+    // SINGLE-ROOM SUPPLEMENT HOTELS (Al Safwah, Conrad, Hilton Suites,
+    // Hilton Convention, future hotels) -- ek generic block, supplement
+    // prices aur extra-bed availability handler class se aate hain.
+    $handler = HotelHandlerFactory::getHandler($hotel_id);
+    $opts = $handler->getBookingOptions($hotel_id);
+    $supplement_prices_map = $opts['supplements'] ?? [];
+    $has_extra_bed = $opts['extra_bed_available'] ?? false;
+
+    for ($i = 0; $i < $nights; $i++) {
+        $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
+        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
+
+        $stmt = $pdo->prepare("
+            SELECT * FROM hotel_seasonal_pricing 
+            WHERE hotel_id = ? AND room_type = 'double' AND is_weekend = ? 
+            AND ? BETWEEN start_date AND end_date
+        ");
+        $stmt->execute([$hotel_id, $is_weekend_val, $current_date]);
+        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$rule) {
+            header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
+            exit();
+        }
+
+        $total += $rule['base_price_sar'] + $rule['markup_sar'];
+        if ($has_extra_bed && $extra_bed) {
+            $extra_bed_total += ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
+        }
+    }
+
+    $supplements_total = ($supplement && isset($supplement_prices_map[$supplement])) ? $supplement_prices_map[$supplement] : 0;
+    $grand_total = $total + $extra_bed_total + $supplements_total;
+
 } elseif (HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
-    // FAIRMONT / SWISSOTEL / SWISSOTEL AL MAQAM / AL MARWA RAYHAAN
+    // Multi room-type hotels (Fairmont, Swissotel, Elaf Kinda, Sheraton,
+    // M Hotel, etc). Extra bed optional, driven by handler's
+    // getBookingOptions() -- most don't have it, Sheraton does.
     // Bed Type (Double/Triple/Quad) zaroori hai -- iske bina room
     // category+date se 3 rows match hoti thin aur galat/random price
     // select ho jaati thi.
@@ -254,6 +292,9 @@ if ($hotel_id == 43) {
         header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
         exit();
     }
+
+    $simple_handler = HotelHandlerFactory::getHandler($hotel_id);
+    $simple_has_extra_bed = $simple_handler->getBookingOptions($hotel_id)['extra_bed_available'] ?? false;
 
     for ($i = 0; $i < $nights; $i++) {
         $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
@@ -276,9 +317,12 @@ if ($hotel_id == 43) {
         }
 
         $total += $rule['base_price_sar'] + $rule['markup_sar'];
+        if ($simple_has_extra_bed && $extra_bed) {
+            $extra_bed_total += ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
+        }
     }
 
-    $grand_total = $total;
+    $grand_total = $total + $extra_bed_total;
     
 } else {
     // OTHER HOTELS

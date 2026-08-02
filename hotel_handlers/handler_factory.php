@@ -1,14 +1,23 @@
 <?php
 // hotel_handlers/handler_factory.php
 
-// NAYE HOTELS KE IDs -- inhi constants ko poori codebase mein use karo
-// taake ID kahin bhi mismatch na ho.
+// NAYE HOTELS KE IDs
 define('FAIRMONT_HOTEL_ID', 145);
 define('SWISSOTEL_HOTEL_ID', 146);
 define('SWISSOTEL_ALMAQAM_HOTEL_ID', 147);
 define('ALMARWA_HOTEL_ID', 148);
 define('ALSAFWAH_HOTEL_ID', 149);
 define('CONRAD_HOTEL_ID', 150);
+define('HILTONSUITES_HOTEL_ID', 151);
+define('HILTONCONVENTION_HOTEL_ID', 152);
+define('DOUBLETREE_HOTEL_ID', 153);
+define('ELAFKINDA_HOTEL_ID', 154);
+define('SHERATON_HOTEL_ID', 157);
+define('MHOTEL_HOTEL_ID', 158);
+// Four Points by Sheraton (155) aur Voco Hotel Makkah (156) ke liye koi
+// handler register nahi karte -- inke paas abhi koi room data nahi hai,
+// isliye NormalHotelHandler (default fallback) khud-ba-khud 'Coming Soon'
+// page dikha dega.
 
 require_once __DIR__ . '/base_handler.php';
 require_once __DIR__ . '/normal_hotel.php';
@@ -20,8 +29,14 @@ require_once __DIR__ . '/fairmont_clocktower.php';
 require_once __DIR__ . '/swissotel_makkah.php';
 require_once __DIR__ . '/swissotel_almaqam.php';
 require_once __DIR__ . '/al_marwa_rayhaan.php';
-require_once __DIR__ . '/al_safwah_tower3.php';   // NAYA
-require_once __DIR__ . '/conrad_makkah.php';      // NAYA
+require_once __DIR__ . '/al_safwah_tower3.php';
+require_once __DIR__ . '/conrad_makkah.php';
+require_once __DIR__ . '/hilton_suites_makkah.php';      // NAYA
+require_once __DIR__ . '/hilton_convention_makkah.php';
+require_once __DIR__ . '/doubletree_hilton_makkah.php';  // NAYA
+require_once __DIR__ . '/elaf_kinda_makkah.php';
+require_once __DIR__ . '/sheraton_makkah.php';   // NAYA
+require_once __DIR__ . '/m_hotel_makkah.php';    // NAYA
 
 class HotelHandlerFactory {
 
@@ -36,21 +51,46 @@ class HotelHandlerFactory {
         148 => 'AlMarwaRayhaanHandler',
         149 => 'AlSafwahTower3Handler',
         150 => 'ConradMakkahHandler',
+        151 => 'HiltonSuitesMakkahHandler',
+        152 => 'HiltonConventionMakkahHandler',
+        153 => 'DoubletreeHiltonMakkahHandler',
+        154 => 'ElafKindaMakkahHandler',
+        157 => 'SheratonMakkahHandler',
+        158 => 'MHotelMakkahHandler',
+        // 155 (Four Points), 156 (Voco) -- deliberately NOT registered,
+        // falls back to NormalHotelHandler -> empty rooms -> Coming Soon UI
     ];
 
-    // "Simple" pattern hotels: room_type_code + is_weekend, 70 SAR hidden
-    // markup, koi extra bed nahi, koi meal add-on nahi, koi supplement
-    // nahi. Al Safwah/Conrad is list mein NAHI hain kyunki unke apne
-    // bespoke blocks hain (extra bed / supplements) -- Makkah Hotel jaisa.
-    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148];
+    // "Simple" hotels: room_type_code + is_weekend, 70 SAR hidden markup,
+    // koi extra bed nahi, koi meal add-on nahi, koi supplement nahi.
+    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148, 154, 157, 158];
+
+    // "Single-room + supplement" hotels: EK room type ('double'),
+    // weekday/weekend, 70 SAR hidden markup on room, optional extra bed
+    // (25 SAR hidden markup), optional flat supplements (no markup).
+    // Naya aisa hotel add karne ke liye BAS is array mein ek line add
+    // karo -- get_hotel_room_price.php, book_hotel_room.php ek hi
+    // generic block se sabko handle karte hain, alag block likhne ki
+    // zaroorat nahi.
+    private static $singleRoomSupplementHotels = [149, 150, 151, 152, 153];
 
     public static function isSimpleHiddenMarkupHotel($hotel_id) {
         return in_array($hotel_id, self::$simpleHiddenMarkupHotels);
     }
 
+    public static function isSingleRoomSupplementHotel($hotel_id) {
+        return in_array($hotel_id, self::$singleRoomSupplementHotels);
+    }
+
     public static function registerSimpleHiddenMarkupHotel($hotel_id) {
         if (!in_array($hotel_id, self::$simpleHiddenMarkupHotels)) {
             self::$simpleHiddenMarkupHotels[] = $hotel_id;
+        }
+    }
+
+    public static function registerSingleRoomSupplementHotel($hotel_id) {
+        if (!in_array($hotel_id, self::$singleRoomSupplementHotels)) {
+            self::$singleRoomSupplementHotels[] = $hotel_id;
         }
     }
 
