@@ -267,6 +267,10 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
         }
         .status-select:hover { border-color: rgba(212, 175, 55, 0.2); }
 
+        /* NEW: clickable customer name -> profile history page */
+        .customer-link { color: rgba(255,255,255,0.85); text-decoration: none; font-weight: 500; border-bottom: 1px dashed rgba(212,175,55,0.3); transition: all 0.2s ease; }
+        .customer-link:hover { color: #d4af37; border-bottom-color: #d4af37; }
+
         .btn-wa {
             background: rgba(37, 211, 102, 0.1); color: #25D366; padding: 6px 14px; border-radius: 8px; text-decoration: none;
             font-size: 12px; font-weight: 600; transition: all 0.3s ease; border: 1px solid rgba(37, 211, 102, 0.08); display: inline-block; white-space: nowrap;
@@ -415,7 +419,7 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                     <tr class="table-row">
                         <td><?php echo $b['id']; ?></td>
                         <td><?php echo htmlspecialchars($b['booking_no']); ?></td>
-                        <td><?php echo htmlspecialchars($b['user_name']); ?></td>
+                        <td><a href="customer_profile.php?user_id=<?php echo (int)$b['user_id']; ?>" class="customer-link"><?php echo htmlspecialchars($b['user_name']); ?></a></td>
                         <td><?php echo htmlspecialchars($b['user_email']); ?></td>
                         <td><?php echo htmlspecialchars($b['user_phone']); ?></td>
                         <td>
@@ -491,7 +495,7 @@ document.querySelectorAll('.status-select').forEach(select => {
 });
 
 /* NEW: page-transition overlay for internal navigation links */
-document.querySelectorAll('.action-btn, .logo, .nav-links a:not(.btn-logout)').forEach(a => {
+document.querySelectorAll('.action-btn, .logo, .nav-links a:not(.btn-logout), .customer-link').forEach(a => {
     a.addEventListener('click', function() {
         document.getElementById('pageTransition').classList.add('active');
     });

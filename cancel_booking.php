@@ -133,6 +133,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && $can_cancel) {
         .btn-danger:hover { background: #dc2626; transform: translateY(-2px); box-shadow: 0 10px 25px rgba(239,68,68,0.25); }
         .btn-secondary { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.06); }
         .btn-secondary:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); }
+    
+        .btn-spinner {
+            display: inline-block; width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.35); border-top-color: currentColor;
+            border-radius: 50%; animation: btnSpin 0.6s linear infinite;
+            margin-right: 8px; vertical-align: -2px;
+        }
+        @keyframes btnSpin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -168,5 +176,25 @@ if($_SERVER['REQUEST_METHOD'] == 'POST' && $can_cancel) {
             </form>
         <?php endif; ?>
     </div>
+
+<script>
+    /* NEW: disable the submit button and show a spinner while the form
+       is submitting, so double-clicking never fires a second (duplicate)
+       booking request. Skips entirely if an earlier listener already
+       cancelled the submit (e.g. client-side validation failing) --
+       never leaves a valid form stuck showing "Processing...". */
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (e.defaultPrevented) return;
+            const btn = this.querySelector('button[type="submit"]');
+            if (btn && !btn.disabled) {
+                btn.dataset.originalHtml = btn.innerHTML;
+                btn.innerHTML = '<span class="btn-spinner"></span>Processing...';
+                btn.disabled = true;
+            }
+        });
+    });
+</script>
+
 </body>
 </html>

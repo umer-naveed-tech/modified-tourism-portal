@@ -76,7 +76,33 @@ $total = $_GET['total'] ?? 0;
         .btn-secondary { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.06); }
         .btn-secondary:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); }
 
+        /* NEW: print/download receipt button */
+        .btn-print {
+            width: 100%; padding: 12px; border-radius: 12px; font-weight: 600; font-size: 13.5px;
+            background: transparent; color: rgba(255,255,255,0.6); border: 1px dashed rgba(255,255,255,0.15);
+            cursor: pointer; transition: all 0.3s ease; margin-bottom: 14px;
+            display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit;
+        }
+        .btn-print:hover { border-color: #d4af37; color: #d4af37; background: rgba(212,175,55,0.04); }
+
         @media (max-width: 500px) { .btn-row { flex-direction: column; } }
+
+        /* NEW: clean, receipt-style output when printed / saved as PDF via
+           the browser's own print dialog -- no new library needed. */
+        @media print {
+            body { background: #fff !important; padding: 0; }
+            .bg-ambient, .grain-overlay, .btn-row, .btn-print { display: none !important; }
+            .success-card {
+                box-shadow: none !important; border: 1px solid #ddd !important;
+                background: #fff !important; max-width: 100% !important;
+                animation: none !important; opacity: 1 !important; transform: none !important;
+            }
+            .check-wrap { background: #d1fae5 !important; animation: none !important; opacity: 1 !important; transform: none !important; }
+            .check-wrap i { color: #059669 !important; }
+            .success-card h2, .detail-row span:last-child, .detail-row .amt { color: #0a0f1e !important; }
+            .success-card > p, .note { color: #555 !important; }
+            .detail-box { background: #f9fafb !important; border-color: #e5e7eb !important; }
+        }
     </style>
 </head>
 <body>
@@ -98,6 +124,8 @@ $total = $_GET['total'] ?? 0;
         </div>
 
         <p class="note"><i class="fas fa-envelope"></i> A confirmation email has been sent to your registered email address.</p>
+
+        <button type="button" class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> Download / Print Receipt</button>
 
         <div class="btn-row">
             <a href="dashboard.php" class="btn-primary">Go to Dashboard</a>
