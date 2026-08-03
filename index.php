@@ -238,6 +238,24 @@
         .slider-dots span.active { background: #d4af37; width: 22px; border-radius: 5px; }
 
         .services-section { padding: 90px 0; }
+
+        /* NEW: trust badges strip */
+        .trust-strip { padding: 10px 0 70px; }
+        .trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .trust-item {
+            display: flex; align-items: center; gap: 14px;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 14px; padding: 18px 20px; transition: all 0.3s ease;
+        }
+        .trust-item:hover { border-color: rgba(212,175,55,0.2); transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+        .trust-icon {
+            width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+            background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.15);
+            display: flex; align-items: center; justify-content: center; color: #d4af37; font-size: 17px;
+        }
+        .trust-item h4 { font-size: 13.5px; color: white; font-weight: 600; margin-bottom: 2px; }
+        .trust-item p { font-size: 11.5px; color: rgba(255,255,255,0.4); }
+        @media (max-width: 992px) { .trust-grid { grid-template-columns: repeat(2, 1fr); } }
         .section-title { text-align: center; margin-bottom: 50px; }
         .section-title .gold-line { width: 60px; height: 3px; background: #d4af37; margin: 0 auto 12px; border-radius: 2px; }
         .section-title h2 { font-size: 34px; font-weight: 800; color: white; margin-bottom: 10px; }
@@ -437,6 +455,29 @@
                         </div>
                         <div class="card-body"><h5>Visas</h5><span class="card-arrow">Explore &rarr;</span></div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="trust-strip">
+        <div class="container">
+            <div class="trust-grid">
+                <div class="trust-item reveal">
+                    <div class="trust-icon"><i class="fas fa-shield-halved"></i></div>
+                    <div><h4>Secure Payment</h4><p>Your transactions are protected</p></div>
+                </div>
+                <div class="trust-item reveal reveal-delay-1">
+                    <div class="trust-icon"><i class="fas fa-headset"></i></div>
+                    <div><h4>24/7 Support</h4><p>We're always here to help</p></div>
+                </div>
+                <div class="trust-item reveal reveal-delay-2">
+                    <div class="trust-icon"><i class="fas fa-rotate-left"></i></div>
+                    <div><h4>Free Cancellation</h4><p>Cancel within 60 minutes</p></div>
+                </div>
+                <div class="trust-item reveal reveal-delay-3">
+                    <div class="trust-icon"><i class="fas fa-award"></i></div>
+                    <div><h4>Trusted Service</h4><p>Handpicked hotels &amp; rides</p></div>
                 </div>
             </div>
         </div>

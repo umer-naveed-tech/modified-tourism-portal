@@ -285,6 +285,31 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
         .pagination .current { background: #d4af37; color: #0a0f1e; border-color: #d4af37; font-weight: 600; }
         .pagination .disabled { opacity: 0.3; pointer-events: none; }
 
+        /* NEW: Bulk actions bar -- hidden until at least one row checkbox
+           is checked; shown/hidden purely by JS toggling .active, doesn't
+           touch table markup or the per-row status-select logic at all. */
+        .bulk-checkbox { width: 16px; height: 16px; accent-color: #d4af37; cursor: pointer; }
+        .bulk-bar {
+            display: none;
+            align-items: center; gap: 14px; flex-wrap: wrap;
+            background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.15);
+            padding: 12px 18px; border-radius: 12px; margin-bottom: 16px;
+        }
+        .bulk-bar.active { display: flex; animation: bulkBarIn 0.25s ease; }
+        @keyframes bulkBarIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        .bulk-bar #bulkCount { color: #d4af37; font-weight: 600; font-size: 13px; margin-right: 4px; }
+        .bulk-btn {
+            padding: 8px 16px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+            border: none; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .bulk-btn-confirm { background: rgba(16,185,129,0.12); color: #34d399; }
+        .bulk-btn-confirm:hover { background: #10b981; color: white; transform: translateY(-2px); }
+        .bulk-btn-reminder { background: rgba(59,130,246,0.12); color: #60a5fa; }
+        .bulk-btn-reminder:hover { background: #3b82f6; color: white; transform: translateY(-2px); }
+        .bulk-btn-clear { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.5); margin-left: auto; }
+        .bulk-btn-clear:hover { background: rgba(255,255,255,0.08); color: white; }
+        .bulk-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
         @media (max-width: 768px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             th, td { padding: 8px 10px; font-size: 12px; }
@@ -350,6 +375,7 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
             <a href="agent_price_management.php" class="action-btn action-btn-primary">Manage Prices</a>
         </div>
 
+        <div id="ajaxContent">
         <div class="section-title">
             <span>All Bookings <span class="result-count">(<?php echo $totalFiltered; ?> found)</span></span>
             <div class="gold-line"></div>
@@ -399,10 +425,19 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
             <a href="<?php echo qs(['search' => null, 'type' => null, 'date_from' => null, 'date_to' => null, 'page' => null]); ?>" class="btn-clear-filter">Clear</a>
         </form>
 
+        <!-- BULK ACTIONS BAR -->
+        <div class="bulk-bar" id="bulkBar">
+            <span id="bulkCount">0 selected</span>
+            <button type="button" id="bulkConfirmBtn" class="bulk-btn bulk-btn-confirm"><i class="fas fa-check"></i> Mark as Confirmed</button>
+            <button type="button" id="bulkReminderBtn" class="bulk-btn bulk-btn-reminder"><i class="fas fa-bell"></i> Send Check-in Reminder</button>
+            <button type="button" id="bulkClearBtn" class="bulk-btn bulk-btn-clear">Clear</button>
+        </div>
+
         <div class="table-container reveal">
             <table>
                 <thead>
                     <tr>
+                        <th style="width:36px;"><input type="checkbox" id="selectAll" class="bulk-checkbox"></th>
                         <th><a href="<?php echo qs(['sort' => 'id', 'dir' => ($sort_col === 'id' && $sort_dir === 'DESC') ? 'asc' : 'desc']); ?>">ID<?php echo sortIndicator('id', $sort_col, $sort_dir); ?></a></th>
                         <th>Booking No</th><th>Customer</th><th>Email</th><th>Phone</th>
                         <th>Service</th>
@@ -414,9 +449,10 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                 </thead>
                 <tbody>
                     <?php if (empty($bookings)): ?>
-                    <tr class="empty-row"><td colspan="10">No bookings found matching these filters.</td></tr>
+                    <tr class="empty-row"><td colspan="11">No bookings found matching these filters.</td></tr>
                     <?php else: foreach($bookings as $b): ?>
                     <tr class="table-row">
+                        <td><input type="checkbox" class="row-check bulk-checkbox" value="<?php echo (int)$b['id']; ?>"></td>
                         <td><?php echo $b['id']; ?></td>
                         <td><?php echo htmlspecialchars($b['booking_no']); ?></td>
                         <td><a href="customer_profile.php?user_id=<?php echo (int)$b['user_id']; ?>" class="customer-link"><?php echo htmlspecialchars($b['user_name']); ?></a></td>
@@ -465,52 +501,269 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
             <a href="<?php echo qs(['page' => min($totalPages, $page + 1)]); ?>" class="<?php echo $page >= $totalPages ? 'disabled' : ''; ?>">Next &rsaquo;</a>
         </div>
         <?php endif; ?>
+        </div>
     </div>
 </div>
 
 <script>
 const csrfToken = '<?php echo csrf_token(); ?>';
-document.querySelectorAll('.status-select').forEach(select => {
-    select.addEventListener('change', function() {
-        const bookingId = this.dataset.id;
-        const newStatus = this.value;
-        
-        if(confirm('Change booking status to ' + newStatus.toUpperCase() + '? Customer will be notified.')) {
-            fetch('update_booking_status.php', {
+const ajaxContentEl = document.getElementById('ajaxContent');
+let revealObserver;
+
+/* ---------- Status-select change handler (same request/logic as
+   before -- only the "what happens after success" changed: instead of
+   location.reload() it now does a partial AJAX refresh so scroll
+   position isn't lost). Rebindable so it also works on content that
+   was just swapped in via AJAX. ---------- */
+function bindStatusSelects(root) {
+    root.querySelectorAll('.status-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const bookingId = this.dataset.id;
+            const newStatus = this.value;
+
+            if(confirm('Change booking status to ' + newStatus.toUpperCase() + '? Customer will be notified.')) {
+                fetch('update_booking_status.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'id=' + encodeURIComponent(bookingId) + '&status=' + encodeURIComponent(newStatus) + '&csrf_token=' + encodeURIComponent(csrfToken)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        refreshAjaxContent();
+                    } else {
+                        alert('Error updating status');
+                    }
+                });
+            }
+        });
+    });
+}
+
+/* ---------- Bulk actions -- identical logic to before, only the final
+   location.reload() calls became refreshAjaxContent(). Rebindable. ---------- */
+function bindBulkActions(root) {
+    const selectAll = root.querySelector('#selectAll');
+    const rowChecks = () => root.querySelectorAll('.row-check');
+    const bulkBar = root.querySelector('#bulkBar');
+    const bulkCount = root.querySelector('#bulkCount');
+    const confirmBtn = root.querySelector('#bulkConfirmBtn');
+    const reminderBtn = root.querySelector('#bulkReminderBtn');
+    const clearBtn = root.querySelector('#bulkClearBtn');
+    if (!bulkBar) return;
+
+    function selectedIds() {
+        return Array.from(root.querySelectorAll('.row-check:checked')).map(cb => cb.value);
+    }
+
+    function refreshBar() {
+        const n = selectedIds().length;
+        if (n > 0) {
+            bulkBar.classList.add('active');
+            bulkCount.textContent = n + ' selected';
+        } else {
+            bulkBar.classList.remove('active');
+        }
+        if (selectAll) {
+            const all = rowChecks();
+            selectAll.checked = all.length > 0 && n === all.length;
+        }
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            rowChecks().forEach(cb => { cb.checked = this.checked; });
+            refreshBar();
+        });
+    }
+    rowChecks().forEach(cb => cb.addEventListener('change', refreshBar));
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            rowChecks().forEach(cb => { cb.checked = false; });
+            if (selectAll) selectAll.checked = false;
+            refreshBar();
+        });
+    }
+
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', function() {
+            const ids = selectedIds();
+            if (ids.length === 0) return;
+            if (!confirm('Mark ' + ids.length + ' booking(s) as Confirmed? Customers will be notified by email.')) return;
+
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = 'Processing...';
+
+            Promise.all(ids.map(id => fetch('update_booking_status.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'id=' + encodeURIComponent(bookingId) + '&status=' + encodeURIComponent(newStatus) + '&csrf_token=' + encodeURIComponent(csrfToken)
+                body: 'id=' + encodeURIComponent(id) + '&status=confirmed&csrf_token=' + encodeURIComponent(csrfToken)
+            }).then(r => r.json())))
+            .then(results => {
+                const failedCount = results.filter(r => !r.success).length;
+                alert(failedCount > 0
+                    ? (ids.length - failedCount) + ' updated, ' + failedCount + ' failed. Please review.'
+                    : ids.length + ' booking(s) marked as Confirmed.');
+                refreshAjaxContent();
             })
-            .then(response => response.json())
-            .then(data => {
-                if(data.success) {
-                    alert('Status updated successfully!');
-                    location.reload();
-                } else {
-                    alert('Error updating status');
-                }
+            .catch(() => {
+                alert('Something went wrong updating some bookings. Refreshing -- please check statuses.');
+                refreshAjaxContent();
             });
+        });
+    }
+
+    if (reminderBtn) {
+        reminderBtn.addEventListener('click', function() {
+            const ids = selectedIds();
+            if (ids.length === 0) return;
+            if (!confirm('Send a check-in reminder email to ' + ids.length + ' customer(s)?')) return;
+
+            reminderBtn.disabled = true;
+            const originalText = reminderBtn.innerHTML;
+            reminderBtn.innerHTML = 'Sending...';
+
+            fetch('send_bulk_reminder.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'booking_ids=' + encodeURIComponent(JSON.stringify(ids)) + '&csrf_token=' + encodeURIComponent(csrfToken)
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.message || 'Reminders sent.');
+            })
+            .catch(() => {
+                alert('Failed to send reminders. Please check your connection and try again.');
+            })
+            .finally(() => {
+                reminderBtn.disabled = false;
+                reminderBtn.innerHTML = originalText;
+            });
+        });
+    }
+}
+
+/* ---------- Scroll-reveal, rebindable for freshly-swapped-in content ---------- */
+function bindReveal(root) {
+    if ('IntersectionObserver' in window) {
+        if (!revealObserver) {
+            revealObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) { entry.target.classList.add('in-view'); revealObserver.unobserve(entry.target); }
+                });
+            }, { threshold: 0.1 });
         }
+        root.querySelectorAll('.reveal:not(.in-view)').forEach(el => revealObserver.observe(el));
+    } else {
+        root.querySelectorAll('.reveal').forEach(el => el.classList.add('in-view'));
+    }
+}
+
+/* ---------- Customer-profile link: this goes to a genuinely different
+   page (customer_profile.php), not a filtered view of this same
+   dashboard -- so it keeps the original full-navigation + loading
+   overlay behavior, same as before. Rebindable for swapped-in rows. ---------- */
+function bindCustomerLinks(root) {
+    root.querySelectorAll('.customer-link').forEach(a => {
+        a.addEventListener('click', function() {
+            document.getElementById('pageTransition').classList.add('active');
+        });
     });
+}
+
+/* ---------- NEW: AJAX partial-refresh engine ----------
+   Only intercepts links that filter/sort/paginate THIS SAME dashboard
+   (status tabs, column-sort headers, pagination, clear-filter) and the
+   filter form's own submit. Fetches the same URL, pulls out just the
+   #ajaxContent portion of the response, and swaps it in -- so the
+   navbar, stat cards, and (most importantly) the page's scroll
+   position never move. If anything about the fetch looks unexpected
+   (e.g. session expired and the response is a login page with no
+   #ajaxContent), it falls back to a normal full navigation so the
+   action is never silently lost. */
+let ajaxLoading = false;
+
+function loadAjaxContent(url) {
+    if (ajaxLoading || !ajaxContentEl) { window.location.href = url; return; }
+    ajaxLoading = true;
+    ajaxContentEl.style.opacity = '0.45';
+    ajaxContentEl.style.pointerEvents = 'none';
+
+    fetch(url)
+        .then(r => r.text())
+        .then(html => {
+            const parsed = new DOMParser().parseFromString(html, 'text/html');
+            const newContent = parsed.getElementById('ajaxContent');
+            if (!newContent) { window.location.href = url; return; }
+
+            ajaxContentEl.innerHTML = newContent.innerHTML;
+            const isSameUrl = (url === window.location.pathname + window.location.search);
+            if (isSameUrl) history.replaceState({ ajaxUrl: url }, '', url);
+            else history.pushState({ ajaxUrl: url }, '', url);
+
+            bindStatusSelects(ajaxContentEl);
+            bindBulkActions(ajaxContentEl);
+            bindReveal(ajaxContentEl);
+            bindCustomerLinks(ajaxContentEl);
+            bindAjaxLinks(ajaxContentEl);
+            bindAjaxForm(ajaxContentEl);
+        })
+        .catch(() => { window.location.href = url; })
+        .finally(() => {
+            ajaxLoading = false;
+            if (ajaxContentEl) {
+                ajaxContentEl.style.opacity = '';
+                ajaxContentEl.style.pointerEvents = '';
+            }
+        });
+}
+
+function refreshAjaxContent() {
+    loadAjaxContent(window.location.pathname + window.location.search);
+}
+
+function bindAjaxLinks(root) {
+    root.querySelectorAll('.status-tab, th a, .pagination a:not(.disabled), .btn-clear-filter').forEach(a => {
+        a.addEventListener('click', function(e) {
+            e.preventDefault();
+            loadAjaxContent(this.getAttribute('href'));
+        });
+    });
+}
+
+function bindAjaxForm(root) {
+    const form = root.querySelector('form.filters-bar');
+    if (!form) return;
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const params = new URLSearchParams(new FormData(form)).toString();
+        loadAjaxContent(window.location.pathname + '?' + params);
+    });
+}
+
+window.addEventListener('popstate', function() {
+    loadAjaxContent(window.location.pathname + window.location.search);
 });
 
-/* NEW: page-transition overlay for internal navigation links */
-document.querySelectorAll('.action-btn, .logo, .nav-links a:not(.btn-logout), .customer-link').forEach(a => {
+/* ---------- Page-transition overlay for links OUTSIDE #ajaxContent
+   (navbar, Manage Hotels/Taxis/Visas/Prices) -- unchanged from before,
+   these are genuine page changes and should still show the overlay. ---------- */
+document.querySelectorAll('.action-btn, .logo, .nav-links a:not(.btn-logout)').forEach(a => {
     a.addEventListener('click', function() {
         document.getElementById('pageTransition').classList.add('active');
     });
 });
 
-/* NEW: scroll-reveal */
-if ('IntersectionObserver' in window) {
-    const revealObserver = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) { entry.target.classList.add('in-view'); revealObserver.unobserve(entry.target); }
-        });
-    }, { threshold: 0.1 });
-    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
-} else {
-    document.querySelectorAll('.reveal').forEach(el => el.classList.add('in-view'));
+/* ---------- Initial bind (covers both the static parts of the page and
+   the server-rendered #ajaxContent on first load) ---------- */
+bindReveal(document.body);
+if (ajaxContentEl) {
+    bindStatusSelects(ajaxContentEl);
+    bindBulkActions(ajaxContentEl);
+    bindCustomerLinks(ajaxContentEl);
+    bindAjaxLinks(ajaxContentEl);
+    bindAjaxForm(ajaxContentEl);
 }
 
 /* NEW BUG FIX: when a page is restored from the browser's back-forward

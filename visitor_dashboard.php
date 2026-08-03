@@ -15,9 +15,63 @@ if(!isset($_SESSION['user_email'])) {
     $_SESSION['user_email'] = $user['email'];
 }
 
-$stmt = $pdo->prepare("SELECT * FROM bookings WHERE user_id = ? ORDER BY created_at DESC");
-$stmt->execute([$user_id]);
+// ==================== Upcoming / Past view + date-range filter ====================
+// travel_date is stored as a string but always starts with YYYY-MM-DD
+// (confirmed against real data for both hotel and taxi bookings), so a
+// plain string comparison against today's date sorts correctly without
+// needing to parse/convert the column.
+$view = ($_GET['view'] ?? 'upcoming') === 'past' ? 'past' : 'upcoming';
+$range = $_GET['range'] ?? 'all';
+$allowed_ranges = ['all', 'yesterday', '7days', '30days'];
+if (!in_array($range, $allowed_ranges)) $range = 'all';
+
+$today = date('Y-m-d');
+$where = ['user_id = ?'];
+$params = [$user_id];
+
+if ($view === 'upcoming') {
+    $where[] = 'travel_date >= ?';
+    $params[] = $today;
+} else {
+    $where[] = 'travel_date < ?';
+    $params[] = $today;
+    if ($range === 'yesterday') {
+        $where[] = 'travel_date >= ?';
+        $params[] = date('Y-m-d', strtotime('-1 day'));
+    } elseif ($range === '7days') {
+        $where[] = 'travel_date >= ?';
+        $params[] = date('Y-m-d', strtotime('-7 days'));
+    } elseif ($range === '30days') {
+        $where[] = 'travel_date >= ?';
+        $params[] = date('Y-m-d', strtotime('-30 days'));
+    }
+}
+$whereSql = implode(' AND ', $where);
+
+// NEW: LEFT JOIN to hotels_saudi / cars so booking cards can show a real
+// thumbnail image where one exists (visa bookings simply have no image
+// and fall back to the icon, same as before).
+$stmt = $pdo->prepare("
+    SELECT b.*, h.image_url as hotel_image, h.hotel_name as hotel_name, c.image_url as car_image, c.car_name as car_name
+    FROM bookings b
+    LEFT JOIN hotels_saudi h ON b.service_type = 'hotel' AND b.service_id = h.id
+    LEFT JOIN cars c ON b.service_type = 'taxi' AND b.service_id = c.id
+    WHERE $whereSql
+    ORDER BY b.created_at DESC
+");
+$stmt->execute($params);
 $bookings = $stmt->fetchAll();
+
+// Total bookings count for the stat card stays a true, unfiltered total --
+// not affected by the Upcoming/Past view, matching how stat cards behave
+// on the agent dashboard.
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = ?");
+$stmt->execute([$user_id]);
+$total_bookings_all = $stmt->fetchColumn();
+
+// Initials for the profile avatar circle, e.g. "Ahmed Khan" -> "AK"
+$name_parts = preg_split('/\s+/', trim($_SESSION['user_name']));
+$initials = strtoupper(substr($name_parts[0], 0, 1) . (count($name_parts) > 1 ? substr(end($name_parts), 0, 1) : ''));
 ?>
 
 <!DOCTYPE html>
@@ -110,7 +164,31 @@ $bookings = $stmt->fetchAll();
         .dashboard-header p { color: rgba(255,255,255,0.5); opacity: 0; transform: translateY(10px); animation: fadeSlideIn 0.6s ease forwards; animation-delay: 0.16s; }
         @keyframes fadeSlideIn { to { opacity: 1; transform: translateY(0); } }
 
-        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; margin-top: -34px; margin-bottom: 50px; }
+        /* NEW: profile summary card */
+        .profile-card {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 18px; padding: 22px 26px; margin-top: -34px; margin-bottom: 26px;
+            display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+            position: relative; z-index: 1;
+        }
+        .profile-avatar {
+            width: 58px; height: 58px; border-radius: 50%; flex-shrink: 0;
+            background: linear-gradient(135deg, #d4af37, #b8922e); color: #0a0f1e;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 800;
+        }
+        .profile-details { flex: 1; min-width: 160px; }
+        .profile-details h2 { font-family: 'Playfair Display', serif; font-size: 18px; color: white; margin-bottom: 3px; }
+        .profile-details p { font-size: 12.5px; color: rgba(255,255,255,0.4); display: flex; align-items: center; gap: 6px; }
+        .profile-details p i { color: #d4af37; }
+        .btn-edit-profile {
+            background: rgba(212,175,55,0.1); color: #d4af37; border: 1px solid rgba(212,175,55,0.15);
+            padding: 9px 20px; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 600;
+            display: inline-flex; align-items: center; gap: 7px; transition: all 0.3s ease;
+        }
+        .btn-edit-profile:hover { background: #d4af37; color: #0a0f1e; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212,175,55,0.2); }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; margin-bottom: 50px; }
         .stat-card {
             background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
             padding: 24px 20px; border-radius: 16px; text-align: center; cursor: default;
@@ -157,6 +235,17 @@ $bookings = $stmt->fetchAll();
             border-right: 1px dashed rgba(212,175,55,0.2);
             position: relative;
         }
+        /* NEW: when a real hotel/car photo is available, it fills this
+           column instead of just the icon -- the icon still renders as a
+           small badge over the corner so the "ticket stub" feel stays. */
+        .bk-icon-col.has-image { background: none; padding: 0; }
+        .bk-icon-col.has-image img { width: 100%; height: 100%; object-fit: cover; }
+        .bk-icon-col.has-image .img-badge {
+            position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+            width: 26px; height: 26px; border-radius: 50%; background: rgba(10,15,30,0.75);
+            display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+        }
+        .bk-icon-col.has-image .img-badge i { font-size: 12px; }
         .bk-icon-col::before, .bk-icon-col::after {
             content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%;
             background: #0a0f1e; right: -8px;
@@ -184,6 +273,23 @@ $bookings = $stmt->fetchAll();
         .btn-cancel:hover { background: #dc2626; color: white; transform: translateY(-2px); }
         .btn-support { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.05); }
         .btn-support:hover { background: #d4af37; color: #0a0f1e; transform: translateY(-2px); }
+
+        /* NEW: Upcoming / Past tabs + quick date-range pills */
+        .booking-tabs { display: flex; gap: 6px; margin-top: 20px; border-bottom: 1px solid rgba(255,255,255,0.06); flex-wrap: wrap; }
+        .booking-tab {
+            position: relative; padding: 10px 20px; color: rgba(255,255,255,0.5); text-decoration: none;
+            font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s ease;
+        }
+        .booking-tab:hover { color: rgba(255,255,255,0.85); }
+        .booking-tab.active { color: #d4af37; border-bottom-color: #d4af37; }
+        .range-pills { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 6px; }
+        .range-pill {
+            padding: 6px 16px; border-radius: 20px; font-size: 12.5px; font-weight: 500; text-decoration: none;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); color: rgba(255,255,255,0.5);
+            transition: all 0.25s ease;
+        }
+        .range-pill:hover { border-color: rgba(212,175,55,0.2); color: #d4af37; }
+        .range-pill.active { background: #d4af37; color: #0a0f1e; border-color: #d4af37; }
 
         .empty-state { background: rgba(255,255,255,0.02); padding: 56px; text-align: center; border-radius: 16px; border: 1px solid rgba(255,255,255,0.03); }
         .empty-state i { font-size: 36px; color: rgba(212,175,55,0.3); margin-bottom: 14px; display: block; }
@@ -229,10 +335,19 @@ $bookings = $stmt->fetchAll();
     </div>
 
     <div class="container">
+        <div class="profile-card reveal">
+            <div class="profile-avatar"><?php echo htmlspecialchars($initials); ?></div>
+            <div class="profile-details">
+                <h2><?php echo htmlspecialchars($_SESSION['user_name']); ?></h2>
+                <p><i class="fas fa-envelope"></i> <?php echo htmlspecialchars($_SESSION['user_email']); ?></p>
+            </div>
+            <a href="edit_profile.php" class="btn-edit-profile"><i class="fas fa-pen"></i> Edit Profile</a>
+        </div>
+
         <div class="stats-grid">
             <div class="stat-card reveal">
                 <div class="stat-icon"><i class="fas fa-ticket"></i></div>
-                <div class="stat-number" data-count="<?php echo count($bookings); ?>">0</div>
+                <div class="stat-number" data-count="<?php echo $total_bookings_all; ?>">0</div>
                 <div class="stat-label">Total Bookings</div>
             </div>
             <div class="stat-card reveal">
@@ -280,10 +395,26 @@ $bookings = $stmt->fetchAll();
             </div>
         </div>
         
+        <div id="ajaxContent">
         <div class="section-title reveal">
             My Bookings
             <div class="gold-line"></div>
         </div>
+
+        <div class="booking-tabs">
+            <a href="?view=upcoming" class="booking-tab <?php echo $view === 'upcoming' ? 'active' : ''; ?>">Upcoming</a>
+            <a href="?view=past" class="booking-tab <?php echo $view === 'past' ? 'active' : ''; ?>">Past</a>
+        </div>
+
+        <?php if ($view === 'past'): ?>
+        <div class="range-pills">
+            <a href="?view=past&range=all" class="range-pill <?php echo $range === 'all' ? 'active' : ''; ?>">All Past</a>
+            <a href="?view=past&range=yesterday" class="range-pill <?php echo $range === 'yesterday' ? 'active' : ''; ?>">Yesterday</a>
+            <a href="?view=past&range=7days" class="range-pill <?php echo $range === '7days' ? 'active' : ''; ?>">Last 7 Days</a>
+            <a href="?view=past&range=30days" class="range-pill <?php echo $range === '30days' ? 'active' : ''; ?>">Last Month</a>
+        </div>
+        <?php endif; ?>
+
         <?php if(count($bookings) > 0): ?>
             <div class="bookings-list">
                 <?php foreach($bookings as $b): 
@@ -293,9 +424,17 @@ $bookings = $stmt->fetchAll();
                     $now = new DateTime();
                     $can_cancel = ($now <= $cancel_deadline) && ($b['status'] == 'pending');
                     $bk_icon = ($b['service_type'] === 'hotel') ? 'fa-hotel' : (($b['service_type'] === 'taxi') ? 'fa-car' : 'fa-passport');
+                    $bk_image = $b['hotel_image'] ?? $b['car_image'] ?? null;
                 ?>
                 <div class="booking-card reveal">
-                    <div class="bk-icon-col"><i class="fas <?php echo $bk_icon; ?>"></i></div>
+                    <div class="bk-icon-col<?php echo $bk_image ? ' has-image' : ''; ?>">
+                        <?php if ($bk_image): ?>
+                            <img src="<?php echo htmlspecialchars($bk_image); ?>" alt="" onerror="this.parentElement.classList.remove('has-image'); this.remove();">
+                            <span class="img-badge"><i class="fas <?php echo $bk_icon; ?>"></i></span>
+                        <?php else: ?>
+                            <i class="fas <?php echo $bk_icon; ?>"></i>
+                        <?php endif; ?>
+                    </div>
                     <div class="bk-body">
                         <div class="booking-info">
                             <h4><?php echo htmlspecialchars($b['booking_no']); ?></h4>
@@ -320,9 +459,10 @@ $bookings = $stmt->fetchAll();
         <?php else: ?>
             <div class="empty-state">
                 <i class="fas fa-suitcase-rolling"></i>
-                <p>No bookings yet. <a href="services.php">Book a service</a> to get started!</p>
+                <p><?php echo $view === 'upcoming' ? 'No upcoming bookings.' : 'No past bookings in this range.'; ?> <a href="services.php">Book a service</a> to get started!</p>
             </div>
         <?php endif; ?>
+        </div>
     </div>
 </div>
 
@@ -331,6 +471,14 @@ $bookings = $stmt->fetchAll();
         document.getElementById('pageTransition').classList.add('active');
         setTimeout(() => { window.location.href = url; }, 180);
     }
+
+    /* edit-profile goes to a genuinely different page, so it keeps the
+       original full-navigation + loading-overlay behavior. */
+    document.querySelectorAll('.btn-edit-profile').forEach(a => {
+        a.addEventListener('click', function() {
+            document.getElementById('pageTransition').classList.add('active');
+        });
+    });
 
     /* NEW: time-based greeting (purely additive, doesn't touch the
        server-rendered name/heading at all) */
@@ -374,16 +522,78 @@ $bookings = $stmt->fetchAll();
         });
     }
 
-    if ('IntersectionObserver' in window) {
-        const revealObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) { entry.target.classList.add('in-view'); revealObserver.unobserve(entry.target); }
-            });
-        }, { threshold: 0.1 });
-        document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
-    } else {
-        document.querySelectorAll('.reveal').forEach(el => el.classList.add('in-view'));
+    let revealObserver;
+    function bindReveal(root) {
+        if ('IntersectionObserver' in window) {
+            if (!revealObserver) {
+                revealObserver = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) { entry.target.classList.add('in-view'); revealObserver.unobserve(entry.target); }
+                    });
+                }, { threshold: 0.1 });
+            }
+            root.querySelectorAll('.reveal:not(.in-view)').forEach(el => revealObserver.observe(el));
+        } else {
+            root.querySelectorAll('.reveal').forEach(el => el.classList.add('in-view'));
+        }
     }
+    bindReveal(document.body);
+
+    /* NEW: AJAX partial-refresh for the Upcoming/Past tabs and date-range
+       pills -- these only change which bookings are listed inside
+       #ajaxContent, so instead of a full page navigation (which resets
+       scroll position back to the top) we fetch the same page, pull out
+       just the #ajaxContent portion, and swap it in. Falls back to a
+       normal navigation if anything looks unexpected (e.g. session
+       expired), so the action is never silently lost. */
+    const ajaxContentEl = document.getElementById('ajaxContent');
+    let ajaxLoading = false;
+
+    function loadAjaxContent(url) {
+        if (ajaxLoading || !ajaxContentEl) { window.location.href = url; return; }
+        ajaxLoading = true;
+        ajaxContentEl.style.opacity = '0.45';
+        ajaxContentEl.style.pointerEvents = 'none';
+
+        fetch(url)
+            .then(r => r.text())
+            .then(html => {
+                const parsed = new DOMParser().parseFromString(html, 'text/html');
+                const newContent = parsed.getElementById('ajaxContent');
+                if (!newContent) { window.location.href = url; return; }
+
+                ajaxContentEl.innerHTML = newContent.innerHTML;
+                const isSameUrl = (url === window.location.pathname + window.location.search);
+                if (isSameUrl) history.replaceState({ ajaxUrl: url }, '', url);
+                else history.pushState({ ajaxUrl: url }, '', url);
+
+                bindReveal(ajaxContentEl);
+                bindAjaxLinks(ajaxContentEl);
+            })
+            .catch(() => { window.location.href = url; })
+            .finally(() => {
+                ajaxLoading = false;
+                if (ajaxContentEl) {
+                    ajaxContentEl.style.opacity = '';
+                    ajaxContentEl.style.pointerEvents = '';
+                }
+            });
+    }
+
+    function bindAjaxLinks(root) {
+        root.querySelectorAll('.booking-tab, .range-pill').forEach(a => {
+            a.addEventListener('click', function(e) {
+                e.preventDefault();
+                loadAjaxContent(this.getAttribute('href'));
+            });
+        });
+    }
+
+    window.addEventListener('popstate', function() {
+        loadAjaxContent(window.location.pathname + window.location.search);
+    });
+
+    if (ajaxContentEl) bindAjaxLinks(ajaxContentEl);
 
     /* NEW BUG FIX: when a page is restored from the browser's
        back-forward cache (bfcache) via the Back/Forward button, the

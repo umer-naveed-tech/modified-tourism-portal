@@ -18,6 +18,7 @@ $amount = $_GET['amount'] ?? 0;
     <title>Booking Confirmed | Ahmed Travels</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #0a0f1e; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; overflow-x: hidden; }
@@ -73,33 +74,19 @@ $amount = $_GET['amount'] ?? 0;
         .btn-secondary { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.06); }
         .btn-secondary:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); }
 
-        /* NEW: print/download receipt button */
-        .btn-print {
-            width: 100%; padding: 12px; border-radius: 12px; font-weight: 600; font-size: 13.5px;
-            background: transparent; color: rgba(255,255,255,0.6); border: 1px dashed rgba(255,255,255,0.15);
+        /* Download-as-PDF button -- generates a real PDF client-side via
+           jsPDF, no browser print dialog involved. */
+        .btn-download {
+            position: relative; overflow: hidden;
+            width: 100%; padding: 13px; border-radius: 12px; font-weight: 600; font-size: 13.5px;
+            background: rgba(212,175,55,0.08); color: #d4af37; border: 1px solid rgba(212,175,55,0.15);
             cursor: pointer; transition: all 0.3s ease; margin-bottom: 14px;
             display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit;
         }
-        .btn-print:hover { border-color: #d4af37; color: #d4af37; background: rgba(212,175,55,0.04); }
+        .btn-download:hover { background: #d4af37; color: #0a0f1e; transform: translateY(-2px); box-shadow: 0 10px 25px rgba(212,175,55,0.2); }
+        .btn-download:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
         @media (max-width: 500px) { .btn-row { flex-direction: column; } }
-
-        /* NEW: clean, receipt-style output when printed / saved as PDF via
-           the browser's own print dialog -- no new library needed. */
-        @media print {
-            body { background: #fff !important; padding: 0; }
-            .bg-ambient, .grain-overlay, .btn-row, .btn-print { display: none !important; }
-            .success-card {
-                box-shadow: none !important; border: 1px solid #ddd !important;
-                background: #fff !important; max-width: 100% !important;
-                animation: none !important; opacity: 1 !important; transform: none !important;
-            }
-            .check-wrap { background: #d1fae5 !important; animation: none !important; opacity: 1 !important; transform: none !important; }
-            .check-wrap i { color: #059669 !important; }
-            .success-card h2, .detail-row span:last-child, .detail-row .amt { color: #0a0f1e !important; }
-            .success-card > p, .note { color: #555 !important; }
-            .detail-box { background: #f9fafb !important; border-color: #e5e7eb !important; }
-        }
     </style>
 </head>
 <body>
@@ -118,12 +105,126 @@ $amount = $_GET['amount'] ?? 0;
 
         <p class="note"><i class="fas fa-envelope"></i> A confirmation email has been sent to your inbox.</p>
 
-        <button type="button" class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> Download / Print Receipt</button>
+        <button type="button" class="btn-download" id="downloadBtn"><i class="fas fa-file-arrow-down"></i> Download Receipt (PDF)</button>
 
         <div class="btn-row">
             <a href="dashboard.php" class="btn-primary">View My Bookings</a>
             <a href="services.php" class="btn-secondary">Book Another</a>
         </div>
     </div>
+
+    <script>
+        document.getElementById('downloadBtn').addEventListener('click', function() {
+            const btn = this;
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = 'Generating...';
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+                const gold = [212, 175, 55];
+                const dark = [10, 15, 30];
+                const gray = [110, 110, 110];
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const marginX = 48;
+
+                const bookingNo = <?php echo json_encode($booking_no); ?>;
+                const amount = <?php echo json_encode(number_format($amount)); ?>;
+                const bookingType = <?php echo json_encode(ucfirst($type)); ?>;
+                const issuedOn = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                // Header band
+                doc.setFillColor(...dark);
+                doc.rect(0, 0, pageWidth, 110, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(24);
+                doc.text('Ahmed Travels', marginX, 55);
+                doc.setTextColor(...gold);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.text('Your trusted travel partner', marginX, 74);
+
+                // Title
+                let y = 155;
+                doc.setTextColor(...dark);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(19);
+                doc.text('Booking Receipt', marginX, y);
+                doc.setDrawColor(...gold);
+                doc.setLineWidth(2);
+                doc.line(marginX, y + 8, marginX + 90, y + 8);
+
+                // Status pill
+                doc.setFillColor(220, 252, 231);
+                doc.roundedRect(pageWidth - marginX - 100, y - 18, 100, 24, 12, 12, 'F');
+                doc.setTextColor(5, 150, 105);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.text('CONFIRMED', pageWidth - marginX - 50, y - 2, { align: 'center' });
+
+                // Details box
+                y += 40;
+                const boxHeight = 150;
+                doc.setDrawColor(228, 228, 228);
+                doc.setFillColor(250, 250, 250);
+                doc.roundedRect(marginX, y, pageWidth - marginX * 2, boxHeight, 8, 8, 'FD');
+
+                const rows = [
+                    ['Booking ID', bookingNo],
+                    ['Service Type', bookingType],
+                    ['Issued On', issuedOn],
+                ];
+                let ry = y + 34;
+                doc.setFontSize(11);
+                rows.forEach(([label, value]) => {
+                    doc.setTextColor(...gray);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(label, marginX + 20, ry);
+                    doc.setTextColor(...dark);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(String(value), pageWidth - marginX - 20, ry, { align: 'right' });
+                    ry += 26;
+                });
+
+                // Divider before total
+                doc.setDrawColor(228, 228, 228);
+                doc.line(marginX + 20, ry - 6, pageWidth - marginX - 20, ry - 6);
+                ry += 14;
+                doc.setTextColor(...gray);
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'normal');
+                doc.text('Total Amount', marginX + 20, ry);
+                doc.setTextColor(...gold);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(16);
+                doc.text('SAR ' + amount, pageWidth - marginX - 20, ry, { align: 'right' });
+
+                // Footer note
+                y = y + boxHeight + 50;
+                doc.setTextColor(...gray);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9.5);
+                doc.text('A confirmation email has also been sent to your registered email address.', marginX, y);
+                doc.text('For support, reach us on WhatsApp or via your account dashboard.', marginX, y + 14);
+
+                doc.setDrawColor(240, 240, 240);
+                doc.line(marginX, y + 34, pageWidth - marginX, y + 34);
+                doc.setFontSize(9);
+                doc.setTextColor(180, 180, 180);
+                doc.text('Ahmed Travels', marginX, y + 52);
+                doc.text('This is a system-generated receipt.', pageWidth - marginX, y + 52, { align: 'right' });
+
+                doc.save('AhmedTravels-Receipt-' + bookingNo + '.pdf');
+            } catch (err) {
+                alert('Could not generate the PDF. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        });
+    </script>
 </body>
 </html>

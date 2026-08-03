@@ -183,6 +183,11 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
             margin-right: 8px; vertical-align: -2px;
         }
         @keyframes btnSpin { to { transform: rotate(360deg); } }
+    
+        /* NEW: compact trust badges strip */
+        .mini-trust-strip { display: flex; justify-content: center; gap: 16px; margin-top: 18px; flex-wrap: wrap; }
+        .mini-trust-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: rgba(255,255,255,0.4); }
+        .mini-trust-item i { color: #d4af37; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -257,6 +262,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     
                     <button type="submit" class="btn-confirm">Confirm Booking</button>
                 </form>
+                <div class="mini-trust-strip">
+                    <span class="mini-trust-item"><i class="fas fa-shield-halved"></i> Secure Payment</span>
+                    <span class="mini-trust-item"><i class="fas fa-headset"></i> 24/7 Support</span>
+                    <span class="mini-trust-item"><i class="fas fa-rotate-left"></i> Free Cancellation</span>
+                </div>
+
             <?php endif; ?>
         </div>
     </div>
