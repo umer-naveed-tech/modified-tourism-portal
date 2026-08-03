@@ -46,9 +46,18 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
 <head>
     <title><?php echo htmlspecialchars($hotel['hotel_name']); ?> - Room Selection</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scrollbar-color: #8a6d1f #0a0f1e; scrollbar-width: thin; }
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: #0a0f1e; }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #d4af37, #8a6d1f); border-radius: 6px; }
+
+        .grain-overlay {
+            position: fixed; inset: 0; z-index: 9997; pointer-events: none; opacity: 0.035;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+        }
         body { 
             font-family: 'Inter', sans-serif; 
             min-height: 100vh;
@@ -153,6 +162,7 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
             to { width: 60px; opacity: 1; }
         }
         .hotel-header h2 { 
+            font-family: 'Playfair Display', serif;
             font-weight: 800;
             font-size: 34px;
             color: #ffffff;
@@ -616,9 +626,24 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
                 padding: 6px 0;
             }
         }
+
+        /* NEW: page-transition loading overlay for navbar/back links only */
+        .page-transition {
+            position: fixed; inset: 0; z-index: 99999; background: #0a0f1e;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; visibility: hidden; transition: opacity 0.25s ease, visibility 0.25s ease;
+        }
+        .page-transition.active { opacity: 1; visibility: visible; }
+        .pt-spinner { position: relative; width: 64px; height: 64px; }
+        .pt-ring { position: absolute; inset: 0; border: 2px solid rgba(212,175,55,0.15); border-top-color: #d4af37; border-radius: 50%; animation: ptSpin 0.9s linear infinite; }
+        .pt-icon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #d4af37; font-size: 20px; animation: ptSpin 0.9s linear infinite reverse; }
+        @keyframes ptSpin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+
+<div class="grain-overlay" aria-hidden="true"></div>
+<div class="page-transition" id="pageTransition"><div class="pt-spinner"><div class="pt-ring"></div><i class="fas fa-plane pt-icon" style="font-style:normal;">✈</i></div></div>
 
 <div class="bg-container">
     <div class="grid-pattern"></div>
@@ -1885,6 +1910,25 @@ document.getElementById('guests_makkah_towers')?.addEventListener('change', calc
 // Makkah Towers meal plan change
 document.querySelectorAll('#handlerOptions input[name="meal_type"]').forEach(el => {
     el.addEventListener('change', calculateTotal);
+});
+
+/* NEW: page-transition overlay -- only for navbar/back-to-hotels links,
+   does not touch any room-selection or booking logic above. */
+document.querySelectorAll('.navbar a, .empty-state a').forEach(a => {
+    a.addEventListener('click', function() {
+        const pt = document.getElementById('pageTransition');
+        if (pt) pt.classList.add('active');
+    });
+});
+
+/* NEW: clear the overlay if this page is restored from the browser's
+   back-forward cache (bfcache) via the Back/Forward button, so it never
+   gets stuck showing. */
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted) {
+        const pt = document.getElementById('pageTransition');
+        if (pt) pt.classList.remove('active');
+    }
 });
 </script>
 
