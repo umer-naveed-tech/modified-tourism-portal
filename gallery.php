@@ -2,22 +2,17 @@
 session_start();
 require_once 'config.php';
 
-// NEW: Pexels supports on-the-fly resizing/compression via query params.
-// Requesting an appropriately-sized image (instead of the original,
-// often several MB, resolution) is the real fix for slow loading --
-// far more effective than removing animations alone.
+// Pexels supports on-the-fly resizing/compression via query params --
+// requesting an appropriately-sized image instead of the original
+// (often several MB) is what actually keeps this page fast.
 function pexels_optimize($url, $width) {
     $sep = (strpos($url, '?') !== false) ? '&' : '?';
     return $url . $sep . 'auto=compress&cs=tinysrgb&w=' . $width;
 }
 
-// NEW: curated gallery data. These are licensed, free-to-use stock
-// photos (Pexels) -- general representative imagery, not verified
-// photos of any specific named property. Deliberately not labelled
-// with hotel brand names (misleading to attach a real hotel's name to
-// a generic photo); presented instead as an elegant "stay experience"
-// showcase, matching how the reference design used city names rather
-// than specific hotel branding.
+// Curated gallery data -- licensed, free-to-use Pexels photos, general
+// representative imagery rather than verified photos of any specific
+// named property (so no hotel brand name is attached to them).
 $gallery_hotels = [
     [
         'title' => 'Tower Suite Living',
@@ -26,9 +21,9 @@ $gallery_hotels = [
         'paragraph' => 'Wake to golden light spilling across marble floors, with panoramic views stretching toward the horizon. Every corner of this stay whispers quiet, unhurried luxury.',
         'main_image' => 'https://images.pexels.com/photos/36859188/pexels-photo-36859188.jpeg',
         'thumbs' => [
-            ['url' => 'https://images.pexels.com/photos/34496715/pexels-photo-34496715.jpeg', 'label' => 'Premium Suite', 'sub' => 'Space to breathe, styled to impress'],
-            ['url' => 'https://images.pexels.com/photos/13008559/pexels-photo-13008559.jpeg', 'label' => 'Guest Room', 'sub' => 'Comfort in every quiet detail'],
-            ['url' => 'https://images.pexels.com/photos/8082195/pexels-photo-8082195.jpeg', 'label' => 'Hotel Amenities', 'sub' => 'Thoughtful touches throughout'],
+            'https://images.pexels.com/photos/34496715/pexels-photo-34496715.jpeg',
+            'https://images.pexels.com/photos/13008559/pexels-photo-13008559.jpeg',
+            'https://images.pexels.com/photos/8082195/pexels-photo-8082195.jpeg',
         ],
     ],
     [
@@ -38,9 +33,9 @@ $gallery_hotels = [
         'paragraph' => 'Where crisp linens meet warm hospitality, and each evening unwinds into soft, lantern-lit calm. A retreat designed for stillness after a long day of travel.',
         'main_image' => 'https://images.pexels.com/photos/34956811/pexels-photo-34956811.jpeg',
         'thumbs' => [
-            ['url' => 'https://images.pexels.com/photos/18285942/pexels-photo-18285942.jpeg', 'label' => 'Master Bedroom', 'sub' => 'A calm, cocooning retreat'],
-            ['url' => 'https://images.pexels.com/photos/34496702/pexels-photo-34496702.jpeg', 'label' => 'Guest Room', 'sub' => 'Warm tones, restful nights'],
-            ['url' => 'https://images.pexels.com/photos/7018822/pexels-photo-7018822.jpeg', 'label' => 'Hotel Amenities', 'sub' => 'Every comfort, close at hand'],
+            'https://images.pexels.com/photos/18285942/pexels-photo-18285942.jpeg',
+            'https://images.pexels.com/photos/34496702/pexels-photo-34496702.jpeg',
+            'https://images.pexels.com/photos/7018822/pexels-photo-7018822.jpeg',
         ],
     ],
     [
@@ -50,9 +45,9 @@ $gallery_hotels = [
         'paragraph' => 'Sunlit corners, deep soaking tubs, and interiors dressed in warm neutrals -- built for travelers who linger a while, rather than simply pass through.',
         'main_image' => 'https://images.pexels.com/photos/5659779/pexels-photo-5659779.jpeg',
         'thumbs' => [
-            ['url' => 'https://images.pexels.com/photos/36852529/pexels-photo-36852529.jpeg', 'label' => 'Guest Room', 'sub' => 'Light-filled, softly furnished'],
-            ['url' => 'https://images.pexels.com/photos/36852544/pexels-photo-36852544.jpeg', 'label' => 'Suite Interior', 'sub' => 'Designed for longer stays'],
-            ['url' => 'https://images.pexels.com/photos/19988067/pexels-photo-19988067.jpeg', 'label' => 'Hotel Amenities', 'sub' => 'Small luxuries, well placed'],
+            'https://images.pexels.com/photos/36852529/pexels-photo-36852529.jpeg',
+            'https://images.pexels.com/photos/36852544/pexels-photo-36852544.jpeg',
+            'https://images.pexels.com/photos/19988067/pexels-photo-19988067.jpeg',
         ],
     ],
     [
@@ -62,9 +57,9 @@ $gallery_hotels = [
         'paragraph' => 'A place where minimalist elegance meets heartfelt service, and every room feels like a quiet exhale at the end of a long journey.',
         'main_image' => 'https://images.pexels.com/photos/35231800/pexels-photo-35231800.jpeg',
         'thumbs' => [
-            ['url' => 'https://images.pexels.com/photos/28347470/pexels-photo-28347470.jpeg', 'label' => 'Guest Room', 'sub' => 'Clean lines, calm palette'],
-            ['url' => 'https://images.pexels.com/photos/34354407/pexels-photo-34354407.jpeg', 'label' => 'Suite Interior', 'sub' => 'Quiet, considered elegance'],
-            ['url' => 'https://images.pexels.com/photos/35103156/pexels-photo-35103156.jpeg', 'label' => 'Hotel Amenities', 'sub' => 'Service that anticipates you'],
+            'https://images.pexels.com/photos/28347470/pexels-photo-28347470.jpeg',
+            'https://images.pexels.com/photos/34354407/pexels-photo-34354407.jpeg',
+            'https://images.pexels.com/photos/35103156/pexels-photo-35103156.jpeg',
         ],
     ],
     [
@@ -74,9 +69,9 @@ $gallery_hotels = [
         'paragraph' => 'Rich textures, soft golden light, and rooms that feel less like a place to sleep and more like a private, unhurried sanctuary.',
         'main_image' => 'https://images.pexels.com/photos/24284828/pexels-photo-24284828.jpeg',
         'thumbs' => [
-            ['url' => 'https://images.pexels.com/photos/32764943/pexels-photo-32764943.jpeg', 'label' => 'Guest Room', 'sub' => 'Golden light, gentle textures'],
-            ['url' => 'https://images.pexels.com/photos/36852535/pexels-photo-36852535.jpeg', 'label' => 'Suite Interior', 'sub' => 'A room built for stillness'],
-            ['url' => 'https://images.pexels.com/photos/35027131/pexels-photo-35027131.jpeg', 'label' => 'Hotel Amenities', 'sub' => 'Refined, unhurried comfort'],
+            'https://images.pexels.com/photos/32764943/pexels-photo-32764943.jpeg',
+            'https://images.pexels.com/photos/36852535/pexels-photo-36852535.jpeg',
+            'https://images.pexels.com/photos/35027131/pexels-photo-35027131.jpeg',
         ],
     ],
 ];
@@ -92,26 +87,60 @@ $gallery_hotels = [
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; overflow: hidden; }
-        body { font-family: 'Inter', sans-serif; background: #05070d; }
+        body { font-family: 'Inter', sans-serif; background: radial-gradient(ellipse 120% 80% at 50% 0%, #fdf8ec 0%, #f8f0dc 55%, #f2e6c8 100%); }
 
         ::-webkit-scrollbar { width: 10px; }
-        ::-webkit-scrollbar-track { background: #05070d; }
+        ::-webkit-scrollbar-track { background: #0a0f1e; }
         ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #d4af37, #8a6d1f); border-radius: 6px; }
 
-        /* NEW: small, elegant preloader -- shown until the first hero
-           photo has actually finished loading, so the page never shows
-           a blank/broken flash while images (even compressed ones)
-           are still downloading. No airplane icon here on purpose --
-           a plain gold ring fits the hotel-gallery mood better. */
+        /* NEW: elegant ambient background -- soft gold glows on navy,
+           matching the rest of the site, now actually VISIBLE as
+           breathing room around the framed photos instead of being
+           fully covered edge-to-edge by them. The drift animation here
+           is cheap (just a transform on one fixed pseudo-element) --
+           it doesn't touch any photo, so it stays smooth. */
+        .bg-ambient { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+        .bg-ambient::before {
+            content: ''; position: absolute; inset: -20%;
+            background:
+                radial-gradient(circle at 18% 15%, rgba(184,146,46,0.12), transparent 40%),
+                radial-gradient(circle at 85% 20%, rgba(184,146,46,0.08), transparent 35%),
+                radial-gradient(circle at 50% 95%, rgba(184,146,46,0.09), transparent 45%);
+            animation: driftGlow 24s ease-in-out infinite alternate;
+            will-change: transform;
+        }
+        @keyframes driftGlow {
+            0%   { transform: translate(0, 0) scale(1); }
+            50%  { transform: translate(-2.5%, 2%) scale(1.05); }
+            100% { transform: translate(2%, -2%) scale(1.02); }
+        }
+        .bg-ambient::after {
+            content: ''; position: absolute; inset: 0; opacity: 0.5;
+            background-image: radial-gradient(rgba(184,146,46,0.14) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .bg-ambient::before { animation: none; }
+        }
+
+        /* NEW: a couple of very faint, slow-floating motifs for extra
+           depth -- pure CSS opacity/transform on font-icons, negligible
+           performance cost. */
+        .bg-motif { position: fixed; z-index: 0; color: #b8922e; opacity: 0.06; pointer-events: none; animation: motifFloat 30s ease-in-out infinite; }
+        .bg-motif.m1 { font-size: 220px; top: -50px; right: -40px; }
+        .bg-motif.m2 { font-size: 130px; bottom: -20px; left: -30px; animation-delay: -12s; opacity: 0.05; }
+        @keyframes motifFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-22px) rotate(7deg); } }
+        @media (prefers-reduced-motion: reduce) { .bg-motif { animation: none; } }
+
         .g-preloader {
-            position: fixed; inset: 0; z-index: 999; background: #05070d;
+            position: fixed; inset: 0; z-index: 999; background: #f8f0dc;
             display: flex; align-items: center; justify-content: center;
             transition: opacity 0.4s ease, visibility 0.4s ease;
         }
-        .g-preloader.done { opacity: 0; visibility: hidden; }
+        .g-preloader.done { opacity: 0; visibility: hidden; pointer-events: none; }
         .pl-ring {
             width: 40px; height: 40px; border-radius: 50%;
-            border: 2px solid rgba(212,175,55,0.15); border-top-color: #d4af37;
+            border: 2px solid rgba(184,146,46,0.18); border-top-color: #b8922e;
             animation: plSpin 0.8s linear infinite;
         }
         @keyframes plSpin { to { transform: rotate(360deg); } }
@@ -121,145 +150,123 @@ $gallery_hotels = [
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
         }
 
-        /* ===== Top bar ===== */
-        .gtop { position: fixed; top: 0; left: 0; right: 0; z-index: 50; padding: 26px 44px; display: flex; justify-content: space-between; align-items: center; }
-        .gtop .glogo { font-family: 'Playfair Display', serif; color: white; font-size: 20px; font-weight: 800; text-decoration: none; letter-spacing: -0.3px; }
-        .gtop .glogo span { color: #d4af37; }
-        .gtop .gback { color: rgba(255,255,255,0.65); text-decoration: none; font-size: 13px; display: flex; align-items: center; gap: 7px; transition: color 0.25s ease; }
-        .gtop .gback:hover { color: #d4af37; }
+        .gtop { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 22px 40px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
+        .gtop .glogo, .gtop .gback { pointer-events: auto; }
+        .gtop .glogo { font-family: 'Playfair Display', serif; color: #2b2416; font-size: 19px; font-weight: 800; text-decoration: none; letter-spacing: -0.3px; }
+        .gtop .glogo span { color: #b8922e; }
+        .gtop .gback { color: rgba(43,36,22,0.6); text-decoration: none; font-size: 13px; display: flex; align-items: center; gap: 7px; transition: color 0.25s ease; }
+        .gtop .gback:hover { color: #b8922e; }
 
-        /* ===== Stage ===== */
-        .stage { position: relative; width: 100%; height: 100%; }
+        /* ===== Stage: each slide is now a centered, padded column --
+           main photo on top, 3 room photos in a row below it -- both
+           framed (rounded corners, border, shadow) so the elegant dark
+           background shows through as breathing room around them. ===== */
+        .stage { position: relative; width: 100%; height: 100%; z-index: 1; }
         .hslide {
             position: absolute; inset: 0; opacity: 0; pointer-events: none;
             transition: opacity 0.6s ease;
-            display: flex;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 86px 60px 40px;
         }
         .hslide.active { opacity: 1; pointer-events: auto; }
 
-        /* Hero (main image) -- left ~62%. NEW: no Ken-Burns zoom and no
-           mouse-parallax anymore -- both were continuous, GPU-heavy
-           animations that made the page feel laggy with this many
-           large photos in play. The image is simply shown, static. */
-        .hero-pane { position: relative; flex: 0 0 62%; overflow: hidden; }
-        .hero-pane .bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
-        .hero-pane .scrim {
-            position: absolute; inset: 0;
-            background: linear-gradient(0deg, rgba(5,7,13,0.95) 0%, rgba(5,7,13,0.15) 40%, rgba(5,7,13,0.05) 60%, rgba(5,7,13,0.55) 100%),
-                        linear-gradient(90deg, rgba(5,7,13,0.1) 0%, transparent 30%);
+        .main-photo {
+            position: relative; width: 100%; max-width: 920px; height: 46vh; min-height: 300px;
+            border-radius: 20px; overflow: hidden;
+            border: 1px solid rgba(184,146,46,0.2);
+            box-shadow: 0 30px 60px rgba(43,36,22,0.22);
+            opacity: 0; transform: translateY(16px);
         }
-        .hero-info { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 56px 60px; z-index: 2; max-width: 640px; }
-        .hero-tag {
-            display: inline-flex; align-items: center; gap: 8px;
-            background: rgba(212,175,55,0.12); border: 1px solid rgba(212,175,55,0.25);
-            color: #d4af37; font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
-            padding: 6px 15px; border-radius: 20px; margin-bottom: 20px;
+        .hslide.active .main-photo { animation: mIn 0.6s ease forwards; }
+        @keyframes mIn { to { opacity: 1; transform: translateY(0); } }
+        .main-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .main-photo .scrim {
+            position: absolute; inset: 0;
+            background: linear-gradient(0deg, rgba(5,7,13,0.92) 0%, rgba(5,7,13,0.1) 45%, transparent 62%);
+        }
+        .main-photo .m-info { position: absolute; left: 0; right: 0; bottom: 0; padding: 30px 34px; z-index: 2; }
+        .m-tag {
+            display: inline-flex; align-items: center; gap: 7px;
+            background: rgba(212,175,55,0.14); border: 1px solid rgba(212,175,55,0.28);
+            color: #d4af37; font-size: 10px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase;
+            padding: 5px 13px; border-radius: 20px; margin-bottom: 12px;
+        }
+        .m-info h1 {
+            font-family: 'Playfair Display', serif; font-weight: 800; color: white;
+            font-size: 32px; line-height: 1.12; margin-bottom: 8px; letter-spacing: -0.5px;
+        }
+        .m-stars { color: #d4af37; font-size: 13px; letter-spacing: 2px; margin-bottom: 10px; }
+        .m-para {
+            max-width: 560px; color: rgba(255,255,255,0.68); font-size: 13.5px; line-height: 1.65;
+        }
+
+        /* Room photos row -- no text labels on purpose, just clean
+           framed thumbnails beneath the main photo. */
+        .rooms-row {
+            display: flex; gap: 18px; width: 100%; max-width: 920px; margin-top: 20px;
+            height: 17vh; min-height: 110px;
+        }
+        .room-photo {
+            flex: 1; border-radius: 14px; overflow: hidden;
+            border: 1px solid rgba(43,36,22,0.08);
+            box-shadow: 0 14px 30px rgba(43,36,22,0.16);
             opacity: 0; transform: translateY(14px);
         }
-        .hslide.active .hero-tag { animation: sIn 0.6s ease forwards; animation-delay: 0.1s; }
-        .hero-info h1 {
-            font-family: 'Playfair Display', serif; font-weight: 800; color: white;
-            font-size: 50px; line-height: 1.08; margin-bottom: 16px; letter-spacing: -0.8px;
-            opacity: 0; transform: translateY(20px);
-        }
-        .hslide.active .hero-info h1 { animation: sIn 0.65s ease forwards; animation-delay: 0.2s; }
-        .hero-divider {
-            width: 56px; height: 3px; background: #d4af37; border-radius: 2px; margin-bottom: 16px;
-            opacity: 0; transform: scaleX(0); transform-origin: left;
-        }
-        .hslide.active .hero-divider { animation: dIn 0.5s ease forwards; animation-delay: 0.28s; }
-        @keyframes dIn { to { opacity: 1; transform: scaleX(1); } }
-        .hero-stars { color: #d4af37; font-size: 15px; letter-spacing: 3px; opacity: 0; transform: translateY(14px); margin-bottom: 16px; }
-        .hslide.active .hero-stars { animation: sIn 0.6s ease forwards; animation-delay: 0.34s; }
-
-        /* NEW: elegant descriptive paragraph -- carries the atmosphere
-           now that there's no hotel brand name to lean on. Reworked
-           typography: no italic (reads cleaner at this size), a subtle
-           decorative quote mark, and better line length/height. */
-        .hero-para { max-width: 480px; opacity: 0; transform: translateY(14px); position: relative; padding-left: 22px; }
-        .hslide.active .hero-para { animation: sIn 0.6s ease forwards; animation-delay: 0.42s; }
-        .hero-para::before {
-            content: '\201C'; position: absolute; left: -6px; top: -18px;
-            font-family: 'Playfair Display', serif; font-size: 60px; color: rgba(212,175,55,0.3);
-            line-height: 1;
-        }
-        .hero-para p { color: rgba(255,255,255,0.72); font-size: 15.5px; line-height: 1.8; font-weight: 400; letter-spacing: 0.1px; }
-        @keyframes sIn { to { opacity: 1; transform: translateY(0); } }
-
-        /* Room-photo pane -- right ~38%. NEW: a clean vertical stack of
-           exactly 3 tiles (every hotel now has exactly 3 room photos),
-           closer to the reference layout's stacked-card feel, and no
-           more empty grid cells when a hotel had fewer than 4 photos. */
-        .thumb-pane {
-            flex: 0 0 38%; height: 100%; display: flex; flex-direction: column; gap: 3px; background: #05070d;
-        }
-        .thumb-tile { position: relative; overflow: hidden; flex: 1; opacity: 0; transform: translateY(10px); }
-        .hslide.active .thumb-tile { animation: tIn 0.5s ease forwards; }
-        .hslide.active .thumb-tile:nth-child(1) { animation-delay: 0.22s; }
-        .hslide.active .thumb-tile:nth-child(2) { animation-delay: 0.32s; }
-        .hslide.active .thumb-tile:nth-child(3) { animation-delay: 0.42s; }
-        @keyframes tIn { to { opacity: 1; transform: translateY(0); } }
-        .thumb-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .thumb-tile::after {
-            content: ''; position: absolute; inset: 0;
-            background: linear-gradient(0deg, rgba(5,7,13,0.9) 0%, rgba(5,7,13,0.15) 50%, transparent 70%);
-        }
-        .thumb-tile .tlabel {
-            position: absolute; left: 18px; bottom: 30px; z-index: 2;
-            color: white; font-size: 15px; font-weight: 700; letter-spacing: 0.2px;
-            font-family: 'Playfair Display', serif;
-        }
-        .thumb-tile .tsub {
-            position: absolute; left: 18px; bottom: 12px; right: 18px; z-index: 2;
-            color: rgba(255,255,255,0.55); font-size: 11.5px; font-weight: 400;
-        }
+        .hslide.active .room-photo { animation: rIn 0.5s ease forwards; }
+        .hslide.active .room-photo:nth-child(1) { animation-delay: 0.15s; }
+        .hslide.active .room-photo:nth-child(2) { animation-delay: 0.24s; }
+        .hslide.active .room-photo:nth-child(3) { animation-delay: 0.33s; }
+        @keyframes rIn { to { opacity: 1; transform: translateY(0); } }
+        .room-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
         /* ===== Counter ===== */
         .g-counter {
-            position: fixed; top: 30px; right: 44px; z-index: 50;
-            color: rgba(255,255,255,0.5); font-size: 13px; display: flex; align-items: center; gap: 8px;
+            position: fixed; top: 80px; right: 40px; z-index: 50;
+            color: rgba(43,36,22,0.5); font-size: 13px; display: flex; align-items: center; gap: 8px;
         }
-        .g-counter .cur { color: #d4af37; font-weight: 700; font-size: 16px; }
-        .g-counter .bar { width: 60px; height: 2px; background: rgba(255,255,255,0.12); border-radius: 2px; overflow: hidden; position: relative; }
-        .g-counter .bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: #d4af37; transition: width 0.5s ease; }
+        .g-counter .cur { color: #b8922e; font-weight: 700; font-size: 16px; }
+        .g-counter .bar { width: 60px; height: 2px; background: rgba(43,36,22,0.12); border-radius: 2px; overflow: hidden; position: relative; }
+        .g-counter .bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: #b8922e; transition: width 0.5s ease; }
 
         /* ===== Arrows ===== */
         .g-arrow {
             position: fixed; top: 50%; transform: translateY(-50%); z-index: 50;
-            width: 52px; height: 52px; border-radius: 50%;
-            background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1); color: white;
-            display: flex; align-items: center; justify-content: center; font-size: 17px;
+            width: 48px; height: 48px; border-radius: 50%;
+            background: rgba(255,255,255,0.5); backdrop-filter: blur(10px);
+            border: 1px solid rgba(43,36,22,0.1); color: #2b2416;
+            display: flex; align-items: center; justify-content: center; font-size: 16px;
             cursor: pointer; transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
         }
-        .g-arrow:hover { background: #d4af37; color: #0a0f1e; border-color: #d4af37; }
-        .g-arrow.gprev { left: 26px; }
-        .g-arrow.gnext { right: 26px; }
+        .g-arrow:hover { background: #b8922e; color: #fdf8ec; border-color: #b8922e; }
+        .g-arrow.gprev { left: 22px; }
+        .g-arrow.gnext { right: 22px; }
 
         /* ===== Bottom dots ===== */
-        .g-dots { position: fixed; bottom: 24px; left: 44px; z-index: 50; display: flex; gap: 9px; }
-        .g-dots span { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2); cursor: pointer; transition: background 0.25s ease, width 0.25s ease; }
-        .g-dots span.active { background: #d4af37; width: 26px; border-radius: 5px; }
+        .g-dots { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 50; display: flex; gap: 9px; }
+        .g-dots span { width: 8px; height: 8px; border-radius: 50%; background: rgba(43,36,22,0.18); cursor: pointer; transition: background 0.25s ease, width 0.25s ease; }
+        .g-dots span.active { background: #b8922e; width: 26px; border-radius: 5px; }
 
         @media (max-width: 900px) {
-            .hslide { flex-direction: column; }
-            .hero-pane { flex: 0 0 58%; }
-            .thumb-pane { flex: 0 0 42%; }
-            .hero-info { padding: 0 24px 24px; }
-            .hero-info h1 { font-size: 30px; }
-            .gtop { padding: 18px 20px; }
-            .g-arrow { width: 42px; height: 42px; font-size: 14px; }
-            .g-arrow.gprev { left: 10px; } .g-arrow.gnext { right: 10px; }
-            .g-dots { left: 50%; transform: translateX(-50%); bottom: 14px; }
-            .g-counter { right: 20px; }
+            .hslide { padding: 76px 20px 60px; }
+            .main-photo { height: 38vh; }
+            .m-info h1 { font-size: 24px; }
+            .rooms-row { height: 13vh; gap: 10px; }
+            .gtop { padding: 16px 18px; }
+            .g-arrow { width: 40px; height: 40px; font-size: 13px; }
+            .g-arrow.gprev { left: 8px; } .g-arrow.gnext { right: 8px; }
+            .g-counter { right: 18px; }
         }
         @media (prefers-reduced-motion: reduce) {
-            .hero-tag, .hero-info h1, .hero-stars, .hero-para, .thumb-tile, .hero-divider { animation: none !important; opacity: 1 !important; transform: none !important; }
+            .main-photo, .room-photo { animation: none !important; opacity: 1 !important; transform: none !important; }
         }
     </style>
 </head>
 <body>
     <div class="g-preloader" id="gPreloader"><div class="pl-ring"></div></div>
+    <div class="bg-ambient" aria-hidden="true">
+        <i class="fas fa-star-and-crescent bg-motif m1"></i>
+        <i class="fas fa-star-and-crescent bg-motif m2"></i>
+    </div>
     <div class="grain-overlay" aria-hidden="true"></div>
 
     <div class="gtop">
@@ -277,23 +284,20 @@ $gallery_hotels = [
     <div class="stage" id="gStage">
         <?php foreach ($gallery_hotels as $i => $h): ?>
         <div class="hslide<?php echo $i === 0 ? ' active' : ''; ?>" data-index="<?php echo $i; ?>">
-            <div class="hero-pane">
-                <div class="bg" style="background-image:url('<?php echo htmlspecialchars(pexels_optimize($h['main_image'], 1400)); ?>');" data-full="<?php echo htmlspecialchars($h['main_image']); ?>"></div>
+            <div class="main-photo">
+                <img src="<?php echo htmlspecialchars(pexels_optimize($h['main_image'], 1200)); ?>" alt="<?php echo htmlspecialchars($h['title']); ?>" loading="<?php echo $i === 0 ? 'eager' : 'lazy'; ?>" decoding="async">
                 <div class="scrim"></div>
-                <div class="hero-info">
-                    <span class="hero-tag"><?php echo htmlspecialchars($h['city']); ?></span>
+                <div class="m-info">
+                    <span class="m-tag"><?php echo htmlspecialchars($h['city']); ?></span>
                     <h1><?php echo htmlspecialchars($h['title']); ?></h1>
-                    <div class="hero-divider"></div>
-                    <div class="hero-stars"><?php echo str_repeat('★', (int)$h['rating']); ?></div>
-                    <div class="hero-para"><p><?php echo htmlspecialchars($h['paragraph']); ?></p></div>
+                    <div class="m-stars"><?php echo str_repeat('★', (int)$h['rating']); ?></div>
+                    <p class="m-para"><?php echo htmlspecialchars($h['paragraph']); ?></p>
                 </div>
             </div>
-            <div class="thumb-pane">
-                <?php foreach ($h['thumbs'] as $t): ?>
-                    <div class="thumb-tile">
-                        <img src="<?php echo htmlspecialchars(pexels_optimize($t['url'], 500)); ?>" alt="<?php echo htmlspecialchars($t['label']); ?>" loading="lazy" decoding="async">
-                        <span class="tlabel"><?php echo htmlspecialchars($t['label']); ?></span>
-                        <span class="tsub"><?php echo htmlspecialchars($t['sub']); ?></span>
+            <div class="rooms-row">
+                <?php foreach ($h['thumbs'] as $thumbUrl): ?>
+                    <div class="room-photo">
+                        <img src="<?php echo htmlspecialchars(pexels_optimize($thumbUrl, 500)); ?>" alt="" loading="lazy" decoding="async">
                     </div>
                 <?php endforeach; ?>
             </div>
@@ -301,8 +305,8 @@ $gallery_hotels = [
         <?php endforeach; ?>
     </div>
 
-    <div class="g-arrow gprev" id="gPrev" aria-label="Previous hotel"><i class="fas fa-chevron-left"></i></div>
-    <div class="g-arrow gnext" id="gNext" aria-label="Next hotel"><i class="fas fa-chevron-right"></i></div>
+    <div class="g-arrow gprev" id="gPrev" aria-label="Previous"><i class="fas fa-chevron-left"></i></div>
+    <div class="g-arrow gnext" id="gNext" aria-label="Next"><i class="fas fa-chevron-right"></i></div>
 
     <div class="g-dots" id="gDots">
         <?php foreach ($gallery_hotels as $i => $h): ?>
@@ -310,34 +314,27 @@ $gallery_hotels = [
         <?php endforeach; ?>
     </div>
     <?php else: ?>
-        <div style="position:relative; z-index:2; height:100%; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.4); font-family:'Playfair Display',serif; font-size:20px;">
+        <div style="position:relative; z-index:2; height:100%; display:flex; align-items:center; justify-content:center; color:rgba(43,36,22,0.4); font-family:'Playfair Display',serif; font-size:20px;">
             No hotels to show yet.
         </div>
     <?php endif; ?>
 
 <script>
 (function() {
-    /* NEW: hide the preloader once the FIRST hero photo has actually
-       finished downloading (not just "page HTML parsed"), with a safety
-       timeout so it can never get stuck forever if a photo fails. */
     const preloader = document.getElementById('gPreloader');
-    const firstBg = document.querySelector('.hslide.active .bg');
     function hidePreloader() { preloader.classList.add('done'); }
-    if (firstBg) {
-        const m = firstBg.style.backgroundImage.match(/url\("?'?(.*?)"?'?\)$/);
-        const url = m ? m[1] : null;
-        if (url) {
-            const probe = new Image();
-            probe.onload = hidePreloader;
-            probe.onerror = hidePreloader;
-            probe.src = url;
-        } else {
+    const firstImg = document.querySelector('.hslide.active .main-photo img');
+    if (firstImg) {
+        if (firstImg.complete) {
             hidePreloader();
+        } else {
+            firstImg.addEventListener('load', hidePreloader);
+            firstImg.addEventListener('error', hidePreloader);
         }
     } else {
         hidePreloader();
     }
-    setTimeout(hidePreloader, 2500); // safety net
+    setTimeout(hidePreloader, 2500);
 
     const slides = Array.from(document.querySelectorAll('.hslide'));
     if (slides.length === 0) return;

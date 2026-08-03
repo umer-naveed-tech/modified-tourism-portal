@@ -1,13 +1,6 @@
 <?php
 session_start();
 require_once 'config.php';
-
-// NEW: featured hotels for the homepage gallery -- pulls real, live
-// inventory (top-rated hotels) rather than static/decorative content,
-// so every tile links to an actual bookable hotel. 5 hotels gives a
-// clean "1 large + 4 small" mosaic layout.
-$stmt = $pdo->query("SELECT id, hotel_name, city, rating, image_url FROM hotels_saudi ORDER BY rating DESC, hotel_name ASC LIMIT 5");
-$featured_hotels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -272,79 +265,6 @@ $featured_hotels = $stmt->fetchAll(PDO::FETCH_ASSOC);
            hotels pulled from the database, matching the site's existing
            dark/gold visual language.
            ============================================================ */
-        .gallery-section {
-            padding: 70px 0 110px; position: relative; overflow: hidden;
-            background: radial-gradient(ellipse 90% 60% at 50% 0%, rgba(212,175,55,0.06), transparent 60%), #0a0f1e;
-        }
-        .gallery-bg-glow {
-            position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
-        }
-        .gallery-bg-glow::before {
-            content: ''; position: absolute; inset: -15%;
-            background:
-                radial-gradient(circle at 15% 20%, rgba(212,175,55,0.10), transparent 40%),
-                radial-gradient(circle at 85% 75%, rgba(212,175,55,0.07), transparent 42%);
-            animation: driftGlow 26s ease-in-out infinite alternate;
-        }
-        .gallery-bg-glow .arch-shape {
-            position: absolute; color: #d4af37; opacity: 0.035; pointer-events: none;
-        }
-        .gallery-bg-glow .arch-shape.a1 { font-size: 340px; top: -60px; left: -80px; transform: rotate(-8deg); }
-        .gallery-bg-glow .arch-shape.a2 { font-size: 260px; bottom: -80px; right: -60px; transform: rotate(10deg); }
-        .gallery-section .container { position: relative; z-index: 1; }
-
-        /* NEW: Booking.com-style asymmetric photo mosaic -- one large
-           featured tile plus smaller tiles in a grid, instead of a
-           scrolling carousel. */
-        .gallery-mosaic {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            grid-auto-rows: 150px;
-            gap: 16px;
-        }
-        .gallery-tile {
-            position: relative; grid-column: span 1; grid-row: span 1;
-            border-radius: 16px; overflow: hidden; cursor: pointer;
-            border: 1px solid rgba(255,255,255,0.05);
-            transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
-        }
-        .gallery-tile.large { grid-column: span 2; grid-row: span 2; }
-        .gallery-tile:hover { transform: translateY(-6px); box-shadow: 0 20px 46px rgba(0,0,0,0.4); border-color: rgba(212,175,55,0.25); z-index: 2; }
-        .gallery-tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.7s ease; }
-        .gallery-tile:hover img { transform: scale(1.1); }
-        .gallery-tile::after {
-            content: ''; position: absolute; inset: 0;
-            background: linear-gradient(180deg, transparent 35%, rgba(10,15,30,0.92) 100%);
-        }
-        .gallery-tile .city-tag {
-            position: absolute; top: 12px; left: 12px; z-index: 2;
-            background: rgba(10,15,30,0.6); backdrop-filter: blur(6px);
-            color: #d4af37; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
-            padding: 4px 11px; border-radius: 20px; border: 1px solid rgba(212,175,55,0.2);
-        }
-        .gallery-tile .tile-info { position: absolute; left: 16px; right: 16px; bottom: 12px; z-index: 2; }
-        .gallery-tile .tile-info h4 { font-family: 'Playfair Display', serif; color: white; font-size: 14px; line-height: 1.3; margin-bottom: 4px; }
-        .gallery-tile.large .tile-info h4 { font-size: 21px; }
-        .gallery-tile .tile-stars { color: #d4af37; font-size: 11px; letter-spacing: 1px; }
-        .gallery-tile.large .tile-stars { font-size: 13px; }
-
-        .gallery-cta { text-align: center; margin-top: 40px; }
-        .gallery-cta a {
-            display: inline-flex; align-items: center; gap: 9px;
-            background: rgba(212,175,55,0.1); color: #d4af37; border: 1px solid rgba(212,175,55,0.15);
-            padding: 12px 30px; border-radius: 50px; font-size: 14px; font-weight: 600; text-decoration: none;
-            transition: all 0.3s ease;
-        }
-        .gallery-cta a:hover { background: #d4af37; color: #0a0f1e; transform: translateY(-2px); box-shadow: 0 10px 26px rgba(212,175,55,0.25); }
-
-        @media (max-width: 900px) {
-            .gallery-mosaic { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 160px; }
-            .gallery-tile.large { grid-column: span 2; grid-row: span 1; }
-        }
-        @media (max-width: 560px) {
-            .gallery-mosaic { grid-template-columns: 1fr; grid-auto-rows: 200px; }
-            .gallery-tile.large { grid-column: span 1; }
-        }
         .section-title { text-align: center; margin-bottom: 50px; }
         .section-title .gold-line { width: 60px; height: 3px; background: #d4af37; margin: 0 auto 12px; border-radius: 2px; }
         .section-title h2 { font-size: 34px; font-weight: 800; color: white; margin-bottom: 10px; }
@@ -573,41 +493,6 @@ $featured_hotels = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
     </section>
-
-    <?php if (!empty($featured_hotels)): ?>
-    <section class="services-section gallery-section" id="gallery">
-        <div class="gallery-bg-glow" aria-hidden="true">
-            <i class="fas fa-mosque arch-shape a1"></i>
-            <i class="fas fa-mosque arch-shape a2"></i>
-        </div>
-        <div class="container">
-            <div class="section-title reveal">
-                <div class="gold-line"></div>
-                <h2>Our Hotels</h2>
-                <p>Handpicked stays, steps away from the Haram</p>
-            </div>
-
-            <div class="gallery-mosaic">
-                <?php foreach ($featured_hotels as $idx => $h): ?>
-                    <div class="gallery-tile<?php echo $idx === 0 ? ' large' : ''; ?>" onclick="location.href='hotel_rooms.php?hotel_id=<?php echo (int)$h['id']; ?>'">
-                        <span class="city-tag"><?php echo htmlspecialchars($h['city']); ?></span>
-                        <img src="<?php echo htmlspecialchars(!empty($h['image_url']) ? $h['image_url'] : 'https://placehold.co/500x400/0a0f1e/d4af37?text=Hotel'); ?>"
-                             alt="<?php echo htmlspecialchars($h['hotel_name']); ?>"
-                             onerror="this.onerror=null;this.src='https://placehold.co/500x400/0a0f1e/d4af37?text=Hotel';">
-                        <div class="tile-info">
-                            <h4><?php echo htmlspecialchars($h['hotel_name']); ?></h4>
-                            <span class="tile-stars"><?php echo str_repeat('★', (int)$h['rating']); ?></span>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-
-            <div class="gallery-cta reveal">
-                <a href="services.php?type=hotels">View All Hotels <i class="fas fa-arrow-right" style="font-size:12px;"></i></a>
-            </div>
-        </div>
-    </section>
-    <?php endif; ?>
 
     <a href="https://wa.me/923001234567?text=Hi! I need travel assistance" class="whatsapp-float" target="_blank">
         <i class="fab fa-whatsapp"></i> Chat Now
