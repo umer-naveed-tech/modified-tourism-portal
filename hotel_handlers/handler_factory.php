@@ -31,6 +31,8 @@ define('EMAARWORTHELITE_HOTEL_ID', 85);
 define('EMAARALKHALIL_HOTEL_ID', 86);
 define('MAKAREMAJYAD_HOTEL_ID', 67);
 define('MANZELAJYAD_HOTEL_ID', 70);
+define('ELAFBAKKAH_HOTEL_ID', 71);   // NAYA
+define('ELAFQINWAN_HOTEL_ID', 76);   // NAYA
 // Four Points by Sheraton (155) aur Voco Hotel Makkah (156) ke liye koi
 // handler register nahi karte -- inke paas abhi koi room data nahi hai,
 // isliye NormalHotelHandler (default fallback) khud-ba-khud 'Coming Soon'
@@ -71,6 +73,7 @@ require_once __DIR__ . '/emaar_worth_elite.php';   // NAYA (existing hotel id 85
 require_once __DIR__ . '/emaar_al_khalil.php';     // NAYA (existing hotel id 86)
 require_once __DIR__ . '/makarem_ajyad.php';       // NAYA (existing hotel id 67)
 require_once __DIR__ . '/manzel_ajyad.php';        // NAYA (existing hotel id 70)
+require_once __DIR__ . '/elaf_bakkah_qinwan.php';  // NAYA (existing hotel ids 71, 76)
 
 class HotelHandlerFactory {
 
@@ -108,13 +111,18 @@ class HotelHandlerFactory {
         86 => 'EmaarAlKhalilHandler',
         67 => 'MakaremAjyadHandler',
         70 => 'ManzelAjyadHandler',
+        71 => 'ElafBakkahHandler',   // NAYA
+        76 => 'ElafQinwanHandler',   // NAYA
         // 155 (Four Points), 156 (Voco) -- deliberately NOT registered,
         // falls back to NormalHotelHandler -> empty rooms -> Coming Soon UI
     ];
 
     // "Simple" hotels: room_type_code + is_weekend, 70 SAR hidden markup,
     // koi extra bed nahi, koi meal add-on nahi, koi supplement nahi.
-    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148, 154, 157, 158, 159, 161, 162, 163, 164, 165, 166, 167, 168, 69, 83, 84, 85, 86, 67, 70];
+    // (Elaf Bakkah/Qinwan bhi isi bucket mein hain -- extra bed/supplement
+    // ke bina, sirf requires_meal_type=true unke handler class mein set
+    // hai, jaisa Emaar Al Khalil (86) ke liye pehle se hai.)
+    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148, 154, 157, 158, 159, 161, 162, 163, 164, 165, 166, 167, 168, 69, 83, 84, 85, 86, 67, 70, 71, 76];
 
     // "Single-room + supplement" hotels: EK room type ('double'),
     // weekday/weekend, 70 SAR hidden markup on room, optional extra bed
