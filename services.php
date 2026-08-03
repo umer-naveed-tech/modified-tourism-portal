@@ -634,6 +634,19 @@ if(empty($cities)) {
     } else {
         document.querySelectorAll('.reveal').forEach(el => el.classList.add('in-view'));
     }
+
+    /* NEW BUG FIX: when a page is restored from the browser's
+       back-forward cache (bfcache) via the Back/Forward button, the
+       page-transition overlay can still be showing (frozen in the
+       "active" state it was in right when the user clicked away) since
+       no fresh page-load JS runs on a bfcache restore. This listens for
+       that restore and clears the overlay so the page is visible again. */
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            const pt = document.getElementById('pageTransition');
+            if (pt) pt.classList.remove('active');
+        }
+    });
 </script>
 
 <?php include 'chatbot_widget.php'; ?>
