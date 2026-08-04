@@ -9,8 +9,23 @@ if($type == 'ziyarat' || $type == 'groups') {
 }
 $city = $_GET['city'] ?? 'Mecca';
 
+// NEW: pagination for the hotels list only -- this is the one list on
+// the site most likely to keep growing (new hotels get added
+// regularly), so it's the one that benefits from not rendering
+// everything at once. Taxi/visa lists stay as they were.
+$page = max(1, (int)($_GET['page'] ?? 1));
+$per_page = 20;
+$offset = ($page - 1) * $per_page;
+$totalHotels = 0;
+$totalPages = 1;
+
 if($type == 'hotels') {
-    $stmt = $pdo->prepare("SELECT * FROM hotels_saudi WHERE city = ? ORDER BY hotel_name ASC");
+    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM hotels_saudi WHERE city = ?");
+    $countStmt->execute([$city]);
+    $totalHotels = (int)$countStmt->fetchColumn();
+    $totalPages = max(1, ceil($totalHotels / $per_page));
+
+    $stmt = $pdo->prepare("SELECT * FROM hotels_saudi WHERE city = ? ORDER BY hotel_name ASC LIMIT $per_page OFFSET $offset");
     $stmt->execute([$city]);
     $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } elseif($type == 'taxi') {
@@ -38,6 +53,14 @@ if(empty($cities)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Services | Ahmed Travels</title>
+    <!-- NEW: preconnect hints -- tells the browser to start the
+         DNS/TLS handshake for these external domains immediately,
+         instead of waiting until it parses the <link> tags below.
+         Purely a network-timing optimization; nothing about the
+         page's content or behavior changes. -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -365,6 +388,13 @@ if(empty($cities)) {
         }
         .empty-state h3 { color: white; margin-bottom: 8px; font-family: 'Playfair Display', serif; }
         .empty-state p { color: rgba(255,255,255,0.3); }
+
+        /* NEW: hotel-list pagination */
+        .hotels-pagination { display: flex; gap: 6px; justify-content: center; align-items: center; padding: 30px 0 10px; flex-wrap: wrap; }
+        .hotels-pagination a, .hotels-pagination span { padding: 8px 13px; border-radius: 6px; font-size: 13px; text-decoration: none; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.06); }
+        .hotels-pagination a:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.9); }
+        .hotels-pagination .current { background: #d4af37; color: #0a0f1e; border-color: #d4af37; font-weight: 600; }
+        .hotels-pagination .disabled { opacity: 0.3; pointer-events: none; }
         
         @media (max-width: 768px) { 
             .services-grid { grid-template-columns: 1fr; }
@@ -457,7 +487,24 @@ if(empty($cities)) {
                     <div class="empty-state"><h3>No Hotels Found</h3><p>Hotels in <?php echo htmlspecialchars($city); ?> will be added soon.</p></div>
                 <?php endif; ?>
             </div>
-        
+
+            <?php if($totalPages > 1): ?>
+            <div class="hotels-pagination">
+                <a href="?type=hotels&city=<?php echo urlencode($city); ?>&page=<?php echo max(1, $page - 1); ?>" class="<?php echo $page <= 1 ? 'disabled' : ''; ?>">&lsaquo; Prev</a>
+                <?php
+                    $startP = max(1, $page - 2);
+                    $endP = min($totalPages, $page + 2);
+                    if ($startP > 1) echo '<a href="?type=hotels&city=' . urlencode($city) . '&page=1">1</a><span>&hellip;</span>';
+                    for ($p = $startP; $p <= $endP; $p++) {
+                        if ($p == $page) echo '<span class="current">' . $p . '</span>';
+                        else echo '<a href="?type=hotels&city=' . urlencode($city) . '&page=' . $p . '">' . $p . '</a>';
+                    }
+                    if ($endP < $totalPages) echo '<span>&hellip;</span><a href="?type=hotels&city=' . urlencode($city) . '&page=' . $totalPages . '">' . $totalPages . '</a>';
+                ?>
+                <a href="?type=hotels&city=<?php echo urlencode($city); ?>&page=<?php echo min($totalPages, $page + 1); ?>" class="<?php echo $page >= $totalPages ? 'disabled' : ''; ?>">Next &rsaquo;</a>
+            </div>
+            <?php endif; ?>
+
         <?php elseif($type == 'taxi' && isset($cars)): ?>
             <div class="car-dropdown-container reveal">
                 <select id="carSelect" class="car-select">
@@ -615,7 +662,7 @@ if(empty($cities)) {
     // just show the overlay immediately without touching the href or
     // preventing default -- normal navigation (incl. middle-click /
     // open-in-new-tab) keeps working exactly as before.
-    document.querySelectorAll('.tab-link, .city-tab').forEach(a => {
+    document.querySelectorAll('.tab-link, .city-tab, .hotels-pagination a:not(.disabled)').forEach(a => {
         a.addEventListener('click', function() {
             if (!this.classList.contains('active')) {
                 document.getElementById('pageTransition').classList.add('active');
