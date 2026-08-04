@@ -26,7 +26,7 @@ $allowed_ranges = ['all', 'yesterday', '7days', '30days'];
 if (!in_array($range, $allowed_ranges)) $range = 'all';
 
 $today = date('Y-m-d');
-$where = ['user_id = ?'];
+$where = ['user_id = ?', 'hidden_by_user = 0'];
 $params = [$user_id];
 
 if ($view === 'upcoming') {
@@ -62,10 +62,10 @@ $stmt = $pdo->prepare("
 $stmt->execute($params);
 $bookings = $stmt->fetchAll();
 
-// Total bookings count for the stat card stays a true, unfiltered total --
-// not affected by the Upcoming/Past view, matching how stat cards behave
-// on the agent dashboard.
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = ?");
+// Total bookings count for the stat card -- excludes bookings the
+// customer has removed from their own view (hidden_by_user), same as
+// the list below, so the number always matches what's actually visible.
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = ? AND hidden_by_user = 0");
 $stmt->execute([$user_id]);
 $total_bookings_all = $stmt->fetchColumn();
 
@@ -268,9 +268,11 @@ $initials = strtoupper(substr($name_parts[0], 0, 1) . (count($name_parts) > 1 ? 
         .status-cancelled .dot { background: #f87171; }
         @keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
         .booking-actions { display: flex; gap: 10px; }
-        .btn-cancel, .btn-support { padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; border: none; transition: all 0.3s ease; }
+        .btn-cancel, .btn-support, .btn-remove { padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; border: none; transition: all 0.3s ease; font-family: inherit; }
         .btn-cancel { background: rgba(239,68,68,0.1); color: #f87171; }
         .btn-cancel:hover { background: #dc2626; color: white; transform: translateY(-2px); }
+        .btn-remove { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.06); }
+        .btn-remove:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); transform: translateY(-2px); }
         .btn-support { background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.05); }
         .btn-support:hover { background: #d4af37; color: #0a0f1e; transform: translateY(-2px); }
 
@@ -449,6 +451,8 @@ $initials = strtoupper(substr($name_parts[0], 0, 1) . (count($name_parts) > 1 ? 
                         <div class="booking-actions">
                             <?php if($can_cancel): ?>
                                 <a href="cancel_booking.php?id=<?php echo (int)$b['id']; ?>" class="btn-cancel" onclick="return confirm('Cancel this booking?')">Cancel</a>
+                            <?php else: ?>
+                                <button type="button" class="btn-remove" data-id="<?php echo (int)$b['id']; ?>">Remove</button>
                             <?php endif; ?>
                             <a href="https://wa.me/923001234567?text=<?php echo urlencode('Help with booking ' . $b['booking_no']); ?>" class="btn-support" target="_blank">Support</a>
                         </div>
@@ -547,6 +551,7 @@ $initials = strtoupper(substr($name_parts[0], 0, 1) . (count($name_parts) > 1 ? 
        normal navigation if anything looks unexpected (e.g. session
        expired), so the action is never silently lost. */
     const ajaxContentEl = document.getElementById('ajaxContent');
+    const csrfToken = <?php echo json_encode(csrf_token()); ?>;
     let ajaxLoading = false;
 
     function loadAjaxContent(url) {
@@ -569,6 +574,7 @@ $initials = strtoupper(substr($name_parts[0], 0, 1) . (count($name_parts) > 1 ? 
 
                 bindReveal(ajaxContentEl);
                 bindAjaxLinks(ajaxContentEl);
+                bindRemoveButtons(ajaxContentEl);
             })
             .catch(() => { window.location.href = url; })
             .finally(() => {
@@ -589,11 +595,54 @@ $initials = strtoupper(substr($name_parts[0], 0, 1) . (count($name_parts) > 1 ? 
         });
     }
 
+    /* NEW: "Remove" button -- lets the customer take a booking off
+       their own dashboard (hidden_by_user=1 server-side). Does NOT
+       touch the booking's status and does NOT delete anything -- the
+       agent still sees it exactly as before. After a successful
+       remove, refreshes just #ajaxContent so the card disappears
+       without a full page reload. */
+    function bindRemoveButtons(root) {
+        root.querySelectorAll('.btn-remove').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = this.dataset.id;
+                if (!confirm('Remove this booking from your dashboard? You can still see it if you contact support later.')) return;
+
+                this.disabled = true;
+                const originalText = this.textContent;
+                this.textContent = 'Removing...';
+
+                fetch('hide_booking.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'id=' + encodeURIComponent(id) + '&csrf_token=' + encodeURIComponent(csrfToken)
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        loadAjaxContent(window.location.pathname + window.location.search);
+                    } else {
+                        alert('Could not remove this booking: ' + (data.error || 'unknown error'));
+                        this.disabled = false;
+                        this.textContent = originalText;
+                    }
+                })
+                .catch(() => {
+                    alert('Network error. Please try again.');
+                    this.disabled = false;
+                    this.textContent = originalText;
+                });
+            });
+        });
+    }
+
     window.addEventListener('popstate', function() {
         loadAjaxContent(window.location.pathname + window.location.search);
     });
 
-    if (ajaxContentEl) bindAjaxLinks(ajaxContentEl);
+    if (ajaxContentEl) {
+        bindAjaxLinks(ajaxContentEl);
+        bindRemoveButtons(ajaxContentEl);
+    }
 
     /* NEW BUG FIX: when a page is restored from the browser's
        back-forward cache (bfcache) via the Back/Forward button, the

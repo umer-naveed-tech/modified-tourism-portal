@@ -39,30 +39,30 @@ $error = '';
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
     csrf_verify();
     $email = trim($_POST['email']);
-    
+
     $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch();
-    
-    if($user) {
+
+    if ($user) {
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM reset_attempts WHERE email = ? AND attempt_time > DATE_SUB(NOW(), INTERVAL 15 MINUTE)");
         $stmt->execute([$email]);
         $attempts = $stmt->fetchColumn();
-        
-        if($attempts > 3) {
+
+        if ($attempts > 3) {
             $error = "Too many attempts. Please try after 15 minutes.";
         } else {
             $otp = sprintf("%06d", mt_rand(1, 999999));
             $expires_at = date('Y-m-d H:i:s', strtotime('+10 minutes'));
-            
+
             $stmt = $pdo->prepare("INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, ?)");
             $stmt->execute([$email, $otp, $expires_at]);
-            
+
             $stmt = $pdo->prepare("INSERT INTO reset_attempts (email) VALUES (?)");
             $stmt->execute([$email]);
-            
+
             $mail = new PHPMailer(true);
-            
+
             try {
                 $mail->isSMTP();
                 $mail->Host       = SMTP_HOST;
@@ -71,27 +71,27 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $mail->Password   = SMTP_APP_PASSWORD;
                 $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
                 $mail->Port       = SMTP_PORT;
-                
+
                 $mail->setFrom(SMTP_USERNAME, SMTP_FROM_NAME);
                 $mail->addAddress($email, $user['name']);
-                
+
                 $mail->isHTML(true);
                 $mail->Subject = 'Password Reset OTP - Ahmed Travels';
                 $mail->Body = "<h2>Password Reset OTP</h2><p>Your OTP is: <strong>$otp</strong></p><p>Valid for 10 minutes.</p>";
-                
+
                 $mail->send();
-                
-                $_SESSION['reset_success'] = "✅ OTP sent successfully to $email! Check your inbox.";
+
+                $_SESSION['reset_success'] = "OTP sent to $email.";
                 $_SESSION['reset_email'] = $email;
                 header('Location: verify_otp.php');
                 exit();
-                
+
             } catch (Exception $e) {
-                $error = "OTP could not be sent. Error: {$mail->ErrorInfo}";
+                $error = "Unable to send OTP. Please try again.";
             }
         }
     } else {
-        $error = "Email address not found.";
+        $error = "No account found with this email.";
     }
 }
 ?>

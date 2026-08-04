@@ -2,6 +2,12 @@
 session_start();
 require_once 'config.php';
 require_once 'hotel_handlers/handler_factory.php';
+// Single source of truth for pricing -- same function
+// get_hotel_room_price.php uses for the preview, so a booking can never
+// silently charge a different (or lower) total than what the customer
+// was shown, and a missing pricing row now always fails the booking
+// instead of quietly charging SAR 0 for that night.
+require_once 'hotel_handlers/price_calculator.php';
 
 // 🔴 CSRF VERIFY — PEHLE HI HONA CHAHIYE
 csrf_verify();
@@ -74,331 +80,38 @@ if ($nights < 1) {
     exit();
 }
 
-function isWeekend($date) {
-    $day = date('N', strtotime($date));
-    return ($day == 4 || $day == 5);
+// ============================================================
+// 🔴 PRICE CALCULATION -- delegated entirely to price_calculator.php.
+// If ANY date in the stay has no matching pricing row, this now fails
+// the booking outright (same as the preview endpoint always did)
+// instead of silently treating that night as free. This is the fix
+// for the "Makkah Towers silent under-charge" bug -- and the same
+// class of bug that also existed (unnoticed) for hotels 43, 63, and 41
+// in this file, since none of their inline blocks used to check for a
+// missing pricing row either.
+// ============================================================
+$price = calculateHotelStayPrice($pdo, [
+    'hotel_id'    => $hotel_id,
+    'room_type'   => $room_type_code,
+    'bed_type'    => $bed_type,
+    'meal_type'   => $meal_type,
+    'extra_bed'   => $extra_bed,
+    'supplement'  => $supplement,
+    'supplements' => $supplements,
+    'meals'       => $meals,
+    'guests'      => $guests,
+    'check_in'    => $check_in,
+    'check_out'   => $check_out,
+]);
+
+if (!$price['success']) {
+    header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
+    exit();
 }
 
-$total = 0;
-$extra_bed_total = 0;
-$supplements_total = 0;
-$meal_total = 0;
-
-// ============================================================
-// MAKKAH HOTEL (hotel_id = 43)
-// ============================================================
-if ($hotel_id == 43) {
-    $meal_type = $_POST['meal_type'] ?? 'breakfast';
-    $extra_bed = isset($_POST['extra_bed']) ? 1 : 0;
-    $supplements = $_POST['supplements'] ?? [];
-    $guests = $_POST['guests'] ?? 2;
-    
-    $supplement_prices = [
-        'renovated' => 125,
-        'junior_suite' => 250,
-        'kaaba_view' => 600,
-        'suite' => 2450
-    ];
-    
-    foreach ($supplements as $supp) {
-        if (isset($supplement_prices[$supp])) {
-            $supplements_total += $supplement_prices[$supp];
-        }
-    }
-    
-    $meal_prices = [
-        'breakfast' => 80,
-        'halfboard' => 250,
-        'fullboard' => 420
-    ];
-    $meal_price_per_night = $meal_prices[$meal_type] ?? 80;
-    
-    for ($i = 0; $i < $nights; $i++) {
-        $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
-        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
-        
-        $stmt = $pdo->prepare("
-            SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type_code = ? AND is_weekend = ? 
-            AND ? BETWEEN start_date AND end_date
-        ");
-        $stmt->execute([$hotel_id, $room_type_code, $is_weekend_val, $current_date]);
-        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($rule) {
-            $night_price = $rule['base_price_sar'];
-            $total += $night_price;
-            
-            if ($extra_bed) {
-                $extra_bed_price = $rule['extra_bed_base'] ?? 0;
-                $extra_bed_total += $extra_bed_price;
-            }
-        }
-    }
-    
-    $meal_total = $meal_price_per_night * $guests * $nights;
-    $grand_total = $total + $meal_total + $extra_bed_total + $supplements_total;
-    
-} elseif ($hotel_id == 63) {
-    // MOVENPICK
-    $meal_type = $_POST['meal_type'] ?? 'breakfast';
-    $extra_bed = isset($_POST['extra_bed']) ? 1 : 0;
-    if ($meal_type === 'fullboard') {
-        $extra_bed = 0;
-    }
-    
-    for ($i = 0; $i < $nights; $i++) {
-        $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
-        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
-        
-        $stmt = $pdo->prepare("
-            SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type = ? AND is_weekend = ? 
-            AND ? BETWEEN start_date AND end_date
-            AND (meal_type = ? OR is_full_board = 1)
-        ");
-        $stmt->execute([$hotel_id, strtolower($room_type_code), $is_weekend_val, $current_date, $meal_type]);
-        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($rule) {
-            $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
-            $total += $night_price;
-            
-            if ($extra_bed && !$rule['is_full_board']) {
-                $extra_bed_price = ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
-                $extra_bed_total += $extra_bed_price;
-            }
-        }
-    }
-    $grand_total = $total + $extra_bed_total;
-    
-} elseif ($hotel_id == 41) {
-    // MARRIOT
-    $meals = $_POST['meals'] ?? [];
-    
-    for ($i = 0; $i < $nights; $i++) {
-        $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
-        
-        $stmt = $pdo->prepare("
-            SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type = ? 
-            AND ? BETWEEN start_date AND end_date
-        ");
-        $stmt->execute([$hotel_id, strtolower($room_type_code), $current_date]);
-        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($rule) {
-            $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
-            $total += $night_price;
-            
-            if (!$rule['is_full_board']) {
-                if (in_array('breakfast', $meals) && $rule['breakfast_price_sar'] !== null) {
-                    $meal_total += $rule['breakfast_price_sar'];
-                }
-                if (in_array('lunch', $meals) && $rule['lunch_price_sar'] !== null) {
-                    $meal_total += $rule['lunch_price_sar'];
-                }
-                if (in_array('dinner', $meals) && $rule['dinner_price_sar'] !== null) {
-                    $meal_total += $rule['dinner_price_sar'];
-                }
-            }
-        }
-    }
-    $grand_total = $total + $meal_total;
-    
-} elseif ($hotel_id == 44) {
-    // 🔴 MAKKAH TOWERS — SIRF ROOMS + EXTRA BED
-    $extra_bed = isset($_POST['extra_bed']) ? 1 : 0;
-    
-    for ($i = 0; $i < $nights; $i++) {
-        $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
-        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
-        
-        // 🔴 room_type se try karein
-        $stmt = $pdo->prepare("
-            SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type = ? AND is_weekend = ? 
-            AND ? BETWEEN start_date AND end_date
-        ");
-        $stmt->execute([$hotel_id, $room_type_code, $is_weekend_val, $current_date]);
-        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // 🔴 agar nahi mili toh room_type_code se try karein
-        if (!$rule) {
-            $stmt = $pdo->prepare("
-                SELECT * FROM hotel_seasonal_pricing 
-                WHERE hotel_id = ? AND room_type_code = ? AND is_weekend = ? 
-                AND ? BETWEEN start_date AND end_date
-            ");
-            $stmt->execute([$hotel_id, $room_type_code, $is_weekend_val, $current_date]);
-            $rule = $stmt->fetch(PDO::FETCH_ASSOC);
-        }
-        
-        if ($rule) {
-            $night_price = $rule['base_price_sar'];
-            $total += $night_price;
-            
-            if ($extra_bed) {
-                $extra_bed_price = $rule['extra_bed_base'] ?? 0;
-                $extra_bed_total += $extra_bed_price;
-            }
-        }
-    }
-    $grand_total = $total + $extra_bed_total;
-    
-} elseif ($hotel_id == LEMERIDIEN_HOTEL_ID) {
-    // LE MERIDIEN TOWER HOTEL MAKKAH -- bespoke. $room_type_code =
-    // category (ds/es/rs), $bed_type = subtype, $meal_type =
-    // ro/bb_intl/hb_pk/fb_pk (REQUIRED, changes price). Extra Bed
-    // sirf Royal Suite (rs) ke liye.
-    $lm_meal_valid = ['ro' => 1, 'bb_intl' => 1, 'hb_pk' => 1, 'fb_pk' => 1];
-    if ($bed_type === '' || !isset($lm_meal_valid[$meal_type])) {
-        header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
-        exit();
-    }
-    $lm_extra_bed = ($room_type_code === 'rs') ? $extra_bed : 0;
-
-    for ($i = 0; $i < $nights; $i++) {
-        $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
-        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
-
-        $stmt = $pdo->prepare("
-            SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND meal_type = ? AND is_weekend = ? 
-            AND ? BETWEEN start_date AND end_date
-        ");
-        $stmt->execute([$hotel_id, $room_type_code, $bed_type, $meal_type, $is_weekend_val, $current_date]);
-        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$rule) {
-            header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
-            exit();
-        }
-
-        $total += $rule['base_price_sar'] + $rule['markup_sar'];
-        if ($lm_extra_bed) {
-            $extra_bed_total += ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
-        }
-    }
-
-    $grand_total = $total + $extra_bed_total;
-
-} elseif (HotelHandlerFactory::isSingleRoomSupplementHotel($hotel_id)) {
-    // SINGLE-ROOM SUPPLEMENT HOTELS (Al Safwah, Conrad, Hilton Suites,
-    // Hilton Convention, future hotels) -- ek generic block, supplement
-    // prices aur extra-bed availability handler class se aate hain.
-    $handler = HotelHandlerFactory::getHandler($hotel_id);
-    $opts = $handler->getBookingOptions($hotel_id);
-    $supplement_prices_map = $opts['supplements'] ?? [];
-    $has_extra_bed = $opts['extra_bed_available'] ?? false;
-
-    for ($i = 0; $i < $nights; $i++) {
-        $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
-        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
-
-        $stmt = $pdo->prepare("
-            SELECT * FROM hotel_seasonal_pricing 
-            WHERE hotel_id = ? AND room_type = 'double' AND is_weekend = ? 
-            AND ? BETWEEN start_date AND end_date
-        ");
-        $stmt->execute([$hotel_id, $is_weekend_val, $current_date]);
-        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$rule) {
-            header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
-            exit();
-        }
-
-        $total += $rule['base_price_sar'] + $rule['markup_sar'];
-        if ($has_extra_bed && $extra_bed) {
-            $extra_bed_total += ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
-        }
-    }
-
-    $supplements_total = ($supplement && isset($supplement_prices_map[$supplement])) ? $supplement_prices_map[$supplement] : 0;
-    $grand_total = $total + $extra_bed_total + $supplements_total;
-
-} elseif (HotelHandlerFactory::isSimpleHiddenMarkupHotel($hotel_id)) {
-    // Multi room-type hotels (Fairmont, Swissotel, Elaf Kinda, Sheraton,
-    // M Hotel, etc). Extra bed optional, driven by handler's
-    // getBookingOptions() -- most don't have it, Sheraton does.
-    // Bed Type (Double/Triple/Quad) zaroori hai -- iske bina room
-    // category+date se 3 rows match hoti thin aur galat/random price
-    // select ho jaati thi.
-    if ($bed_type === '') {
-        header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
-        exit();
-    }
-
-    $simple_handler = HotelHandlerFactory::getHandler($hotel_id);
-    $simple_opts = $simple_handler->getBookingOptions($hotel_id);
-    $simple_has_extra_bed = $simple_opts['extra_bed_available'] ?? false;
-    $simple_requires_meal = $simple_opts['requires_meal_type'] ?? false;
-    $simple_meal_labels = $simple_opts['meal_labels'] ?? [];
-
-    if ($simple_requires_meal && !isset($simple_meal_labels[$meal_type])) {
-        header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
-        exit();
-    }
-
-    for ($i = 0; $i < $nights; $i++) {
-        $current_date = date('Y-m-d', strtotime($check_in . ' + ' . $i . ' days'));
-        $is_weekend_val = isWeekend($current_date) ? 1 : 0;
-
-        if ($simple_requires_meal) {
-            $stmt = $pdo->prepare("
-                SELECT * FROM hotel_seasonal_pricing 
-                WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND meal_type = ? AND is_weekend = ? 
-                AND ? BETWEEN start_date AND end_date
-            ");
-            $stmt->execute([$hotel_id, $room_type_code, $bed_type, $meal_type, $is_weekend_val, $current_date]);
-        } else {
-            $stmt = $pdo->prepare("
-                SELECT * FROM hotel_seasonal_pricing 
-                WHERE hotel_id = ? AND room_type_code = ? AND room_type = ? AND is_weekend = ? 
-                AND ? BETWEEN start_date AND end_date
-            ");
-            $stmt->execute([$hotel_id, $room_type_code, $bed_type, $is_weekend_val, $current_date]);
-        }
-        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$rule) {
-            // Chup-chaap skip karne ki bajaye booking fail karo -- warna
-            // customer se kam nights ka paisa lag jata (ek missing date
-            // silently total se bahar reh jaati).
-            header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
-            exit();
-        }
-
-        $total += $rule['base_price_sar'] + $rule['markup_sar'];
-        if ($simple_has_extra_bed && $extra_bed) {
-            $extra_bed_total += ($rule['extra_bed_base'] ?? 0) + ($rule['extra_bed_markup'] ?? 0);
-        }
-    }
-
-    $grand_total = $total + $extra_bed_total;
-    
-} else {
-    // OTHER HOTELS
-    $stmt = $pdo->prepare("SELECT price_per_night_sar FROM hotel_rooms WHERE id = ?");
-    $stmt->execute([$room_id]);
-    $room_price = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    $stmt = $pdo->prepare("
-        SELECT base_price_sar, markup_sar FROM hotel_seasonal_pricing 
-        WHERE hotel_id = ? AND room_type = ? 
-        AND ? BETWEEN start_date AND end_date
-    ");
-    $stmt->execute([$hotel_id, strtolower($room_type_code), $check_in]);
-    $seasonal = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($seasonal) {
-        $total = ($seasonal['base_price_sar'] + $seasonal['markup_sar']) * $nights;
-    } else {
-        $total = ($room_price['price_per_night_sar'] ?? 0) * $nights;
-    }
-    $grand_total = $total;
-}
+$grand_total = $price['grand_total'];
+$extra_bed_total = $price['extra_bed_total'] ?? 0;
+$meal_total = $price['meal_total'] ?? 0;
 
 $booking_no = 'HOTEL-' . date('Ymd') . '-' . rand(1000, 9999);
 $travel_date = $check_in;
@@ -449,4 +162,3 @@ if ($stmt->execute([
     header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');
     exit();
 }
-?>
