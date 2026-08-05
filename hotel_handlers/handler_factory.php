@@ -33,6 +33,13 @@ define('MAKAREMAJYAD_HOTEL_ID', 67);
 define('MANZELAJYAD_HOTEL_ID', 70);
 define('ELAFBAKKAH_HOTEL_ID', 71);   // NAYA
 define('ELAFQINWAN_HOTEL_ID', 76);   // NAYA
+
+// MADINAH HOTELS (naya batch)
+define('JAYDEN_HOTEL_ID', 169);       // NAYA -- Jayden Hotel Madinah
+define('DARALTAQWA_HOTEL_ID', 94);    // NAYA -- Dar Al Taqwa Hotel Madinah (existing empty hotel row)
+define('DARALIMAN_HOTEL_ID', 96);     // NAYA -- Dar Al Iman Intercontinental Madinah (existing empty hotel row)
+define('DARALHIJRA_HOTEL_ID', 97);    // NAYA -- Dar Al Hijra Intercontinental Madinah (existing empty hotel row)
+
 // Four Points by Sheraton (155) aur Voco Hotel Makkah (156) ke liye koi
 // handler register nahi karte -- inke paas abhi koi room data nahi hai,
 // isliye NormalHotelHandler (default fallback) khud-ba-khud 'Coming Soon'
@@ -75,6 +82,12 @@ require_once __DIR__ . '/makarem_ajyad.php';       // NAYA (existing hotel id 67
 require_once __DIR__ . '/manzel_ajyad.php';        // NAYA (existing hotel id 70)
 require_once __DIR__ . '/elaf_bakkah_qinwan.php';  // NAYA (existing hotel ids 71, 76)
 
+// MADINAH HOTELS (naya batch)
+require_once __DIR__ . '/jayden_hotel_madinah.php';                    // NAYA
+require_once __DIR__ . '/dar_al_taqwa_madinah.php';                    // NAYA
+require_once __DIR__ . '/dar_al_iman_intercontinental_madinah.php';    // NAYA
+require_once __DIR__ . '/dar_al_hijra_intercontinental_madinah.php';   // NAYA
+
 class HotelHandlerFactory {
 
     private static $handlers = [
@@ -115,14 +128,25 @@ class HotelHandlerFactory {
         76 => 'ElafQinwanHandler',   // NAYA
         // 155 (Four Points), 156 (Voco) -- deliberately NOT registered,
         // falls back to NormalHotelHandler -> empty rooms -> Coming Soon UI
+
+        // MADINAH HOTELS (naya batch)
+        169 => 'JaydenHotelMadinahHandler',                  // NAYA
+        94  => 'DarAlTaqwaMadinahHandler',                   // NAYA
+        96  => 'DarAlImanIntercontinentalMadinahHandler',    // NAYA
+        97  => 'DarAlHijraIntercontinentalMadinahHandler',   // NAYA
     ];
 
     // "Simple" hotels: room_type_code + is_weekend, 70 SAR hidden markup,
     // koi extra bed nahi, koi meal add-on nahi, koi supplement nahi.
     // (Elaf Bakkah/Qinwan bhi isi bucket mein hain -- extra bed/supplement
     // ke bina, sirf requires_meal_type=true unke handler class mein set
-    // hai, jaisa Emaar Al Khalil (86) ke liye pehle se hai.)
-    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148, 154, 157, 158, 159, 161, 162, 163, 164, 165, 166, 167, 168, 69, 83, 84, 85, 86, 67, 70, 71, 76];
+    // hai, jaisa Emaar Al Khalil (86) ke liye pehle se hai. Madinah ke
+    // 4 naye hotels bhi isi bucket mein hain -- Dar Al Taqwa/Dar Al Iman
+    // Intercontinental/Dar Al Hijra Intercontinental extra_bed use karte
+    // hain jo unke apne handler class mein handle hota hai, aur Jayden
+    // requires_meal_type=true use karta hai Standard/Indonesian rate
+    // selector ke liye -- bilkul Emaar Al Khalil jaisa.)
+    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148, 154, 157, 158, 159, 161, 162, 163, 164, 165, 166, 167, 168, 69, 83, 84, 85, 86, 67, 70, 71, 76, 169, 94, 96, 97];
 
     // "Single-room + supplement" hotels: EK room type ('double'),
     // weekday/weekend, 70 SAR hidden markup on room, optional extra bed
