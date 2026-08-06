@@ -35,9 +35,21 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $total_amount = $hotel['price_per_night_sar'] * $nights;
     $booking_no = 'HOTEL-' . date('Ymd') . '-' . rand(1000, 9999);
     
-    $stmt = $pdo->prepare("INSERT INTO bookings (booking_no, user_id, service_type, service_id, booking_date, travel_date, from_location, guests, total_amount, status) VALUES (?, ?, 'hotel', ?, CURDATE(), ?, ?, ?, ?, 'pending')");
+    // price_breakdown -- lets the agent panel show which hotel/dates
+    // this actually was, instead of just the city name.
+    $price_breakdown = json_encode([
+        'hotel_name' => $hotel['hotel_name'],
+        'city' => $hotel['city'],
+        'check_in' => $check_in,
+        'check_out' => $check_out,
+        'nights' => $nights,
+        'guests' => $guests,
+        'price_per_night' => $hotel['price_per_night_sar'],
+    ]);
+
+    $stmt = $pdo->prepare("INSERT INTO bookings (booking_no, user_id, service_type, service_id, booking_date, travel_date, from_location, guests, total_amount, price_breakdown, status) VALUES (?, ?, 'hotel', ?, CURDATE(), ?, ?, ?, ?, ?, 'pending')");
     
-    if($stmt->execute([$booking_no, $_SESSION['user_id'], $hotel_id, $check_in, $hotel['city'], $guests, $total_amount])) {
+    if($stmt->execute([$booking_no, $_SESSION['user_id'], $hotel_id, $check_in, mb_substr($hotel['hotel_name'] . ' (' . $hotel['city'] . ')', 0, 100), $guests, $total_amount, $price_breakdown])) {
         $success = true;
         $wa_msg = "Hi! I have booked {$hotel['hotel_name']} in {$hotel['city']} from $check_in to $check_out ($nights nights). Booking ID: $booking_no. Total: SAR $total_amount";
         $wa_link = "https://wa.me/923001234567?text=" . urlencode($wa_msg);

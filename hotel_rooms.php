@@ -419,6 +419,51 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
             from { opacity: 0; transform: scale(0.98); }
             to { opacity: 1; transform: scale(1); }
         }
+
+        /* NEW: shown when the selected dates fall outside every priced
+           period for this hotel -- a clear, professional message
+           instead of a browser alert() or a silently wrong fallback
+           price. */
+        .hotel-unavailable-panel {
+            background: rgba(255,255,255,0.02);
+            padding: 24px 26px;
+            border-radius: 14px;
+            margin-top: 18px;
+            display: none;
+            border: 1px solid rgba(212,175,55,0.12);
+            animation: fadeIn 0.4s ease;
+        }
+        .hotel-unavailable-panel h6 {
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 15px;
+            font-family: 'Playfair Display', serif;
+        }
+        .hotel-unavailable-panel p {
+            color: rgba(255,255,255,0.55);
+            font-size: 13.5px;
+            line-height: 1.7;
+            margin-bottom: 18px;
+        }
+        .hotel-unavailable-panel .btn-contact-us {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #d4af37;
+            color: #0a0f1e;
+            padding: 12px 26px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .hotel-unavailable-panel .btn-contact-us:hover {
+            background: #b8922e;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(212,175,55,0.2);
+        }
         .price-breakdown h6 {
             font-weight: 600;
             color: rgba(255,255,255,0.6);
@@ -679,7 +724,11 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
 
     <div class="container">
         <?php if(isset($_GET['error'])): ?>
-            <div class="alert alert-danger" style="background:rgba(239,68,68,0.06); border-color:rgba(239,68,68,0.08); color:#f87171; border-radius:12px;">Booking failed. Please try again.</div>
+            <div class="alert alert-danger" style="background:rgba(239,68,68,0.06); border-color:rgba(239,68,68,0.08); color:#f87171; border-radius:12px; padding:16px 20px; line-height:1.6;">
+                We were unable to complete this booking, most likely because the selected dates fall outside our currently confirmed availability for this hotel. Please try different dates, or
+                <a href="https://wa.me/923001234567?text=<?php echo urlencode('Hi! I tried to book ' . ($hotel['hotel_name'] ?? 'this hotel') . ' but the dates I wanted were unavailable. Could you please help me manually?'); ?>" target="_blank" style="color:#f87171; text-decoration:underline;">contact our customer service team</a>
+                and we will be happy to arrange it for you manually.
+            </div>
         <?php endif; ?>
 
         <?php if(count($rooms) > 0): ?>
@@ -874,6 +923,17 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
                         </div>
                     </div>
 
+                    <!-- NEW: generic Number of Guests field -- applies to every
+                         hotel (previously only Makkah Towers had its own guest
+                         selector). Value is read by calculateTotal() below and
+                         submitted as the form's "guests" field, same as before. -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-4">
+                            <label class="form-label">Number of Guests</label>
+                            <input type="number" name="guests" id="guests" class="form-control" value="2" min="1" max="10" onchange="calculateTotal()">
+                        </div>
+                    </div>
+
                     <div class="price-breakdown" id="priceBreakdown">
                         <h6>Price Breakdown</h6>
                         <div id="breakdownDetails"></div>
@@ -881,6 +941,13 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
                             <span>Grand Total</span>
                             <span class="grand-total" id="grandTotal">SAR 0</span>
                         </div>
+                    </div>
+
+                    <!-- NEW: professional "unavailable for these dates" panel -->
+                    <div class="hotel-unavailable-panel" id="hotelUnavailablePanel">
+                        <h6>This Hotel Is Currently Unavailable for These Dates</h6>
+                        <p>We do not have pricing available for the hotel and dates you have selected. This may be outside our currently confirmed availability window. If you would still like to book this hotel, please contact our customer service team and we will be happy to arrange it for you manually.</p>
+                        <a href="https://wa.me/923001234567?text=<?php echo urlencode('Hi! I would like to book ' . ($hotel['hotel_name'] ?? 'this hotel') . ' for dates outside the listed availability. Could you please help me manually?'); ?>" class="btn-contact-us" target="_blank">Contact Customer Service</a>
                     </div>
 
                     <div class="row mt-3">
@@ -932,7 +999,11 @@ function calculateNights() {
     if(checkIn && checkOut) {
         const start = new Date(checkIn);
         const end = new Date(checkOut);
-        const diffTime = Math.abs(end - start);
+        // 🔴 FIX: Math.abs() used to hide a reversed date pair (checkout
+        // picked earlier than check-in) by turning a negative difference
+        // into a positive "nights" count. Now a reversed pair correctly
+        // resolves to 0 nights instead of a nonsensical number.
+        const diffTime = end - start;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         if (diffDays > 0) {
@@ -965,6 +1036,17 @@ function selectMealCategory(mealType) {
     }
     
     calculateTotal();
+}
+
+function showHotelUnavailable() {
+    document.getElementById('hotelUnavailablePanel').style.display = 'block';
+    document.getElementById('priceBreakdown').style.display = 'none';
+    document.getElementById('total_amount').value = 'Unavailable for these dates';
+    document.getElementById('btnBook').disabled = true;
+}
+
+function hideHotelUnavailable() {
+    document.getElementById('hotelUnavailablePanel').style.display = 'none';
 }
 
 function calculateTotal() {
@@ -1018,13 +1100,14 @@ function calculateTotal() {
                 meal_type: mealType,
                 extra_bed: extraBed,
                 supplements: supplements,
-                guests: 2,
+                guests: parseInt(document.getElementById('guests')?.value || 2),
                 hotel_type: 'makkah'
             })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                hideHotelUnavailable();
                 if (data.nights > 0) {
                     document.getElementById('nights').value = data.nights;
                 }
@@ -1090,9 +1173,7 @@ function calculateTotal() {
                 document.getElementById('priceBreakdown').style.display = 'block';
                 document.getElementById('btnBook').disabled = false;
             } else {
-                alert('Error: ' + data.error);
-                document.getElementById('total_amount').value = 'SAR 0';
-                document.getElementById('btnBook').disabled = true;
+                showHotelUnavailable();
             }
         })
         .catch(error => {
@@ -1131,6 +1212,7 @@ function calculateTotal() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                hideHotelUnavailable();
                 if (data.nights > 0) {
                     document.getElementById('nights').value = data.nights;
                 }
@@ -1184,15 +1266,7 @@ function calculateTotal() {
                 document.getElementById('priceBreakdown').style.display = 'block';
                 document.getElementById('btnBook').disabled = false;
             } else {
-                if (room.min_price > 0) {
-                    const total = room.min_price * nights;
-                    document.getElementById('total_amount').value = 'SAR ' + total.toFixed(2);
-                    document.getElementById('btnBook').disabled = false;
-                    document.getElementById('priceBreakdown').style.display = 'none';
-                } else {
-                    document.getElementById('total_amount').value = 'SAR 0 (No pricing)';
-                    document.getElementById('btnBook').disabled = true;
-                }
+                showHotelUnavailable();
             }
         })
         .catch(error => {
@@ -1210,7 +1284,7 @@ function calculateTotal() {
     if (isMakkahTowers) {
         const mealType = document.querySelector('input[name="meal_type"]:checked')?.value || 'breakfast';
         const extraBed = document.getElementById('extra_bed_makkah_towers')?.checked ? 1 : 0;
-        const guests = document.getElementById('guests_makkah_towers')?.value || 2;
+        const guests = document.getElementById('guests')?.value || document.getElementById('guests_makkah_towers')?.value || 2;
         
         document.getElementById('total_amount').value = 'Calculating...';
         document.getElementById('btnBook').disabled = true;
@@ -1232,6 +1306,7 @@ function calculateTotal() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                hideHotelUnavailable();
                 if (data.nights > 0) {
                     document.getElementById('nights').value = data.nights;
                 }
@@ -1297,9 +1372,7 @@ function calculateTotal() {
                 document.getElementById('priceBreakdown').style.display = 'block';
                 document.getElementById('btnBook').disabled = false;
             } else {
-                alert('Error: ' + data.error);
-                document.getElementById('total_amount').value = 'SAR 0';
-                document.getElementById('btnBook').disabled = true;
+                showHotelUnavailable();
             }
         })
         .catch(error => {
@@ -1348,6 +1421,7 @@ function calculateTotal() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                hideHotelUnavailable();
                 if (data.nights > 0) {
                     document.getElementById('nights').value = data.nights;
                 }
@@ -1394,9 +1468,7 @@ function calculateTotal() {
                 document.getElementById('priceBreakdown').style.display = 'block';
                 document.getElementById('btnBook').disabled = false;
             } else {
-                alert('Error: ' + data.error);
-                document.getElementById('total_amount').value = 'SAR 0';
-                document.getElementById('btnBook').disabled = true;
+                showHotelUnavailable();
             }
         })
         .catch(error => {
@@ -1436,6 +1508,7 @@ function calculateTotal() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                hideHotelUnavailable();
                 if (data.nights > 0) {
                     document.getElementById('nights').value = data.nights;
                 }
@@ -1490,9 +1563,7 @@ function calculateTotal() {
                 document.getElementById('priceBreakdown').style.display = 'block';
                 document.getElementById('btnBook').disabled = false;
             } else {
-                alert('Error: ' + data.error);
-                document.getElementById('total_amount').value = 'SAR 0';
-                document.getElementById('btnBook').disabled = true;
+                showHotelUnavailable();
             }
         })
         .catch(error => {
@@ -1547,6 +1618,7 @@ function calculateTotal() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                hideHotelUnavailable();
                 if (data.nights > 0) {
                     document.getElementById('nights').value = data.nights;
                 }
@@ -1593,9 +1665,7 @@ function calculateTotal() {
                 document.getElementById('priceBreakdown').style.display = 'block';
                 document.getElementById('btnBook').disabled = false;
             } else {
-                alert('Error: ' + data.error);
-                document.getElementById('total_amount').value = 'SAR 0';
-                document.getElementById('btnBook').disabled = true;
+                showHotelUnavailable();
             }
         })
         .catch(error => {
@@ -1628,6 +1698,7 @@ function calculateTotal() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                hideHotelUnavailable();
                 if (data.nights > 0) {
                     document.getElementById('nights').value = data.nights;
                 }
@@ -1668,15 +1739,7 @@ function calculateTotal() {
                 document.getElementById('priceBreakdown').style.display = 'block';
                 document.getElementById('btnBook').disabled = false;
             } else {
-                if (room.min_price > 0) {
-                    const total = room.min_price * nights;
-                    document.getElementById('total_amount').value = 'SAR ' + total.toFixed(2);
-                    document.getElementById('btnBook').disabled = false;
-                    document.getElementById('priceBreakdown').style.display = 'none';
-                } else {
-                    document.getElementById('total_amount').value = 'SAR 0 (No pricing)';
-                    document.getElementById('btnBook').disabled = true;
-                }
+                showHotelUnavailable();
             }
         })
         .catch(error => {
@@ -1876,6 +1939,21 @@ const checkInEl = document.getElementById('check_in');
 const checkOutEl = document.getElementById('check_out');
 if(checkInEl && checkOutEl) {
     checkInEl.addEventListener('change', function() {
+        // NEW: keep check-out's own minimum in sync with whatever
+        // check-in date was just picked, so the calendar itself can't
+        // offer a check-out date before check-in in the first place
+        // (previously check-out's min was a fixed "tomorrow" date,
+        // regardless of check-in -- letting a customer pick a check-out
+        // earlier than check-in and get a nonsensical "76 nights").
+        if (checkInEl.value) {
+            const nextDay = new Date(checkInEl.value);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const minCheckOut = nextDay.toISOString().split('T')[0];
+            checkOutEl.min = minCheckOut;
+            if (checkOutEl.value && checkOutEl.value < minCheckOut) {
+                checkOutEl.value = minCheckOut;
+            }
+        }
         calculateNights();
         calculateTotal();
     });

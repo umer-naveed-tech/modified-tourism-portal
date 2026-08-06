@@ -32,10 +32,19 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     $booking_no = 'TRV-' . date('Ymd') . '-' . rand(1000, 9999);
     $total_amount = $service['price'] * $guests;
+
+    // 🔴 price_breakdown -- lets the agent panel show which service/
+    // package this actually was, instead of just "Visa".
+    $price_breakdown = json_encode([
+        'service_title' => $service['title'],
+        'service_description' => $service['description'] ?? null,
+        'unit_price' => $service['price'],
+        'guests' => $guests,
+    ]);
     
-    $stmt = $pdo->prepare("INSERT INTO bookings (booking_no, user_id, service_type, service_id, booking_date, travel_date, from_location, to_location, guests, total_amount, status) VALUES (?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, 'pending')");
+    $stmt = $pdo->prepare("INSERT INTO bookings (booking_no, user_id, service_type, service_id, booking_date, travel_date, from_location, to_location, guests, total_amount, price_breakdown, status) VALUES (?, ?, ?, ?, CURDATE(), ?, ?, ?, ?, ?, ?, 'pending')");
     
-    if($stmt->execute([$booking_no, $_SESSION['user_id'], $service_type, $service_id, $travel_date, $from_location, $to_location, $guests, $total_amount])) {
+    if($stmt->execute([$booking_no, $_SESSION['user_id'], $service_type, $service_id, $travel_date, $from_location, $to_location, $guests, $total_amount, $price_breakdown])) {
         $success = true;
         $wa_msg = "Hi! I have booked {$service['title']} for $guests person(s) on $travel_date. Booking ID: $booking_no. Total: Rs. $total_amount";
         $wa_link = "https://wa.me/923001234567?text=" . urlencode($wa_msg);

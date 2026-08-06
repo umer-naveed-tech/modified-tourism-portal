@@ -117,15 +117,45 @@ $booking_no = 'HOTEL-' . date('Ymd') . '-' . rand(1000, 9999);
 $travel_date = $check_in;
 $room_display = $room['room_type'] ?? $room['display_name'] ?? 'Room';
 $capacity = $room['capacity'] ?? 2;
-$from_location = $hotel_name . ' - ' . $room_display . ' (Check-in: ' . $check_in . ', Check-out: ' . $check_out . ')';
+// 🔴 FIX: from_location is VARCHAR(100) in the database -- the old
+// "HotelName - RoomType (Check-in: X, Check-out: Y)" format could
+// easily exceed that with longer hotel/room names, causing a fatal
+// "Data too long for column" error at INSERT time. check_in is
+// already stored separately in travel_date, and the full detail now
+// lives in price_breakdown (JSON, no length limit), so from_location
+// only needs to stay short and human-readable -- mb_substr guarantees
+// it never exceeds the column limit no matter how long the names are.
+$from_location = mb_substr($hotel_name . ' - ' . $room_display, 0, 100);
+
+// 🔴 price_breakdown -- structured detail the agent panel reads to show
+// "Details" on every booking (hotel/room/dates/meal/extra bed), instead
+// of just "Hotel". from_location above stays as a short human-readable
+// summary for places that only show plain text; this JSON is the full,
+// exact record.
+$price_breakdown = json_encode([
+    'hotel_name' => $hotel_name,
+    'room_type' => $room_display,
+    'room_type_code' => $room_type_code,
+    'bed_type' => $bed_type ?: null,
+    'meal_type' => $meal_type ?: null,
+    'check_in' => $check_in,
+    'check_out' => $check_out,
+    'nights' => $nights,
+    'guests' => $guests,
+    'extra_bed' => (bool)$extra_bed,
+    'extra_bed_total' => $extra_bed_total,
+    'meal_total' => $meal_total,
+    'supplement' => $supplement ?: null,
+    'supplements' => $supplements ?: null,
+]);
 
 // 🔴 BOOKING INSERT
 $stmt = $pdo->prepare("
     INSERT INTO bookings (
         booking_no, user_id, service_type, service_id, booking_date, 
         travel_date, from_location, guests, extra_bed, extra_bed_price, total_amount, 
-        meal_total, status, payment_status, can_cancel_until
-    ) VALUES (?, ?, 'hotel', ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, 'pending', 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))
+        meal_total, price_breakdown, status, payment_status, can_cancel_until
+    ) VALUES (?, ?, 'hotel', ?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))
 ");
 
 if ($stmt->execute([
@@ -138,7 +168,8 @@ if ($stmt->execute([
     $extra_bed,
     $extra_bed_total,
     $grand_total,
-    $meal_total
+    $meal_total,
+    $price_breakdown
 ])) {
     if (file_exists('send_booking_email.php')) {
         require_once 'send_booking_email.php';

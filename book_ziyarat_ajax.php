@@ -38,10 +38,22 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $travel_datetime = $date . ($time ? ' at ' . $time : '');
     $from_location = $type == 'makkah' ? 'Makkah' : 'Madinah';
     $to_location = 'Ziyarat Sites';
+
+    // 🔴 price_breakdown -- lets the agent panel show the ziyarat type,
+    // pickup location, and any special requests, instead of just
+    // "Ziyarat".
+    $price_breakdown = json_encode([
+        'ziyarat_type' => $type,
+        'pickup_location' => $pickup,
+        'special_requests' => $requests ?: null,
+        'guests' => $guests,
+        'travel_date' => $date,
+        'travel_time' => $time ?: null,
+    ]);
     
-    $stmt = $pdo->prepare("INSERT INTO bookings (booking_no, user_id, service_type, service_id, booking_date, travel_date, from_location, to_location, guests, total_amount, status, payment_status, can_cancel_until) VALUES (?, ?, 'ziyarat', 0, CURDATE(), ?, ?, ?, ?, ?, 'pending', 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))");
+    $stmt = $pdo->prepare("INSERT INTO bookings (booking_no, user_id, service_type, service_id, booking_date, travel_date, from_location, to_location, guests, total_amount, price_breakdown, status, payment_status, can_cancel_until) VALUES (?, ?, 'ziyarat', 0, CURDATE(), ?, ?, ?, ?, ?, ?, 'pending', 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))");
     
-    if($stmt->execute([$booking_no, $_SESSION['user_id'], $travel_datetime, $from_location, $to_location, $guests, $price])) {
+    if($stmt->execute([$booking_no, $_SESSION['user_id'], $travel_datetime, $from_location, $to_location, $guests, $price, $price_breakdown])) {
         echo json_encode(['success' => true, 'booking_no' => $booking_no, 'fare' => $price]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Database error']);

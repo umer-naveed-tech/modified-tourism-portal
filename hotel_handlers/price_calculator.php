@@ -60,6 +60,20 @@ function calculateHotelStayPrice(PDO $pdo, array $input) {
 
     $start = new DateTime($check_in);
     $end = new DateTime($check_out);
+
+    // 🔴 FIX: DateTime::diff()->days is ALWAYS a positive number, even
+    // when $end is chronologically BEFORE $start (e.g. checkout picked
+    // earlier than check-in) -- so a reversed date pair used to slip
+    // past this check with a nonsensical "76 nights" style value. The
+    // DatePeriod loop below would then silently iterate zero times
+    // (since it walks forward from $start and $start was already past
+    // $end), leaving $total at 0 and returning success=true with a
+    // SAR 0.00 total and an empty breakdown -- which is exactly the
+    // "SAR 0 but still bookable" bug this fixes.
+    if ($end <= $start) {
+        return ['success' => false, 'error' => 'Check-out date must be after check-in date.'];
+    }
+
     $nights_diff = $start->diff($end)->days;
     if ($nights_diff < 1) {
         return ['success' => false, 'error' => 'Invalid dates'];
@@ -435,6 +449,12 @@ function calculateHotelStayPrice(PDO $pdo, array $input) {
         $has_extra_bed = $opts['extra_bed_available'] ?? false;
         $requires_meal_type = $opts['requires_meal_type'] ?? false;
         $meal_labels_valid = $opts['meal_labels'] ?? [];
+        // Optional flat, one-time supplement (e.g. Elaf Taqwa's "Haram
+        // View" upgrade) -- no markup applied to it, same convention as
+        // the Makkah Hotel / Al Safwah Tower 3 supplements. Only hotels
+        // whose getBookingOptions() actually returns a 'supplements' map
+        // are affected; every other hotel in this bucket is unchanged.
+        $supplement_prices_map = $opts['supplements'] ?? [];
 
         if ($requires_meal_type && !isset($meal_labels_valid[$meal_type])) {
             return ['success' => false, 'error' => 'Please select a meal plan'];
@@ -482,10 +502,12 @@ function calculateHotelStayPrice(PDO $pdo, array $input) {
             ];
         }
 
-        $grand_total = $total + $extra_bed_total;
+        $supplement_total = ($supplement && isset($supplement_prices_map[$supplement])) ? $supplement_prices_map[$supplement] : 0;
+        $grand_total = $total + $extra_bed_total + $supplement_total;
 
         return [
             'success' => true, 'room_total' => $total, 'extra_bed_total' => $extra_bed_total,
+            'supplement_total' => $supplement_total,
             'grand_total' => $grand_total, 'nights' => $nights, 'breakdown' => $breakdown,
         ];
     }

@@ -181,8 +181,8 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
         input:focus, select:focus { border-color: #d4af37; box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.08); outline: none; }
 
         .navbar { background: rgba(10, 15, 30, 0.9); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(212, 175, 55, 0.08); padding: 14px 0; position: sticky; top: 0; z-index: 100; }
-        .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
-        .navbar .container { display: flex; justify-content: space-between; align-items: center; }
+        .container { max-width: 1560px; margin: 0 auto; padding: 0 24px; }
+        .navbar .container { display: flex; justify-content: space-between; align-items: center; max-width: 1280px; }
         .logo { font-family: 'Playfair Display', serif; color: white; font-size: 22px; font-weight: 800; text-decoration: none; letter-spacing: -0.5px; }
         .logo span { color: #d4af37; }
         .nav-links a { position: relative; color: rgba(255,255,255,0.7); text-decoration: none; margin-left: 24px; font-size: 14px; transition: all 0.3s ease; }
@@ -251,6 +251,18 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
         .btn-clear-filter:hover { color: #d4af37; border-color: rgba(212,175,55,0.2); }
 
         .table-container { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 16px; overflow-x: auto; }
+
+        /* NEW: sticky Action column -- Details/WhatsApp buttons are the
+           most-used part of each row, so they stay visible on the right
+           edge even when the table needs to scroll horizontally on
+           narrower screens, instead of getting cut off out of view. */
+        table th:last-child, table td:last-child {
+            position: sticky; right: 0; z-index: 2;
+            background: #0d1424;
+            box-shadow: -6px 0 10px -6px rgba(0,0,0,0.5);
+            white-space: nowrap;
+        }
+        thead th:last-child { z-index: 3; }
         table { width: 100%; border-collapse: collapse; }
         th {
             text-align: left; padding: 16px; background: rgba(255,255,255,0.02); font-weight: 600; font-size: 11.5px;
@@ -276,6 +288,56 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
             font-size: 12px; font-weight: 600; transition: all 0.3s ease; border: 1px solid rgba(37, 211, 102, 0.08); display: inline-block; white-space: nowrap;
         }
         .btn-wa:hover { background: #25D366; color: white; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(37, 211, 102, 0.25); }
+
+        /* NEW: Details button + booking-details modal -- shows the
+           agent exactly what was booked (hotel/room/car/route/etc)
+           instead of just the service type. */
+        .btn-details {
+            background: rgba(212,175,55,0.1); color: #d4af37; padding: 6px 14px; border-radius: 8px;
+            font-size: 12px; font-weight: 600; transition: all 0.3s ease; border: 1px solid rgba(212,175,55,0.15);
+            display: inline-block; white-space: nowrap; cursor: pointer; font-family: inherit; margin-right: 6px;
+        }
+        .btn-details:hover { background: #d4af37; color: #0a0f1e; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(212,175,55,0.25); }
+
+        .modal-overlay {
+            position: fixed; inset: 0; z-index: 9999; background: rgba(5,8,16,0.75); backdrop-filter: blur(6px);
+            display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-overlay.active { display: flex; animation: modalFadeIn 0.2s ease; }
+        @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-box {
+            position: relative; background: #0d1220; border: 1px solid rgba(212,175,55,0.15); border-radius: 18px;
+            padding: 32px; max-width: 480px; width: 100%; max-height: 85vh; overflow-y: auto;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.5);
+            opacity: 0; transform: translateY(16px) scale(0.98); animation: modalBoxIn 0.25s cubic-bezier(.2,.8,.3,1) forwards;
+        }
+        @keyframes modalBoxIn { to { opacity: 1; transform: translateY(0) scale(1); } }
+        .modal-close {
+            position: absolute; top: 18px; right: 18px; background: rgba(255,255,255,0.05); border: none; color: rgba(255,255,255,0.6);
+            width: 32px; height: 32px; border-radius: 50%; font-size: 18px; cursor: pointer; transition: all 0.2s ease;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .modal-close:hover { background: rgba(239,68,68,0.15); color: #f87171; }
+        .modal-box h3 { font-family: 'Playfair Display', serif; color: white; font-size: 20px; margin-bottom: 4px; }
+        .modal-subtitle { color: rgba(255,255,255,0.35); font-size: 12.5px; margin-bottom: 20px; }
+        .legacy-note {
+            background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.15); color: #fbbf24;
+            padding: 10px 14px; border-radius: 10px; font-size: 12px; margin-bottom: 18px; line-height: 1.5;
+        }
+        .detail-section-title {
+            font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #d4af37; font-weight: 700;
+            margin: 18px 0 8px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .detail-section-title:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+        .detail-row {
+            display: flex; justify-content: space-between; gap: 16px; padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13.5px;
+        }
+        .detail-row:last-child { border-bottom: none; }
+        .detail-row span:first-child { color: rgba(255,255,255,0.4); flex-shrink: 0; }
+        .detail-row span:last-child { color: white; font-weight: 500; text-align: right; }
+        .detail-row .amt { color: #d4af37; font-weight: 700; font-size: 15px; }
+        .modal-loading { text-align: center; padding: 40px 0; color: rgba(255,255,255,0.4); font-size: 14px; }
 
         .empty-row td { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.3); }
 
@@ -476,6 +538,7 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                             </select>
                         </td>
                         <td>
+                            <button type="button" class="btn-details" data-id="<?php echo (int)$b['id']; ?>">Details</button>
                             <a href="https://wa.me/<?php echo preg_replace('/^0/', '92', $b['user_phone']); ?>" class="btn-wa" target="_blank">WhatsApp</a>
                         </td>
                     </tr>
@@ -502,6 +565,14 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
         </div>
         <?php endif; ?>
         </div>
+    </div>
+</div>
+
+<!-- NEW: booking-details modal -->
+<div id="bookingDetailsModal" class="modal-overlay">
+    <div class="modal-box">
+        <button type="button" class="modal-close" id="bookingModalClose" aria-label="Close">&times;</button>
+        <div id="bookingDetailsContent"><div class="modal-loading">Loading booking details...</div></div>
     </div>
 </div>
 
@@ -708,6 +779,7 @@ function loadAjaxContent(url) {
             bindCustomerLinks(ajaxContentEl);
             bindAjaxLinks(ajaxContentEl);
             bindAjaxForm(ajaxContentEl);
+            bindDetailsButtons(ajaxContentEl);
         })
         .catch(() => { window.location.href = url; })
         .finally(() => {
@@ -764,7 +836,112 @@ if (ajaxContentEl) {
     bindCustomerLinks(ajaxContentEl);
     bindAjaxLinks(ajaxContentEl);
     bindAjaxForm(ajaxContentEl);
+    bindDetailsButtons(ajaxContentEl);
 }
+
+/* NEW: booking-details modal -- fetches get_booking_details.php and
+   renders whatever is known about that booking (hotel/room/car/route/
+   dates/meal/extra bed etc). Falls back gracefully with a clear note
+   when data had to be reconstructed for a pre-existing booking. */
+function escHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = (str === null || str === undefined) ? '' : str;
+    return div.innerHTML;
+}
+
+function openBookingDetails(id) {
+    const overlay = document.getElementById('bookingDetailsModal');
+    const content = document.getElementById('bookingDetailsContent');
+    overlay.classList.add('active');
+    content.innerHTML = '<div class="modal-loading">Loading booking details...</div>';
+
+    fetch('get_booking_details.php?id=' + encodeURIComponent(id))
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                content.innerHTML = '<h3>Booking Details</h3><p style="color:#f87171;">' + escHtml(data.error || 'Could not load details.') + '</p>';
+                return;
+            }
+            renderBookingDetails(data);
+        })
+        .catch(() => {
+            content.innerHTML = '<h3>Booking Details</h3><p style="color:#f87171;">Network error. Please try again.</p>';
+        });
+}
+
+function closeBookingDetails() {
+    document.getElementById('bookingDetailsModal').classList.remove('active');
+}
+
+function renderBookingDetails(data) {
+    const b = data.booking;
+    const d = data.details || {};
+    let html = '<h3>Booking ' + escHtml(b.booking_no) + '</h3>';
+    html += '<div class="modal-subtitle">' + escHtml(b.service_type ? (b.service_type.charAt(0).toUpperCase() + b.service_type.slice(1)) : '') + ' booking</div>';
+
+    html += '<div class="detail-section-title">Customer</div>';
+    html += row('Name', b.customer_name);
+    html += row('Email', b.customer_email);
+    html += row('Phone', b.customer_phone);
+
+    html += '<div class="detail-section-title">What Was Booked</div>';
+    if (b.service_type === 'hotel') {
+        html += row('Hotel', d.hotel_name);
+        html += row('Room Type', d.room_type);
+        if (d.bed_type) html += row('Bed Type', d.bed_type);
+        if (d.meal_type) html += row('Meal Plan', d.meal_type);
+        if (d.check_in) html += row('Check-in', d.check_in);
+        if (d.check_out) html += row('Check-out', d.check_out);
+        if (d.nights) html += row('Nights', d.nights);
+        if (b.extra_bed) html += row('Extra Bed', 'Yes (SAR ' + escHtml(b.extra_bed_price) + ')');
+        if (d.supplement) html += row('Supplement', d.supplement);
+        if (!d.room_type && d.raw_info) html += row('Details', d.raw_info);
+    } else if (b.service_type === 'taxi') {
+        html += row('Vehicle', [d.car_name, d.car_model].filter(Boolean).join(' '));
+        html += row('Capacity', d.capacity ? (d.capacity + ' persons') : null);
+        html += row('Route', (d.from_city || b.from_location) + ' → ' + (d.to_city || b.to_location));
+        html += row('Total Fare', 'SAR ' + escHtml(Number(b.total_amount).toLocaleString()));
+    } else if (b.service_type === 'ziyarat') {
+        html += row('Route', d.ziyarat_route);
+        html += row('Pickup', d.pickup_location);
+        html += row('Notes', d.special_requests);
+    } else {
+        html += row('Service', d.service_title);
+        html += row('Description', d.service_description);
+        if (!d.service_title && d.raw_info) html += row('Details', d.raw_info);
+    }
+
+    html += '<div class="detail-section-title">Booking Info</div>';
+    html += row('Guests', b.guests);
+    html += row('Travel Date', b.travel_date);
+    html += row('Booked On', b.created_at);
+    html += row('Status', b.status ? (b.status.charAt(0).toUpperCase() + b.status.slice(1)) : null);
+    html += '<div class="detail-row"><span>Total Amount</span><span class="amt">SAR ' + escHtml(Number(b.total_amount).toLocaleString()) + '</span></div>';
+
+    document.getElementById('bookingDetailsContent').innerHTML = html;
+}
+
+function row(label, value) {
+    if (value === null || value === undefined || value === '') return '';
+    return '<div class="detail-row"><span>' + escHtml(label) + '</span><span>' + escHtml(value) + '</span></div>';
+}
+
+function bindDetailsButtons(root) {
+    root.querySelectorAll('.btn-details').forEach(btn => {
+        btn.addEventListener('click', function() {
+            openBookingDetails(this.dataset.id);
+        });
+    });
+}
+bindDetailsButtons(document);
+
+document.getElementById('bookingModalClose').addEventListener('click', closeBookingDetails);
+document.getElementById('bookingDetailsModal').addEventListener('click', function(e) {
+    if (e.target === this) closeBookingDetails(); // click outside the box closes it
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeBookingDetails();
+});
 
 /* NEW BUG FIX: when a page is restored from the browser's back-forward
    cache (bfcache) via the Back/Forward button, the page-transition

@@ -52,10 +52,23 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     $booking_no = 'TAXI-' . date('Ymd') . '-' . rand(1000, 9999);
     $travel_datetime = $date . ($time ? ' at ' . $time : '');
+
+    // 🔴 price_breakdown -- lets the agent panel show which car and
+    // route this actually was, instead of just "Taxi".
+    $price_breakdown = json_encode([
+        'car_name' => $car['car_name'],
+        'car_model' => $car['car_model'],
+        'capacity' => $car['capacity'],
+        'from_city' => $from,
+        'to_city' => $to,
+        'travel_date' => $date,
+        'travel_time' => $time ?: null,
+        'fare' => $fare_amount,
+    ]);
     
-    $stmt = $pdo->prepare("INSERT INTO bookings (booking_no, user_id, service_type, service_id, booking_date, travel_date, from_location, to_location, guests, total_amount, status, payment_status, can_cancel_until) VALUES (?, ?, 'taxi', ?, CURDATE(), ?, ?, ?, ?, ?, 'pending', 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))");
+    $stmt = $pdo->prepare("INSERT INTO bookings (booking_no, user_id, service_type, service_id, booking_date, travel_date, from_location, to_location, guests, total_amount, price_breakdown, status, payment_status, can_cancel_until) VALUES (?, ?, 'taxi', ?, CURDATE(), ?, ?, ?, ?, ?, ?, 'pending', 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))");
     
-    if($stmt->execute([$booking_no, $_SESSION['user_id'], $car_id, $travel_datetime, $from, $to, $car['capacity'], $fare_amount])) {
+    if($stmt->execute([$booking_no, $_SESSION['user_id'], $car_id, $travel_datetime, $from, $to, $car['capacity'], $fare_amount, $price_breakdown])) {
         $success = true;
         
         // Send email to admin
