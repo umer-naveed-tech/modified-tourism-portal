@@ -85,6 +85,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         $wa_msg = "New Booking: $car_name from $from to $to on $date at $time. Booking ID: $booking_no. Total: SAR $fare_amount";
         $wa_link = "https://wa.me/923001234567?text=" . urlencode($wa_msg);
+
+        // 🔴 NEW: send the customer into the new booking flow (personal
+        // details -> confirm -> payment) instead of showing the inline
+        // success block below. Everything above this line -- pricing,
+        // the INSERT, the admin email -- is completely unchanged.
+        header('Location: booking_details.php?booking_id=' . $pdo->lastInsertId());
+        exit();
     } else {
         $error = "Booking failed. Please try again.";
     }

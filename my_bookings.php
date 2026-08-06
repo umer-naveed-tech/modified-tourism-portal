@@ -1,0 +1,147 @@
+<?php
+// my_bookings.php
+//
+// "My Bookings" -- per Umer's spec, this defaults to COMPLETED
+// bookings only (not a dump of everything -- that's what History is
+// for). An "Upcoming" tab covers the full upcoming list (the
+// dashboard only ever shows a 3-row preview of this). Paginated with
+// LIMIT/OFFSET so this stays fast regardless of how many bookings a
+// customer accumulates over time.
+
+session_start();
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'visitor') {
+    header('Location: login.php');
+    exit();
+}
+require_once 'config.php';
+date_default_timezone_set('Asia/Riyadh');
+
+$user_id = $_SESSION['user_id'];
+$tab = ($_GET['tab'] ?? 'completed') === 'upcoming' ? 'upcoming' : 'completed';
+$page = max(1, (int)($_GET['page'] ?? 1));
+$per_page = 10;
+$offset = ($page - 1) * $per_page;
+
+if ($tab === 'upcoming') {
+    $where = "user_id = ? AND hidden_by_user = 0 AND status != 'cancelled' AND travel_date >= CURDATE()";
+    $order = "travel_date ASC";
+} else {
+    $where = "user_id = ? AND hidden_by_user = 0 AND status = 'completed'";
+    $order = "travel_date DESC";
+}
+
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE $where");
+$stmt->execute([$user_id]);
+$total_rows = (int)$stmt->fetchColumn();
+$total_pages = max(1, (int)ceil($total_rows / $per_page));
+
+$stmt = $pdo->prepare("
+    SELECT id, booking_no, service_type, status, total_amount, travel_date, from_location, to_location, price_breakdown
+    FROM bookings
+    WHERE $where
+    ORDER BY $order
+    LIMIT $per_page OFFSET $offset
+");
+$stmt->execute([$user_id]);
+$bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+function service_icon($type) {
+    switch ($type) {
+        case 'hotel': return 'fa-building';
+        case 'taxi': return 'fa-car';
+        case 'ziyarat': return 'fa-mosque';
+        default: return 'fa-passport';
+    }
+}
+function service_label($b) {
+    $details = [];
+    if (!empty($b['price_breakdown'])) {
+        $d = json_decode($b['price_breakdown'], true);
+        if (is_array($d)) $details = $d;
+    }
+    switch ($b['service_type']) {
+        case 'hotel': return 'Hotel — ' . ($details['hotel_name'] ?? 'Booking');
+        case 'taxi': return 'Taxi — ' . trim(($b['from_location'] ?? '') . ' to ' . ($b['to_location'] ?? ''));
+        case 'ziyarat': return 'Ziyarat — ' . ($b['from_location'] ?: 'Trip');
+        default: return ($details['service_title'] ?? ucfirst($b['service_type']));
+    }
+}
+
+$active_page = 'bookings';
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Bookings | Ahmed Travels</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="dashboard_shell.css">
+</head>
+<body>
+<div class="shell-outer">
+    <div class="shell">
+        <?php include 'dashboard_sidebar.php'; ?>
+        <div class="content">
+            <div class="headrow">
+                <div>
+                    <h1>My Bookings</h1>
+                    <div class="meta">Your completed and upcoming bookings</div>
+                </div>
+            </div>
+
+            <div class="tab-row">
+                <a href="my_bookings.php?tab=completed" class="tab-link <?php echo $tab === 'completed' ? 'active' : ''; ?>">Completed</a>
+                <a href="my_bookings.php?tab=upcoming" class="tab-link <?php echo $tab === 'upcoming' ? 'active' : ''; ?>">Upcoming</a>
+            </div>
+
+            <?php if (count($bookings) > 0): ?>
+            <table>
+                <thead>
+                    <tr><th>Service</th><th>Date</th><th>Status</th><th style="text-align:right;">Amount</th><th></th></tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($bookings as $b):
+                        $dotClass = $b['status'] === 'confirmed' ? 'g' : ($b['status'] === 'pending' ? 'y' : ($b['status'] === 'completed' ? 'b' : 'r'));
+                    ?>
+                    <tr>
+                        <td>
+                            <div class="svc">
+                                <div class="svc-icon"><i class="fas <?php echo service_icon($b['service_type']); ?>" aria-hidden="true"></i></div>
+                                <div>
+                                    <div class="svc-name"><?php echo htmlspecialchars(service_label($b)); ?></div>
+                                    <div class="svc-sub"><?php echo htmlspecialchars($b['booking_no']); ?></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><?php echo date('M j, Y', strtotime($b['travel_date'])); ?></td>
+                        <td><span class="dot <?php echo $dotClass; ?>"></span><?php echo htmlspecialchars(ucfirst($b['status'])); ?></td>
+                        <td style="text-align:right;" class="amt">SAR <?php echo number_format($b['total_amount']); ?></td>
+                        <td><a href="booking_detail_view.php?id=<?php echo (int)$b['id']; ?>" class="action">Details →</a></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <?php if ($total_pages > 1): ?>
+            <div class="pager">
+                <a href="?tab=<?php echo $tab; ?>&page=<?php echo max(1, $page - 1); ?>" class="<?php echo $page <= 1 ? 'disabled' : ''; ?>">&lsaquo; Prev</a>
+                <?php for ($p = 1; $p <= $total_pages; $p++): ?>
+                    <?php if ($p == $page): ?><span class="current"><?php echo $p; ?></span>
+                    <?php else: ?><a href="?tab=<?php echo $tab; ?>&page=<?php echo $p; ?>"><?php echo $p; ?></a><?php endif; ?>
+                <?php endfor; ?>
+                <a href="?tab=<?php echo $tab; ?>&page=<?php echo min($total_pages, $page + 1); ?>" class="<?php echo $page >= $total_pages ? 'disabled' : ''; ?>">Next &rsaquo;</a>
+            </div>
+            <?php endif; ?>
+
+            <?php else: ?>
+                <div class="empty-state">
+                    <i class="fas fa-suitcase-rolling" aria-hidden="true"></i>
+                    <?php echo $tab === 'completed' ? 'No completed bookings yet.' : 'No upcoming bookings.'; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+</body>
+</html>

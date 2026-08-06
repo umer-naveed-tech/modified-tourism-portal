@@ -883,6 +883,8 @@ function renderBookingDetails(data) {
     html += row('Name', b.customer_name);
     html += row('Email', b.customer_email);
     html += row('Phone', b.customer_phone);
+    html += row('Country', b.customer_country);
+    if (b.id_type) html += row(b.id_type === 'passport' ? 'Passport No.' : 'ID Card No.', b.id_number);
 
     html += '<div class="detail-section-title">What Was Booked</div>';
     if (b.service_type === 'hotel') {
@@ -918,7 +920,62 @@ function renderBookingDetails(data) {
     html += row('Status', b.status ? (b.status.charAt(0).toUpperCase() + b.status.slice(1)) : null);
     html += '<div class="detail-row"><span>Total Amount</span><span class="amt">SAR ' + escHtml(Number(b.total_amount).toLocaleString()) + '</span></div>';
 
+    // NEW: payment proof section -- only appears once the customer has
+    // reached the payment step of the new booking flow.
+    const p = data.payment;
+    if (p) {
+        html += '<div class="detail-section-title">Payment Proof</div>';
+        html += row('Payer Name', p.payer_name);
+        html += row('Payment ID / Reference', p.payment_reference);
+        html += row('Submitted', p.submitted_at);
+        html += row('Status', p.status.charAt(0).toUpperCase() + p.status.slice(1));
+        if (p.screenshot_url) {
+            html += '<div style="margin:10px 0;"><a href="' + escHtml(p.screenshot_url) + '" target="_blank"><img src="' + escHtml(p.screenshot_url) + '" alt="Payment screenshot" style="max-width:100%; border-radius:10px; border:1px solid rgba(255,255,255,0.08);"></a></div>';
+        }
+        if (p.status === 'pending') {
+            html += '<button type="button" class="btn-verify-payment" data-id="' + b.id + '" style="width:100%; margin-top:10px; padding:12px; background:#34d399; color:#0a0f1e; border:none; border-radius:10px; font-weight:700; font-size:13.5px; cursor:pointer;">Verify Payment &amp; Confirm Booking</button>';
+        } else if (p.status === 'verified') {
+            html += '<div style="margin-top:10px; padding:10px 14px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.15); border-radius:10px; color:#34d399; font-size:12.5px;">Payment verified on ' + escHtml(p.verified_at) + '. Booking is confirmed.</div>';
+        }
+    } else if (b.payment_status && b.payment_status !== 'awaiting_details') {
+        html += '<div class="detail-section-title">Payment</div>';
+        html += '<div style="padding:10px 14px; background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.15); border-radius:10px; color:#fbbf24; font-size:12.5px;">Customer has not submitted payment proof yet.</div>';
+    }
+
     document.getElementById('bookingDetailsContent').innerHTML = html;
+
+    if (p && p.status === 'pending') {
+        document.querySelector('.btn-verify-payment').addEventListener('click', function() {
+            verifyPayment(this.dataset.id, this);
+        });
+    }
+}
+
+function verifyPayment(bookingId, btn) {
+    if (!confirm('Confirm that you have checked this payment and want to mark the booking as confirmed?')) return;
+    btn.disabled = true;
+    btn.textContent = 'Verifying...';
+
+    fetch('verify_payment.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'booking_id=' + encodeURIComponent(bookingId) + '&csrf_token=' + encodeURIComponent(csrfToken)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            openBookingDetails(bookingId); // refresh the modal to show the verified state
+        } else {
+            alert('Could not verify payment: ' + (data.error || 'unknown error'));
+            btn.disabled = false;
+            btn.textContent = 'Verify Payment & Confirm Booking';
+        }
+    })
+    .catch(() => {
+        alert('Network error. Please try again.');
+        btn.disabled = false;
+        btn.textContent = 'Verify Payment & Confirm Booking';
+    });
 }
 
 function row(label, value) {

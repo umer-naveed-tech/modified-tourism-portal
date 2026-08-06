@@ -187,7 +187,11 @@ if ($stmt->execute([
         );
     }
     
-    header('Location: booking_success.php?booking_no=' . $booking_no . '&type=hotel&amount=' . $grand_total);
+    // 🔴 NEW: send the customer into the new booking flow (personal
+    // details -> confirm -> payment) instead of straight to the old
+    // success page. Everything above this line -- pricing, the INSERT,
+    // the booking-received email -- is completely unchanged.
+    header('Location: booking_details.php?booking_id=' . $pdo->lastInsertId());
     exit();
 } else {
     header('Location: hotel_rooms.php?hotel_id=' . $hotel_id . '&error=1');

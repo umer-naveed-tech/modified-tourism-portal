@@ -1,0 +1,98 @@
+/* dashboard_shell.css
+   Shared styling for the editorial-style visitor dashboard pages:
+   visitor_dashboard.php, my_bookings.php, booking_history.php,
+   payments_history.php. One file so every page stays visually
+   identical -- change it once here instead of in 4 separate copies. */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Georgia', serif;
+    background: #05070d;
+    color: #f4f4f2;
+    min-height: 100vh;
+}
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #05070d; }
+::-webkit-scrollbar-thumb { background: #2a3450; border-radius: 6px; }
+
+.shell-outer { max-width: 1240px; margin: 0 auto; padding: 24px; }
+.shell { display: flex; background: #0a0e1a; border-radius: 14px; overflow: hidden; border: 1px solid #1c2436; min-height: calc(100vh - 48px); }
+
+.side { width: 200px; padding: 28px 0; border-right: 1px solid #1c2436; flex-shrink: 0; }
+.side .brand { display: block; color: #f4f4f2; font-size: 17px; font-weight: 600; padding: 0 24px 32px 24px; letter-spacing: 0.3px; text-decoration: none; }
+.side .brand span { color: #c9a24b; }
+.side a { display: flex; align-items: center; gap: 11px; padding: 9px 24px; color: #6b7591; font-family: 'Helvetica Neue', sans-serif; font-size: 12.5px; letter-spacing: 0.2px; text-decoration: none; transition: color 0.2s ease; }
+.side a:hover { color: #c7cbdb; }
+.side a i { font-size: 13px; width: 15px; opacity: 0.85; }
+.side a.on { color: #f4f4f2; position: relative; }
+.side a.on::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #c9a24b; }
+.side .div { height: 1px; background: #1c2436; margin: 16px 24px; }
+
+.content { flex: 1; padding: 32px 40px; min-width: 0; }
+.headrow { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; flex-wrap: wrap; gap: 14px; }
+.headrow h1 { color: #f4f4f2; font-size: 22px; font-weight: 500; margin: 0; }
+.headrow .meta { color: #5c6684; font-family: 'Helvetica Neue', sans-serif; font-size: 12px; margin-top: 4px; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: #1c2436; color: #c9a24b; display: flex; align-items: center; justify-content: center; font-family: sans-serif; font-size: 12px; font-weight: 600; border: 1px solid #2a3450; flex-shrink: 0; }
+
+.stat-strip { display: flex; border: 1px solid #1c2436; border-radius: 10px; margin-bottom: 32px; overflow: hidden; flex-wrap: wrap; }
+.stat-strip .cell { flex: 1; min-width: 130px; padding: 16px 22px; border-right: 1px solid #1c2436; }
+.stat-strip .cell:last-child { border-right: none; }
+.stat-strip .lbl { color: #5c6684; font-family: 'Helvetica Neue', sans-serif; font-size: 10.5px; letter-spacing: 0.6px; text-transform: uppercase; }
+.stat-strip .val { color: #f4f4f2; font-size: 19px; font-weight: 500; margin-top: 5px; }
+.stat-strip .val.gold { color: #c9a24b; }
+
+.row-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.row-head .t { color: #f4f4f2; font-size: 14px; font-weight: 500; }
+.row-head .a { color: #c9a24b; font-family: 'Helvetica Neue', sans-serif; font-size: 11.5px; text-decoration: none; }
+.row-head .a:hover { text-decoration: underline; }
+
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; color: #5c6684; font-family: 'Helvetica Neue', sans-serif; font-size: 10.5px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 500; padding: 0 4px 10px 4px; border-bottom: 1px solid #1c2436; }
+td { padding: 14px 4px; border-bottom: 1px solid #141a2b; font-family: 'Helvetica Neue', sans-serif; font-size: 12.5px; color: #c7cbdb; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+.svc { display: flex; align-items: center; gap: 10px; }
+.svc-icon { width: 28px; height: 28px; border-radius: 7px; background: #141a2b; display: flex; align-items: center; justify-content: center; color: #c9a24b; font-size: 12px; flex-shrink: 0; }
+.svc-name { color: #f4f4f2; font-size: 12.5px; font-weight: 500; }
+.svc-sub { color: #5c6684; font-size: 11px; margin-top: 1px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+.dot.g { background: #3fb27f; }
+.dot.y { background: #c9a24b; }
+.dot.r { background: #c9625c; }
+.dot.b { background: #5b8fd6; }
+.amt { color: #f4f4f2; font-weight: 500; }
+.action { color: #5c6684; cursor: pointer; text-decoration: none; }
+.action:hover { color: #c9a24b; }
+
+/* Tabs (used by My Bookings / History) */
+.tab-row { display: flex; gap: 4px; margin-bottom: 22px; border-bottom: 1px solid #1c2436; flex-wrap: wrap; }
+.tab-link { padding: 10px 18px; font-family: 'Helvetica Neue', sans-serif; font-size: 12.5px; color: #5c6684; text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.2s ease; }
+.tab-link:hover { color: #c7cbdb; }
+.tab-link.active { color: #c9a24b; border-bottom-color: #c9a24b; }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 50px 20px; color: #5c6684; font-family: 'Helvetica Neue', sans-serif; font-size: 13px; }
+.empty-state i { font-size: 26px; color: #2a3450; margin-bottom: 12px; display: block; }
+
+/* Pagination */
+.pager { display: flex; justify-content: center; gap: 6px; margin-top: 28px; font-family: 'Helvetica Neue', sans-serif; }
+.pager a, .pager span { padding: 7px 12px; border-radius: 6px; font-size: 12px; text-decoration: none; color: #6b7591; border: 1px solid #1c2436; }
+.pager a:hover { color: #c7cbdb; border-color: #2a3450; }
+.pager .current { background: #c9a24b; color: #0a0e1e; border-color: #c9a24b; font-weight: 700; }
+.pager .disabled { opacity: 0.3; pointer-events: none; }
+
+/* Status pill (Payments page) */
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.pill.pending { background: rgba(201,162,75,0.12); color: #c9a24b; }
+.pill.verified { background: rgba(63,178,127,0.12); color: #3fb27f; }
+.pill.rejected { background: rgba(201,98,92,0.12); color: #c9625c; }
+
+.thumb-link img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid #1c2436; }
+
+@media (max-width: 820px) {
+    .shell { flex-direction: column; }
+    .side { width: 100%; border-right: none; border-bottom: 1px solid #1c2436; padding: 16px 0; display: flex; flex-wrap: wrap; align-items: center; }
+    .side .brand { width: 100%; padding-bottom: 12px; }
+    .side .div { display: none; }
+    .content { padding: 24px 20px; }
+    table { display: block; overflow-x: auto; white-space: nowrap; }
+}

@@ -45,6 +45,14 @@ if (!$b) {
     exit();
 }
 
+// NEW: most recent payment-proof submission for this booking, if any
+// (from the personal-details -> confirm -> payment flow). Shown to the
+// agent alongside the rest of the booking so they can verify it right
+// from the same "Details" panel.
+$stmt = $pdo->prepare("SELECT * FROM payments WHERE booking_id = ? ORDER BY id DESC LIMIT 1");
+$stmt->execute([$id]);
+$payment = $stmt->fetch(PDO::FETCH_ASSOC);
+
 $details = [];
 $source = 'reconstructed';
 
@@ -123,9 +131,22 @@ echo json_encode([
         'created_at' => $b['created_at'],
         'from_location' => $b['from_location'],
         'to_location' => $b['to_location'],
-        'customer_name' => $b['user_name'],
-        'customer_email' => $b['user_email'],
-        'customer_phone' => $b['user_phone'],
+        'customer_name' => $b['customer_name'] ?: $b['user_name'],
+        'customer_email' => $b['customer_email'] ?: $b['user_email'],
+        'customer_phone' => $b['customer_phone'] ?: $b['user_phone'],
+        'customer_country' => $b['customer_country'] ?? null,
+        'id_type' => $b['id_type'] ?? null,
+        'id_number' => $b['id_number'] ?? null,
+        'payment_status' => $b['payment_status'] ?? null,
     ],
     'details' => $details,
+    'payment' => $payment ? [
+        'id' => $payment['id'],
+        'payment_reference' => $payment['payment_reference'],
+        'payer_name' => $payment['payer_name'],
+        'screenshot_url' => $payment['screenshot_path'],
+        'status' => $payment['status'],
+        'submitted_at' => $payment['submitted_at'],
+        'verified_at' => $payment['verified_at'],
+    ] : null,
 ]);
