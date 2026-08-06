@@ -14,6 +14,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'visitor') {
     exit();
 }
 require_once 'config.php';
+require_once 'dashboard_helpers.php';
 date_default_timezone_set('Asia/Riyadh');
 
 $user_id = $_SESSION['user_id'];
@@ -45,28 +46,6 @@ $stmt = $pdo->prepare("
 $stmt->execute([$user_id]);
 $bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-function service_icon($type) {
-    switch ($type) {
-        case 'hotel': return 'fa-building';
-        case 'taxi': return 'fa-car';
-        case 'ziyarat': return 'fa-mosque';
-        default: return 'fa-passport';
-    }
-}
-function service_label($b) {
-    $details = [];
-    if (!empty($b['price_breakdown'])) {
-        $d = json_decode($b['price_breakdown'], true);
-        if (is_array($d)) $details = $d;
-    }
-    switch ($b['service_type']) {
-        case 'hotel': return 'Hotel — ' . ($details['hotel_name'] ?? 'Booking');
-        case 'taxi': return 'Taxi — ' . trim(($b['from_location'] ?? '') . ' to ' . ($b['to_location'] ?? ''));
-        case 'ziyarat': return 'Ziyarat — ' . ($b['from_location'] ?: 'Trip');
-        default: return ($details['service_title'] ?? ucfirst($b['service_type']));
-    }
-}
-
 $active_page = 'bookings';
 ?>
 <!DOCTYPE html>
@@ -79,6 +58,8 @@ $active_page = 'bookings';
     <link rel="stylesheet" href="dashboard_shell.css">
 </head>
 <body>
+<div class="bg-ambient" aria-hidden="true"></div>
+<div class="grain-overlay" aria-hidden="true"></div>
 <div class="shell-outer">
     <div class="shell">
         <?php include 'dashboard_sidebar.php'; ?>
@@ -88,6 +69,7 @@ $active_page = 'bookings';
                     <h1>My Bookings</h1>
                     <div class="meta">Your completed and upcoming bookings</div>
                 </div>
+                <a href="services.php" class="btn-book-service"><i class="fas fa-plus" aria-hidden="true"></i>Book a Service</a>
             </div>
 
             <div class="tab-row">
@@ -114,7 +96,7 @@ $active_page = 'bookings';
                                 </div>
                             </div>
                         </td>
-                        <td><?php echo date('M j, Y', strtotime($b['travel_date'])); ?></td>
+                        <td><?php echo safe_date($b['travel_date']); ?></td>
                         <td><span class="dot <?php echo $dotClass; ?>"></span><?php echo htmlspecialchars(ucfirst($b['status'])); ?></td>
                         <td style="text-align:right;" class="amt">SAR <?php echo number_format($b['total_amount']); ?></td>
                         <td><a href="booking_detail_view.php?id=<?php echo (int)$b['id']; ?>" class="action">Details →</a></td>

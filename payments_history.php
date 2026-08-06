@@ -52,6 +52,8 @@ $active_page = 'payments';
     <link rel="stylesheet" href="dashboard_shell.css">
 </head>
 <body>
+<div class="bg-ambient" aria-hidden="true"></div>
+<div class="grain-overlay" aria-hidden="true"></div>
 <div class="shell-outer">
     <div class="shell">
         <?php include 'dashboard_sidebar.php'; ?>
@@ -61,6 +63,7 @@ $active_page = 'payments';
                     <h1>Payments</h1>
                     <div class="meta">Every payment proof you've submitted, and its verification status</div>
                 </div>
+                <a href="services.php" class="btn-book-service"><i class="fas fa-plus" aria-hidden="true"></i>Book a Service</a>
             </div>
 
             <div class="stat-strip">

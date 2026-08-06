@@ -12,6 +12,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'visitor') {
     exit();
 }
 require_once 'config.php';
+require_once 'dashboard_helpers.php';
 date_default_timezone_set('Asia/Riyadh');
 
 $booking_id = (int)($_GET['id'] ?? 0);
@@ -55,6 +56,8 @@ $active_page = 'bookings';
     </style>
 </head>
 <body>
+<div class="bg-ambient" aria-hidden="true"></div>
+<div class="grain-overlay" aria-hidden="true"></div>
 <div class="shell-outer">
     <div class="shell">
         <?php include 'dashboard_sidebar.php'; ?>
@@ -70,7 +73,7 @@ $active_page = 'bookings';
             <div class="section-title">Booking Info</div>
             <div class="box">
                 <div class="detail-row"><span>Status</span><span><span class="dot <?php echo $b['status']==='confirmed'?'g':($b['status']==='pending'?'y':($b['status']==='cancelled'?'r':'b')); ?>"></span><?php echo htmlspecialchars(ucfirst($b['status'])); ?></span></div>
-                <div class="detail-row"><span>Travel Date</span><span><?php echo date('M j, Y', strtotime($b['travel_date'])); ?></span></div>
+                <div class="detail-row"><span>Travel Date</span><span><?php echo safe_date($b['travel_date']); ?></span></div>
                 <div class="detail-row"><span>Guests</span><span><?php echo (int)$b['guests']; ?></span></div>
                 <div class="detail-row"><span>Booked On</span><span><?php echo date('M j, Y g:i A', strtotime($b['created_at'])); ?></span></div>
                 <div class="detail-row"><span>Total Amount</span><span style="color:#c9a24b; font-weight:700;">SAR <?php echo number_format($b['total_amount']); ?></span></div>
