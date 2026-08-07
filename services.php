@@ -594,7 +594,16 @@ if(empty($cities)) {
                     function updateFare() {
                         const from = fromCity.value, to = toCity.value;
                         if(from && to && from !== to && car.fares) {
-                            const fare = car.fares.find(f => f.from_city === from && f.to_city === to);
+                            // FIX: taxi routes are the same price either
+                            // direction (Jeddah->Makkah costs the same as
+                            // Makkah->Jeddah) but only one direction was
+                            // ever entered, so a customer picking the
+                            // reverse order used to see "no route found"
+                            // even though the fare genuinely exists.
+                            const fare = car.fares.find(f =>
+                                (f.from_city === from && f.to_city === to) ||
+                                (f.from_city === to && f.to_city === from)
+                            );
                             if(fare) { 
                                 fareDisplay.innerHTML = 'Total Fare: SAR '+fare.price_sar; 
                                 bookBtn.disabled = false; 

@@ -93,6 +93,13 @@ try {
     }
 
     // ---- Seasonal pricing (subtract the hidden margin before storing) ----
+    // Each room can now optionally have bed-type variants -- prices come
+    // in as pricingPeriods[i].prices[roomCode][bedCode], where bedCode is
+    // either a real bed-type code or '_default' for a room with no
+    // variants (room_type_code = the room's own code either way; room_type
+    // = the bed variant's code, or the room's own code again when there
+    // are no variants -- same convention used by every hand-written
+    // "Swissotel-style" handler already in this codebase).
     $stmt = $pdo->prepare("
         INSERT INTO hotel_seasonal_pricing
             (hotel_id, room_type, room_type_code, is_weekend, start_date, end_date, base_price_sar, markup_sar, extra_bed_base, extra_bed_markup)
@@ -113,20 +120,31 @@ try {
         foreach ($room_types as $rt) {
             $code = preg_replace('/[^a-z0-9_]/', '', strtolower(trim($rt['code'] ?? '')));
             if ($code === '') continue;
-            $prices = $period['prices'][$rt['code']] ?? $period['prices'][$code] ?? null;
-            if (!$prices) continue;
 
-            $weekday_final = (float)($prices['weekday'] ?? 0);
-            $weekend_final = $period['has_weekend_split'] ? (float)($prices['weekend'] ?? 0) : $weekday_final;
-            if ($weekday_final <= 0) continue;
+            $bed_variants = !empty($rt['bed_types']) ? $rt['bed_types'] : [['code' => '_default', 'name' => '']];
 
-            $weekday_base = max(0, $weekday_final - 70);
-            $weekend_base = max(0, $weekend_final - 70);
+            foreach ($bed_variants as $bt) {
+                $bed_code_raw = $bt['code'] ?? '_default';
+                $room_type_for_row = ($bed_code_raw === '_default')
+                    ? $code
+                    : preg_replace('/[^a-z0-9_]/', '', strtolower(trim($bed_code_raw)));
+                if ($room_type_for_row === '') continue;
 
-            $stmt->execute([$hotel_id, $code, $code, 0, $start, $end, $weekday_base, $extra_bed_base, $extra_bed_markup]);
-            $stmt->execute([$hotel_id, $code, $code, 1, $start, $end, $weekend_base, $extra_bed_base, $extra_bed_markup]);
+                $prices = $period['prices'][$code][$bed_code_raw] ?? null;
+                if (!$prices) continue;
 
-            if ($lowest_price === null || $weekday_final < $lowest_price) $lowest_price = $weekday_final;
+                $weekday_final = (float)($prices['weekday'] ?? 0);
+                $weekend_final = $period['has_weekend_split'] ? (float)($prices['weekend'] ?? 0) : $weekday_final;
+                if ($weekday_final <= 0) continue;
+
+                $weekday_base = max(0, $weekday_final - 70);
+                $weekend_base = max(0, $weekend_final - 70);
+
+                $stmt->execute([$hotel_id, $room_type_for_row, $code, 0, $start, $end, $weekday_base, $extra_bed_base, $extra_bed_markup]);
+                $stmt->execute([$hotel_id, $room_type_for_row, $code, 1, $start, $end, $weekend_base, $extra_bed_base, $extra_bed_markup]);
+
+                if ($lowest_price === null || $weekday_final < $lowest_price) $lowest_price = $weekday_final;
+            }
         }
     }
 

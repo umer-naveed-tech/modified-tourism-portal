@@ -33,7 +33,19 @@ class GenericHotelHandler implements HotelHandlerInterface {
         foreach ($rooms as &$room) {
             $room['has_seasonal'] = true;
             $room['price_label'] = 'Seasonal Pricing';
-            $room['bed_types'] = [$room['room_type']];
+
+            // Bed type is OPTIONAL: most rooms have exactly one variant
+            // (their own code, e.g. "double"), which hotel_rooms.php
+            // treats as "no real choice needed". A room the agent gave
+            // real variants to (e.g. "City View" / "Haram View" under a
+            // "Deluxe Room" category) will have more than one distinct
+            // row here, and the customer sees a "Choose Bed Type" step,
+            // same convention as the hand-written Swissotel/Fairmont-style
+            // handlers already in this codebase.
+            $stmt2 = $pdo->prepare("SELECT DISTINCT room_type FROM hotel_seasonal_pricing WHERE hotel_id = ? AND room_type_code = ? ORDER BY room_type");
+            $stmt2->execute([$hotel_id, $room['room_type']]);
+            $bed_types = $stmt2->fetchAll(PDO::FETCH_COLUMN);
+            $room['bed_types'] = !empty($bed_types) ? $bed_types : [$room['room_type']];
 
             // Extra bed is offered for THIS room only if at least one of
             // its pricing rows actually has a non-zero extra_bed_base --

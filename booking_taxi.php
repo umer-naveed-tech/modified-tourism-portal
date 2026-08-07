@@ -23,8 +23,11 @@ if(!$car) {
 
 $fare = null;
 if($from_city && $to_city) {
-    $stmt = $pdo->prepare("SELECT price_sar FROM car_fares WHERE car_id = ? AND from_city = ? AND to_city = ?");
-    $stmt->execute([$car_id, $from_city, $to_city]);
+    // FIX: routes are the same fare in either direction -- check both
+    // orderings so a route entered as "Jeddah -> Makkah" also matches
+    // a customer selecting "Makkah -> Jeddah".
+    $stmt = $pdo->prepare("SELECT price_sar FROM car_fares WHERE car_id = ? AND ((from_city = ? AND to_city = ?) OR (from_city = ? AND to_city = ?))");
+    $stmt->execute([$car_id, $from_city, $to_city, $to_city, $from_city]);
     $fare = $stmt->fetch();
 }
 
@@ -41,8 +44,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $time = $_POST['time'];
     // Note: fare is NOT trusted from the client anymore — it is looked up
     // fresh from car_fares using the car/route, same as the page load above.
-    $fare_stmt = $pdo->prepare("SELECT price_sar FROM car_fares WHERE car_id = ? AND from_city = ? AND to_city = ?");
-    $fare_stmt->execute([$car_id, $from, $to]);
+    // Same bidirectional fix as above -- the customer may have selected
+    // the reverse of however the agent originally entered the route.
+    $fare_stmt = $pdo->prepare("SELECT price_sar FROM car_fares WHERE car_id = ? AND ((from_city = ? AND to_city = ?) OR (from_city = ? AND to_city = ?))");
+    $fare_stmt->execute([$car_id, $from, $to, $to, $from]);
     $verified_fare = $fare_stmt->fetch();
 
     if(!$verified_fare) {

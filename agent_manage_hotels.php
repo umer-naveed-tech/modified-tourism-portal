@@ -112,7 +112,11 @@ $hotels = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <td><?php echo $h['booking_count']; ?></td>
                 <td class="actions">
                     <a href="agent_hotel_form.php?id=<?php echo (int)$h['id']; ?>" class="btn-edit">Edit</a>
-                    <button type="button" class="btn-delete" data-id="<?php echo (int)$h['id']; ?>" data-name="<?php echo htmlspecialchars($h['hotel_name']); ?>" data-bookings="<?php echo (int)$h['booking_count']; ?>" <?php echo $h['booking_count'] > 0 ? 'disabled title="Has existing bookings -- cannot delete"' : ''; ?>>Delete</button>
+                    <?php if ($h['booking_count'] > 0): ?>
+                        <button type="button" class="btn-delete" disabled title="This hotel has <?php echo $h['booking_count']; ?> existing booking(s) -- cannot be deleted until those are handled">Has Bookings</button>
+                    <?php else: ?>
+                        <button type="button" class="btn-delete" data-id="<?php echo (int)$h['id']; ?>" data-name="<?php echo htmlspecialchars($h['hotel_name']); ?>">Delete</button>
+                    <?php endif; ?>
                 </td>
             </tr>
             <?php endforeach; ?>

@@ -194,14 +194,27 @@ $is_edit = $hotel_id > 0;
 </div>
 
 <script>
-let roomTypes = <?php echo json_encode(array_map(function($r) {
-    return ['code' => $r['room_type'], 'display_name' => $r['display_name'], 'capacity' => (int)$r['capacity'], 'description' => $r['description']];
+let roomTypes = <?php echo json_encode(array_map(function($r) use ($pdo, $hotel_id) {
+    // Pull any bed-type variants already saved for this room category
+    // (room_type_code = the room's code, room_type = each bed variant's
+    // code) -- if there's exactly one and it matches the room's own
+    // code, that's the "no variants" simple case, so bed_types stays empty.
+    $stmt = $pdo->prepare("SELECT DISTINCT room_type FROM hotel_seasonal_pricing WHERE hotel_id = ? AND room_type_code = ? ORDER BY room_type");
+    $stmt->execute([$hotel_id, $r['room_type']]);
+    $variants = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $bed_types = [];
+    if (count($variants) > 1 || (count($variants) === 1 && $variants[0] !== $r['room_type'])) {
+        foreach ($variants as $v) {
+            $bed_types[] = ['code' => $v, 'name' => $v];
+        }
+    }
+    return ['code' => $r['room_type'], 'display_name' => $r['display_name'], 'capacity' => (int)$r['capacity'], 'description' => $r['description'], 'bed_types' => $bed_types];
 }, $room_types)); ?>;
 
 let pricingPeriods = <?php echo json_encode($pricing_periods); ?>;
 
 if (roomTypes.length === 0) {
-    roomTypes.push({ code: '', display_name: '', capacity: 2, description: 'Breakfast included' });
+    roomTypes.push({ code: '', display_name: '', capacity: 2, description: 'Breakfast included', bed_types: [] });
 }
 
 function slugify(text) {
@@ -214,6 +227,7 @@ function renderRoomTypes() {
     roomTypes.forEach((rt, i) => {
         const div = document.createElement('div');
         div.className = 'room-row';
+        const bedTypesText = (rt.bed_types || []).map(b => b.name).join(', ');
         div.innerHTML = `
             ${roomTypes.length > 1 ? '<button type="button" class="btn-remove" onclick="removeRoomType(' + i + ')">&times;</button>' : ''}
             <div class="row">
@@ -229,6 +243,10 @@ function renderRoomTypes() {
             <div class="field">
                 <label>Meal Plan (shown to customer, e.g. "Breakfast Included" or "Room Only")</label>
                 <input type="text" value="${escAttr(rt.description)}" oninput="updateRoomType(${i}, 'description', this.value)">
+            </div>
+            <div class="field">
+                <label>Bed Type <span style="color:rgba(255,255,255,0.35); font-weight:400;">(optional -- only if this room comes in variants, e.g. "City View, Haram View". Leave empty if not.)</span></label>
+                <input type="text" value="${escAttr(bedTypesText)}" placeholder="e.g. City View, Haram View" oninput="updateBedTypes(${i}, this.value)">
             </div>
         `;
         container.appendChild(div);
@@ -249,8 +267,14 @@ function updateRoomType(i, field, value) {
     renderPricingPeriods(); // room-type columns in pricing table need to stay in sync
 }
 
+function updateBedTypes(i, value) {
+    const names = value.split(',').map(s => s.trim()).filter(Boolean);
+    roomTypes[i].bed_types = names.map(n => ({ code: slugify(n), name: n }));
+    renderPricingPeriods();
+}
+
 function addRoomType() {
-    roomTypes.push({ code: '', display_name: '', capacity: 2, description: 'Breakfast included' });
+    roomTypes.push({ code: '', display_name: '', capacity: 2, description: 'Breakfast included', bed_types: [] });
     renderRoomTypes();
     renderPricingPeriods();
 }
@@ -261,6 +285,10 @@ function removeRoomType(i) {
     renderPricingPeriods();
 }
 
+// Every price is stored as pricingPeriods[i].prices[roomCode][bedKey], where
+// bedKey is either a real bed-type code, or '_default' when the room has
+// no bed-type variants -- keeping ONE consistent shape whether or not a
+// room uses bed types, instead of two different data shapes to juggle.
 function renderPricingPeriods() {
     const container = document.getElementById('pricingContainer');
     container.innerHTML = '';
@@ -268,23 +296,29 @@ function renderPricingPeriods() {
         const div = document.createElement('div');
         div.className = 'period-block';
         let pricesHtml = '';
-        roomTypes.forEach((rt, ri) => {
+        roomTypes.forEach((rt) => {
             if (!p.prices) p.prices = {};
-            if (!p.prices[rt.code]) p.prices[rt.code] = { weekday: 0, weekend: 0 };
-            pricesHtml += `
-                <div class="room-price-label">${escAttr(rt.display_name) || '(unnamed room)'}</div>
-                <div class="price-grid">
-                    <div class="field-sm">
-                        <label>${p.has_weekend_split ? 'Weekday Price (SAR)' : 'Price (SAR)'}</label>
-                        <input type="number" min="0" value="${p.prices[rt.code].weekday || ''}" oninput="updatePeriodPrice(${i}, '${rt.code}', 'weekday', this.value)">
+            if (!p.prices[rt.code]) p.prices[rt.code] = {};
+
+            const variants = (rt.bed_types && rt.bed_types.length > 0) ? rt.bed_types : [{ code: '_default', name: '' }];
+            variants.forEach(bt => {
+                if (!p.prices[rt.code][bt.code]) p.prices[rt.code][bt.code] = { weekday: 0, weekend: 0 };
+                const label = bt.code === '_default' ? (escAttr(rt.display_name) || '(unnamed room)') : (escAttr(rt.display_name) || '(unnamed room)') + ' — ' + escAttr(bt.name);
+                pricesHtml += `
+                    <div class="room-price-label">${label}</div>
+                    <div class="price-grid">
+                        <div class="field-sm">
+                            <label>${p.has_weekend_split ? 'Weekday Price (SAR)' : 'Price (SAR)'}</label>
+                            <input type="number" min="0" value="${p.prices[rt.code][bt.code].weekday || ''}" oninput="updatePeriodPrice(${i}, '${rt.code}', '${bt.code}', 'weekday', this.value)">
+                        </div>
+                        ${p.has_weekend_split ? `
+                        <div class="field-sm">
+                            <label>Weekend Price (SAR)</label>
+                            <input type="number" min="0" value="${p.prices[rt.code][bt.code].weekend || ''}" oninput="updatePeriodPrice(${i}, '${rt.code}', '${bt.code}', 'weekend', this.value)">
+                        </div>` : ''}
                     </div>
-                    ${p.has_weekend_split ? `
-                    <div class="field-sm">
-                        <label>Weekend Price (SAR)</label>
-                        <input type="number" min="0" value="${p.prices[rt.code].weekend || ''}" oninput="updatePeriodPrice(${i}, '${rt.code}', 'weekend', this.value)">
-                    </div>` : ''}
-                </div>
-            `;
+                `;
+            });
         });
         div.innerHTML = `
             <button type="button" class="btn-remove" onclick="removePeriod(${i})">&times;</button>
@@ -319,9 +353,10 @@ function updatePeriod(i, field, value) {
     pricingPeriods[i][field] = field === 'extra_bed' ? (parseFloat(value) || 0) : value;
 }
 
-function updatePeriodPrice(i, code, which, value) {
-    if (!pricingPeriods[i].prices[code]) pricingPeriods[i].prices[code] = { weekday: 0, weekend: 0 };
-    pricingPeriods[i].prices[code][which] = parseFloat(value) || 0;
+function updatePeriodPrice(i, roomCode, bedCode, which, value) {
+    if (!pricingPeriods[i].prices[roomCode]) pricingPeriods[i].prices[roomCode] = {};
+    if (!pricingPeriods[i].prices[roomCode][bedCode]) pricingPeriods[i].prices[roomCode][bedCode] = { weekday: 0, weekend: 0 };
+    pricingPeriods[i].prices[roomCode][bedCode][which] = parseFloat(value) || 0;
 }
 
 function toggleWeekend(i, checked) {

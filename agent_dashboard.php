@@ -378,6 +378,28 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
             .btn-wa { padding: 4px 10px; font-size: 11px; }
             .filters-bar input[type="text"] { min-width: 100%; }
         }
+        /* NEW: sidebar layout -- scoped with an "agent-" prefix so
+           these classes can never collide with any of the existing
+           CSS above (stat-card, container, etc. are all untouched). */
+        .agent-shell { display: flex; min-height: 100vh; }
+        .agent-sidebar { width: 220px; flex-shrink: 0; background: rgba(10,15,30,0.95); border-right: 1px solid rgba(212,175,55,0.08); padding: 24px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+        .agent-sidebar .brand { display: block; font-family: 'Playfair Display', serif; font-size: 19px; font-weight: 800; color: white; text-decoration: none; padding: 0 22px 26px; }
+        .agent-sidebar .brand span { color: #d4af37; }
+        .agent-sidebar a.side-link { display: flex; align-items: center; gap: 11px; padding: 11px 22px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 13.5px; transition: all 0.2s ease; position: relative; }
+        .agent-sidebar a.side-link:hover { color: #d4af37; background: rgba(255,255,255,0.02); }
+        .agent-sidebar a.side-link.on { color: white; background: rgba(212,175,55,0.06); }
+        .agent-sidebar a.side-link.on::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #d4af37; }
+        .agent-sidebar a.side-link i { width: 16px; font-size: 13px; }
+        .agent-sidebar .side-div { height: 1px; background: rgba(255,255,255,0.06); margin: 14px 22px; }
+        .agent-sidebar a.side-logout { color: #f87171; }
+        .agent-sidebar a.side-logout:hover { background: rgba(239,68,68,0.08); }
+        .agent-main { flex: 1; min-width: 0; }
+        @media (max-width: 900px) {
+            .agent-shell { flex-direction: column; }
+            .agent-sidebar { width: 100%; height: auto; position: relative; padding: 14px 0; display: flex; flex-wrap: wrap; align-items: center; }
+            .agent-sidebar .brand { width: 100%; padding-bottom: 10px; }
+            .agent-sidebar .side-div { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -387,20 +409,20 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
 <div class="page-transition" id="pageTransition"><div class="pt-spinner"><div class="pt-ring"></div><i class="fas fa-plane pt-icon"></i></div></div>
 
 <div class="page-content">
-    <nav class="navbar">
-        <div class="container">
-            <a href="index.php" class="logo">Ahmed<span>Travels</span></a>
-            <div class="nav-links">
-                <a href="services.php">Services</a>
-                <a href="agent_dashboard.php">Dashboard</a>
-                <a href="agent_manage_hotels.php">Manage Hotels</a>
-                <a href="agent_manage_taxis.php">Manage Taxis</a>
-                <a href="agent_panel.php">Manage Visas</a>
-                <a href="logout.php" class="btn-logout">Logout</a>
-            </div>
+    <div class="agent-shell">
+        <div class="agent-sidebar">
+            <a href="agent_dashboard.php" class="brand">Ahmed<span>Travels</span></a>
+            <a href="agent_dashboard.php" class="side-link on"><i class="fas fa-gauge" aria-hidden="true"></i>Dashboard</a>
+            <a href="agent_manage_hotels.php" class="side-link"><i class="fas fa-hotel" aria-hidden="true"></i>Manage Hotels</a>
+            <a href="agent_manage_taxis.php" class="side-link"><i class="fas fa-car" aria-hidden="true"></i>Manage Taxis</a>
+            <a href="agent_panel.php" class="side-link"><i class="fas fa-passport" aria-hidden="true"></i>Manage Visas</a>
+            <a href="agent_price_management.php" class="side-link"><i class="fas fa-tags" aria-hidden="true"></i>Manage Prices</a>
+            <div class="side-div"></div>
+            <a href="services.php" class="side-link"><i class="fas fa-globe" aria-hidden="true"></i>View Site</a>
+            <a href="logout.php" class="side-link side-logout"><i class="fas fa-right-from-bracket" aria-hidden="true"></i>Logout</a>
         </div>
-    </nav>
 
+        <div class="agent-main">
     <div class="dashboard-header">
         <div class="container">
             <div class="gold-line"></div>
@@ -431,13 +453,6 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                 <div class="stat-number" style="color:#34d399;">SAR <?php echo number_format($total_revenue); ?></div>
                 <div class="stat-label">Total Revenue</div>
             </div>
-        </div>
-
-        <div class="actions-section reveal">
-            <a href="services.php?type=hotels" class="action-btn action-btn-primary">Manage Hotels</a>
-            <a href="services.php?type=taxi" class="action-btn action-btn-primary">Manage Taxis</a>
-            <a href="services.php?type=visa" class="action-btn action-btn-primary">Manage Visas</a>
-            <a href="agent_price_management.php" class="action-btn action-btn-primary">Manage Prices</a>
         </div>
 
         <div id="ajaxContent">
@@ -569,6 +584,8 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
         <?php endif; ?>
         </div>
     </div>
+        </div>
+        </div>
 </div>
 
 <!-- NEW: booking-details modal -->
