@@ -74,6 +74,7 @@ define('EMAARMEKTAN_HOTEL_ID', 120);       // NAYA -- Emaar Mektan Hotel Madinah
 // page dikha dega.
 
 require_once __DIR__ . '/base_handler.php';
+require_once __DIR__ . '/generic_hotel_handler.php'; // NAYA -- agent-created hotels use this automatically
 require_once __DIR__ . '/normal_hotel.php';
 require_once __DIR__ . '/marriot_jabal_omer.php';
 require_once __DIR__ . '/movenpick_hajar_tower.php';
@@ -242,7 +243,18 @@ class HotelHandlerFactory {
     private static $singleRoomSupplementHotels = [149, 150, 151, 152, 153];
 
     public static function isSimpleHiddenMarkupHotel($hotel_id) {
-        return in_array($hotel_id, self::$simpleHiddenMarkupHotels);
+        if (in_array($hotel_id, self::$simpleHiddenMarkupHotels)) return true;
+        // NEW: same reasoning as getHandler() above -- an agent-created
+        // hotel (no hand-written handler class, no supplement bucket
+        // registration) that has real pricing data is routed through
+        // price_calculator.php's generic branch automatically.
+        if (!isset(self::$handlers[$hotel_id]) && !self::isSingleRoomSupplementHotel($hotel_id)) {
+            global $pdo;
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM hotel_seasonal_pricing WHERE hotel_id = ?");
+            $stmt->execute([$hotel_id]);
+            return $stmt->fetchColumn() > 0;
+        }
+        return false;
     }
 
     public static function isSingleRoomSupplementHotel($hotel_id) {
@@ -265,6 +277,18 @@ class HotelHandlerFactory {
         if (isset(self::$handlers[$hotel_id])) {
             $class = self::$handlers[$hotel_id];
             return new $class();
+        }
+        // NEW: any hotel not hand-registered above still gets a real,
+        // working handler as long as it has seasonal pricing rows --
+        // this is what lets a hotel created through the new agent
+        // "Manage Hotels" screen work immediately with zero new PHP
+        // code. Only a truly empty hotel (no rooms entered yet at all)
+        // falls through to NormalHotelHandler's "Coming Soon" page.
+        global $pdo;
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM hotel_seasonal_pricing WHERE hotel_id = ?");
+        $stmt->execute([$hotel_id]);
+        if ($stmt->fetchColumn() > 0) {
+            return new GenericHotelHandler();
         }
         return new NormalHotelHandler();
     }
