@@ -53,6 +53,20 @@ define('SHAZAREGENCY_HOTEL_ID', 171);      // NAYA -- Shaza Regency Plaza Madina
 define('MAYSANHARTHIA_HOTEL_ID', 98);      // NAYA -- Maysan Al Harthia Ex Frontel Alharthia Hotel Madinah (existing empty hotel row)
 define('EMAARROYALMADINAH_HOTEL_ID', 102); // NAYA -- Emaar Royal Hotel Madinah (existing empty hotel row)
 define('GRANDPLAZABADR_HOTEL_ID', 129);    // NAYA -- Grand Plaza Badr Al Maqam Hotel Madinah (existing empty hotel row)
+define('GRANDPLAZAALMADINA_HOTEL_ID', 172);  // NAYA -- Grand Plaza Almadina
+define('ANCYRA_HOTEL_ID', 173);              // NAYA -- Ancyra Hotel by Continent Madinah
+define('ALRITZ_HOTEL_ID', 111);              // NAYA -- Al Ritz Al Madinah Hotel (existing empty hotel row)
+define('DEYARALEIMAN_HOTEL_ID', 174);        // NAYA -- Deyar Al Eiman Hotel
+define('DURRATALEIMAN_HOTEL_ID', 175);       // NAYA -- Durrat Al Eiman Hotel
+define('EMAARELITEMADINAH_HOTEL_ID', 136);   // NAYA -- Emaar Elite Hotel Madinah (existing empty hotel row)
+define('UTHMANBENAFFAN_HOTEL_ID', 112);      // NAYA -- Uthman Ben Affan Hotel Madinah (existing empty hotel row)
+define('GRANDZOWARMADINAH_HOTEL_ID', 138);   // NAYA -- Grand Zowar Hotel Madinah (existing empty hotel row)
+define('ODST_HOTEL_ID', 176);              // NAYA -- Odst Al Madinah Hotel
+define('ALMOKHTARAINTL_HOTEL_ID', 125);   // NAYA -- Al Mokhtara International Hotel Madinah (existing empty hotel row)
+define('ALMOKHTARADIAMOND_HOTEL_ID', 126); // NAYA -- Al Mokhtara Diamond Hotel Madinah (existing empty hotel row)
+define('ALMOKHTARAGOLDEN_HOTEL_ID', 140);  // NAYA -- Al Mokhtara Golden Hotel Madinah (existing empty hotel row)
+define('ALMOKHTARAALGARBI_HOTEL_ID', 139); // NAYA -- Al Mokhtara Al-Garbi Hotel Madinah (existing empty hotel row)
+define('EMAARMEKTAN_HOTEL_ID', 120);       // NAYA -- Emaar Mektan Hotel Madinah (existing empty hotel row)
 
 // Four Points by Sheraton (155) aur Voco Hotel Makkah (156) ke liye koi
 // handler register nahi karte -- inke paas abhi koi room data nahi hai,
@@ -115,6 +129,20 @@ require_once __DIR__ . '/shaza_regency_plaza_madinah.php';            // NAYA
 require_once __DIR__ . '/maysan_al_harthia_madinah.php';              // NAYA
 require_once __DIR__ . '/emaar_royal_madinah.php';                    // NAYA
 require_once __DIR__ . '/grand_plaza_badr_almaqam_madinah.php';       // NAYA
+require_once __DIR__ . '/grand_plaza_almadina.php';                   // NAYA
+require_once __DIR__ . '/ancyra_hotel_continent_madinah.php';         // NAYA
+require_once __DIR__ . '/al_ritz_al_madinah.php';                     // NAYA
+require_once __DIR__ . '/deyar_al_eiman.php';                         // NAYA
+require_once __DIR__ . '/durrat_al_eiman.php';                        // NAYA
+require_once __DIR__ . '/emaar_elite_madinah.php';                    // NAYA
+require_once __DIR__ . '/uthman_ben_affan_madinah.php';               // NAYA
+require_once __DIR__ . '/grand_zowar_madinah.php';                    // NAYA
+require_once __DIR__ . '/odst_al_madinah.php';                        // NAYA
+require_once __DIR__ . '/al_mokhtara_international.php';              // NAYA
+require_once __DIR__ . '/al_mokhtara_diamond.php';                    // NAYA
+require_once __DIR__ . '/al_mokhtara_golden.php';                     // NAYA
+require_once __DIR__ . '/al_mokhtara_al_garbi.php';                   // NAYA
+require_once __DIR__ . '/emaar_mektan_madinah.php';                   // NAYA
 
 class HotelHandlerFactory {
 
@@ -176,6 +204,20 @@ class HotelHandlerFactory {
         98  => 'MaysanAlHarthiaMadinahHandler',            // NAYA
         102 => 'EmaarRoyalMadinahHandler',                 // NAYA
         129 => 'GrandPlazaBadrAlMaqamMadinahHandler',      // NAYA
+        172 => 'GrandPlazaAlmadinaHandler',                // NAYA
+        173 => 'AncyraHotelContinentMadinahHandler',        // NAYA
+        111 => 'AlRitzAlMadinahHandler',                    // NAYA
+        174 => 'DeyarAlEimanHandler',                       // NAYA
+        175 => 'DurratAlEimanHandler',                      // NAYA
+        136 => 'EmaarEliteMadinahHandler',                  // NAYA
+        112 => 'UthmanBenAffanMadinahHandler',              // NAYA
+        138 => 'GrandZowarMadinahHandler',                  // NAYA
+        176 => 'OdstAlMadinahHandler',                      // NAYA
+        125 => 'AlMokhtaraInternationalHandler',            // NAYA
+        126 => 'AlMokhtaraDiamondHandler',                  // NAYA
+        140 => 'AlMokhtaraGoldenHandler',                   // NAYA
+        139 => 'AlMokhtaraAlGarbiHandler',                  // NAYA
+        120 => 'EmaarMektanMadinahHandler',                 // NAYA
     ];
 
     // "Simple" hotels: room_type_code + is_weekend, 70 SAR hidden markup,
@@ -188,7 +230,7 @@ class HotelHandlerFactory {
     // hain jo unke apne handler class mein handle hota hai, aur Jayden
     // requires_meal_type=true use karta hai Standard/Indonesian rate
     // selector ke liye -- bilkul Emaar Al Khalil jaisa.)
-    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148, 154, 157, 158, 159, 161, 162, 163, 164, 165, 166, 167, 168, 69, 83, 84, 85, 86, 67, 70, 71, 76, 169, 94, 96, 97, 93, 106, 108, 91, 99, 101, 100, 170, 104, 128, 171, 98, 102, 129];
+    private static $simpleHiddenMarkupHotels = [145, 146, 147, 148, 154, 157, 158, 159, 161, 162, 163, 164, 165, 166, 167, 168, 69, 83, 84, 85, 86, 67, 70, 71, 76, 169, 94, 96, 97, 93, 106, 108, 91, 99, 101, 100, 170, 104, 128, 171, 98, 102, 129, 172, 173, 111, 174, 175, 136, 112, 138, 176, 125, 126, 140, 139, 120];
 
     // "Single-room + supplement" hotels: EK room type ('double'),
     // weekday/weekend, 70 SAR hidden markup on room, optional extra bed
