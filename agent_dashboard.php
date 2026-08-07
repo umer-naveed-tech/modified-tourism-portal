@@ -393,6 +393,9 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
             <div class="nav-links">
                 <a href="services.php">Services</a>
                 <a href="agent_dashboard.php">Dashboard</a>
+                <a href="agent_manage_hotels.php">Manage Hotels</a>
+                <a href="agent_manage_taxis.php">Manage Taxis</a>
+                <a href="agent_panel.php">Manage Visas</a>
                 <a href="logout.php" class="btn-logout">Logout</a>
             </div>
         </div>
