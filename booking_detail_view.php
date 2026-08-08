@@ -130,12 +130,21 @@ $active_page = 'bookings';
             </div>
 
             <?php
-                // Preserve the existing 60-minute cancellation window
-                // (cancel_booking.php itself is unchanged) -- only shown
-                // while it's still actually available.
-                $created_at = new DateTime($b['created_at']);
-                $cancel_deadline = (clone $created_at)->modify('+60 minutes');
-                $can_cancel = (new DateTime() <= $cancel_deadline) && ($b['status'] == 'pending');
+                // 🔴 FIX: the old 60-minute clock-based window was set
+                // before the multi-step payment flow existed (Details ->
+                // Confirm -> Payment, where the customer has to actually
+                // leave the site to send a bank transfer -- often taking
+                // longer than 60 minutes on its own). By the time a
+                // customer was ready to pay, "Cancel" had often already
+                // vanished even though they hadn't paid anything yet.
+                //
+                // The right rule isn't a clock -- it's "can I still back
+                // out before any money is involved?": a customer can
+                // self-cancel any time up until they've actually
+                // submitted payment proof. Once a screenshot/reference
+                // is submitted, only the agent handles it from there
+                // (money may already be in transit).
+                $can_cancel = ($b['status'] == 'pending') && !$payment;
             ?>
             <?php if ($can_cancel): ?>
             <a href="cancel_booking.php?id=<?php echo $booking_id; ?>" style="display:block; text-align:center; margin-top:20px; padding:13px; background:rgba(201,98,92,0.1); color:#c9625c; border:1px solid rgba(201,98,92,0.2); border-radius:10px; font-family:'Helvetica Neue',sans-serif; font-size:13px; font-weight:600; text-decoration:none;">Cancel This Booking</a>

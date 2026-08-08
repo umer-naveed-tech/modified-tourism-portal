@@ -176,7 +176,27 @@ $font_choices = array_keys(galleryFontChoices());
         .field input:focus, .field select:focus { outline: none; border-color: #d4af37; }
 
         .room-row, .period-block { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 10px; position: relative; overflow: hidden; }
-        .period-block { padding: 16px; }
+        .period-block.expanded { border-color: rgba(212,175,55,0.15); }
+
+        /* NEW: condensed, spreadsheet-style pricing period -- collapsed
+           header row by default, expands to a compact table instead of
+           a full field-block repeated per room. */
+        .period-header { display: flex; justify-content: space-between; align-items: center; padding: 13px 16px; cursor: pointer; transition: background 0.15s ease; }
+        .period-header:hover { background: rgba(255,255,255,0.02); }
+        .period-header-title { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: white; font-weight: 500; }
+        .period-badge { font-size: 10.5px; color: #d4af37; background: rgba(212,175,55,0.1); padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+        .period-body { padding: 4px 16px 16px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .period-header .btn-remove { position: static; }
+        .weekend-toggle-inline { display: flex; align-items: center; gap: 7px; font-size: 12px; color: rgba(255,255,255,0.55); white-space: nowrap; cursor: pointer; font-weight: 400; }
+        .weekend-toggle-inline input { accent-color: #d4af37; }
+        .price-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+        .price-table th { text-align: left; padding: 6px 8px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3px; color: rgba(255,255,255,0.35); border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .price-table td { padding: 5px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+        .price-table tr:last-child td { border-bottom: none; }
+        .pt-room-name { color: rgba(255,255,255,0.75); font-size: 12.5px; }
+        .price-table input { width: 100px; padding: 7px 9px; font-size: 13px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; color: white; font-family: inherit; }
+        .price-table input:focus { outline: none; border-color: #d4af37; }
+        .period-block { padding: 0; }
         .room-row-header { display: flex; justify-content: space-between; align-items: center; padding: 13px 16px; cursor: pointer; transition: background 0.15s ease; }
         .room-row-header:hover { background: rgba(255,255,255,0.02); }
         .room-row-title { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: white; font-weight: 500; }
@@ -525,6 +545,11 @@ let roomTypes = <?php echo json_encode(array_map(function($r) use ($pdo, $hotel_
 }, $room_types)); ?>;
 
 let pricingPeriods = <?php echo json_encode($pricing_periods); ?>;
+// Existing (already-saved) periods start collapsed -- this is the main
+// space-saver for hotels with many pricing periods/room types. Newly
+// added periods (addPricingPeriod()) start expanded so the agent can
+// fill them in right away.
+pricingPeriods.forEach(p => { if (p._expanded === undefined) p._expanded = false; });
 
 if (roomTypes.length === 0) {
     roomTypes.push({ code: '', display_name: '', capacity: 2, description: 'Breakfast included', bed_types: [], _expanded: true });
@@ -626,13 +651,18 @@ function removeRoomType(i) {
 // bedKey is either a real bed-type code, or '_default' when the room has
 // no bed-type variants -- keeping ONE consistent shape whether or not a
 // room uses bed types, instead of two different data shapes to juggle.
+// NEW: condensed, spreadsheet-style layout -- one compact table per
+// period (room names as rows, price as columns) instead of a full
+// field-block repeated for every room. Same data, same behavior --
+// just takes far less vertical space for hotels with many room types.
 function renderPricingPeriods() {
     const container = document.getElementById('pricingContainer');
     container.innerHTML = '';
     pricingPeriods.forEach((p, i) => {
         const div = document.createElement('div');
-        div.className = 'period-block';
-        let pricesHtml = '';
+        div.className = 'period-block' + (p._expanded !== false ? ' expanded' : '');
+
+        let rowsHtml = '';
         roomTypes.forEach((rt) => {
             if (!p.prices) p.prices = {};
             if (!p.prices[rt.code]) p.prices[rt.code] = {};
@@ -641,49 +671,75 @@ function renderPricingPeriods() {
             variants.forEach(bt => {
                 if (!p.prices[rt.code][bt.code]) p.prices[rt.code][bt.code] = { weekday: 0, weekend: 0 };
                 const label = bt.code === '_default' ? (escAttr(rt.display_name) || '(unnamed room)') : (escAttr(rt.display_name) || '(unnamed room)') + ' — ' + escAttr(bt.name);
-                pricesHtml += `
-                    <div class="room-price-label">${label}</div>
-                    <div class="price-grid">
-                        <div class="field-sm">
-                            <label>${p.has_weekend_split ? 'Weekday Price (SAR)' : 'Price (SAR)'}</label>
-                            <input type="number" min="0" value="${p.prices[rt.code][bt.code].weekday || ''}" oninput="updatePeriodPrice(${i}, '${rt.code}', '${bt.code}', 'weekday', this.value)">
-                        </div>
-                        ${p.has_weekend_split ? `
-                        <div class="field-sm">
-                            <label>Weekend Price (SAR)</label>
-                            <input type="number" min="0" value="${p.prices[rt.code][bt.code].weekend || ''}" oninput="updatePeriodPrice(${i}, '${rt.code}', '${bt.code}', 'weekend', this.value)">
-                        </div>` : ''}
-                    </div>
+                rowsHtml += `
+                    <tr>
+                        <td class="pt-room-name">${label}</td>
+                        <td><input type="number" min="0" placeholder="0" value="${p.prices[rt.code][bt.code].weekday || ''}" oninput="updatePeriodPrice(${i}, '${rt.code}', '${bt.code}', 'weekday', this.value)"></td>
+                        ${p.has_weekend_split ? `<td><input type="number" min="0" placeholder="0" value="${p.prices[rt.code][bt.code].weekend || ''}" oninput="updatePeriodPrice(${i}, '${rt.code}', '${bt.code}', 'weekend', this.value)"></td>` : ''}
+                    </tr>
                 `;
             });
         });
+
+        const dateLabel = (p.start_date && p.end_date) ? formatDateShort(p.start_date) + ' – ' + formatDateShort(p.end_date) : 'New period';
+
         div.innerHTML = `
-            <button type="button" class="btn-remove" onclick="removePeriod(${i})">&times;</button>
-            <div class="row">
-                <div class="field">
-                    <label>From</label>
-                    <input type="date" value="${p.start_date || ''}" oninput="updatePeriod(${i}, 'start_date', this.value)">
+            <div class="period-header" onclick="togglePeriodExpand(${i})">
+                <div class="period-header-title">
+                    <i class="fas fa-chevron-${p._expanded !== false ? 'down' : 'right'}" style="font-size:11px; color:rgba(255,255,255,0.35); width:12px;"></i>
+                    <span>${dateLabel}</span>
+                    ${p.has_weekend_split ? '<span class="period-badge">Weekday/Weekend</span>' : ''}
                 </div>
-                <div class="field">
-                    <label>To</label>
-                    <input type="date" value="${p.end_date || ''}" oninput="updatePeriod(${i}, 'end_date', this.value)">
+                <button type="button" class="btn-remove" onclick="event.stopPropagation(); removePeriod(${i})">&times;</button>
+            </div>
+            <div class="period-body" style="${p._expanded !== false ? '' : 'display:none;'}">
+                <div class="row">
+                    <div class="field">
+                        <label>From</label>
+                        <input type="date" value="${p.start_date || ''}" oninput="updatePeriod(${i}, 'start_date', this.value)">
+                    </div>
+                    <div class="field">
+                        <label>To</label>
+                        <input type="date" value="${p.end_date || ''}" oninput="updatePeriod(${i}, 'end_date', this.value)">
+                    </div>
+                    <div class="field" style="flex:0 0 auto; align-self:flex-end; padding-bottom:11px;">
+                        <label class="weekend-toggle-inline">
+                            <input type="checkbox" ${p.has_weekend_split ? 'checked' : ''} onchange="toggleWeekend(${i}, this.checked)">
+                            Different weekend price
+                        </label>
+                    </div>
                 </div>
-            </div>
-            <div class="weekend-toggle">
-                <input type="checkbox" id="wk${i}" ${p.has_weekend_split ? 'checked' : ''} onchange="toggleWeekend(${i}, this.checked)">
-                <label for="wk${i}">This period has a different weekend price</label>
-            </div>
-            ${pricesHtml}
-            <div class="room-price-label">Extra Bed (optional -- leave 0 if not offered)</div>
-            <div class="price-grid" style="grid-template-columns:1fr;">
-                <div class="field-sm">
-                    <label>Extra Bed Price (SAR per night)</label>
-                    <input type="number" min="0" value="${p.extra_bed || 0}" oninput="updatePeriod(${i}, 'extra_bed', this.value)">
+                <table class="price-table">
+                    <thead>
+                        <tr>
+                            <th>Room</th>
+                            <th>${p.has_weekend_split ? 'Weekday (SAR)' : 'Price (SAR)'}</th>
+                            ${p.has_weekend_split ? '<th>Weekend (SAR)</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHtml}</tbody>
+                </table>
+                <div class="row" style="margin-top:12px;">
+                    <div class="field" style="max-width:220px;">
+                        <label>Extra Bed (SAR/night) <span style="color:rgba(255,255,255,0.35); font-weight:400;">-- 0 if not offered</span></label>
+                        <input type="number" min="0" value="${p.extra_bed || 0}" oninput="updatePeriod(${i}, 'extra_bed', this.value)">
+                    </div>
                 </div>
             </div>
         `;
         container.appendChild(div);
     });
+}
+
+function togglePeriodExpand(i) {
+    pricingPeriods[i]._expanded = pricingPeriods[i]._expanded === false ? true : false;
+    renderPricingPeriods();
+}
+
+function formatDateShort(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d)) return dateStr;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function updatePeriod(i, field, value) {
@@ -702,7 +758,7 @@ function toggleWeekend(i, checked) {
 }
 
 function addPricingPeriod() {
-    pricingPeriods.push({ start_date: '', end_date: '', has_weekend_split: false, extra_bed: 0, prices: {} });
+    pricingPeriods.push({ start_date: '', end_date: '', has_weekend_split: false, extra_bed: 0, prices: {}, _expanded: true });
     renderPricingPeriods();
 }
 
