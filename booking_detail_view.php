@@ -108,10 +108,19 @@ $active_page = 'bookings';
 
             <div class="section-title">Payment</div>
             <div class="box">
-                <?php if ($payment): ?>
+                <?php if ($payment && $payment['status'] === 'rejected'): ?>
+                    <div class="detail-row"><span>Status</span><span class="pill rejected">Rejected</span></div>
+                    <?php if (!empty($payment['rejection_reason'])): ?>
+                    <div class="detail-row"><span>Reason</span><span><?php echo htmlspecialchars($payment['rejection_reason']); ?></span></div>
+                    <?php endif; ?>
+                    <div class="detail-row"><span></span><span><a href="services.php" style="color:#c9a24b; text-decoration:none;">Create a new booking →</a></span></div>
+                <?php elseif ($payment): ?>
                     <div class="detail-row"><span>Status</span><span class="pill <?php echo htmlspecialchars($payment['status']); ?>"><?php echo htmlspecialchars(ucfirst($payment['status'])); ?></span></div>
                     <div class="detail-row"><span>Reference</span><span><?php echo htmlspecialchars($payment['payment_reference']); ?></span></div>
                     <div class="detail-row"><span>Submitted</span><span><?php echo date('M j, Y g:i A', strtotime($payment['submitted_at'])); ?></span></div>
+                <?php elseif ($b['status'] === 'cancelled'): ?>
+                    <div class="detail-row"><span>Status</span><span>Cancelled</span></div>
+                    <div class="detail-row"><span></span><span><a href="services.php" style="color:#c9a24b; text-decoration:none;">Create a new booking →</a></span></div>
                 <?php elseif (!empty($b['customer_name'])): ?>
                     <div class="detail-row"><span>Status</span><span>Awaiting payment</span></div>
                     <div class="detail-row"><span></span><span><a href="booking_payment.php?booking_id=<?php echo $booking_id; ?>" style="color:#c9a24b; text-decoration:none;">Complete payment →</a></span></div>

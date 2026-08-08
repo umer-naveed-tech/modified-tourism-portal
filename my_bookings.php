@@ -18,14 +18,18 @@ require_once 'dashboard_helpers.php';
 date_default_timezone_set('Asia/Riyadh');
 
 $user_id = $_SESSION['user_id'];
-$tab = ($_GET['tab'] ?? 'completed') === 'upcoming' ? 'upcoming' : 'completed';
+$tab = $_GET['tab'] ?? 'completed';
+if (!in_array($tab, ['completed', 'upcoming', 'cancelled'])) $tab = 'completed';
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 10;
 $offset = ($page - 1) * $per_page;
 
 if ($tab === 'upcoming') {
-    $where = "user_id = ? AND hidden_by_user = 0 AND status != 'cancelled' AND travel_date >= CURDATE()";
+    $where = "user_id = ? AND hidden_by_user = 0 AND status != 'cancelled' AND travel_date >= CURDATE() AND travel_date > '1970-01-02'";
     $order = "travel_date ASC";
+} elseif ($tab === 'cancelled') {
+    $where = "user_id = ? AND hidden_by_user = 0 AND status = 'cancelled'";
+    $order = "created_at DESC";
 } else {
     $where = "user_id = ? AND hidden_by_user = 0 AND status = 'completed'";
     $order = "travel_date DESC";
@@ -75,6 +79,7 @@ $active_page = 'bookings';
             <div class="tab-row">
                 <a href="my_bookings.php?tab=completed" class="tab-link <?php echo $tab === 'completed' ? 'active' : ''; ?>">Completed</a>
                 <a href="my_bookings.php?tab=upcoming" class="tab-link <?php echo $tab === 'upcoming' ? 'active' : ''; ?>">Upcoming</a>
+                <a href="my_bookings.php?tab=cancelled" class="tab-link <?php echo $tab === 'cancelled' ? 'active' : ''; ?>">Cancelled</a>
             </div>
 
             <?php if (count($bookings) > 0): ?>
@@ -119,7 +124,7 @@ $active_page = 'bookings';
             <?php else: ?>
                 <div class="empty-state">
                     <i class="fas fa-suitcase-rolling" aria-hidden="true"></i>
-                    <?php echo $tab === 'completed' ? 'No completed bookings yet.' : 'No upcoming bookings.'; ?>
+                    <?php echo $tab === 'completed' ? 'No completed bookings yet.' : ($tab === 'cancelled' ? 'No cancelled bookings.' : 'No upcoming bookings.'); ?>
                 </div>
             <?php endif; ?>
         </div>

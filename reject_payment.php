@@ -51,10 +51,11 @@ try {
     $stmt = $pdo->prepare("UPDATE payments SET status = 'rejected', rejection_reason = ?, verified_at = NOW(), verified_by = ? WHERE id = ?");
     $stmt->execute([$reason, $_SESSION['user_id'], $payment_id]);
 
-    // Send the booking back to "awaiting payment" so booking_payment.php
-    // shows the reason and a fresh upload form instead of blocking the
-    // customer with "already submitted".
-    $stmt = $pdo->prepare("UPDATE bookings SET payment_status = 'awaiting_payment' WHERE id = ?");
+    // NEW: a rejected payment cancels the booking automatically -- the
+    // customer sees it move to "Cancelled" on their dashboard, and
+    // clicking it prompts them to create a fresh booking rather than
+    // resubmitting payment for this same one.
+    $stmt = $pdo->prepare("UPDATE bookings SET status = 'cancelled', payment_status = 'rejected' WHERE id = ?");
     $stmt->execute([$payment['booking_id']]);
 
     $pdo->commit();
@@ -87,9 +88,9 @@ if ($to_email) {
         $mail->Subject = 'Payment Could Not Be Verified - ' . $payment['booking_no'] . ' - Ahmed Travels';
         $mail->Body = "<h2>We Couldn't Verify Your Payment</h2>"
             . "<p>Dear " . htmlspecialchars($to_name) . ",</p>"
-            . "<p>We were unable to verify your payment for booking <strong>" . htmlspecialchars($payment['booking_no']) . "</strong>.</p>"
+            . "<p>We were unable to verify your payment for booking <strong>" . htmlspecialchars($payment['booking_no']) . "</strong>, so this booking has been cancelled.</p>"
             . "<p><strong>Reason:</strong> " . htmlspecialchars($reason) . "</p>"
-            . "<p>Please log in and submit your payment proof again with the correct details.</p>"
+            . "<p>If you'd still like to book this, please create a new booking and try the payment again with the correct details.</p>"
             . "<p>-- Ahmed Travels</p>";
         $mail->send();
     } catch (Exception $e) {
