@@ -40,15 +40,17 @@ if (empty($booking['customer_name'])) {
     exit();
 }
 
-// If a payment proof was already submitted for this booking, just show
-// the "awaiting confirmation" state instead of a fresh upload form.
+// If a payment proof was already submitted for this booking, show the
+// "awaiting confirmation" state -- UNLESS the agent rejected it, in
+// which case the customer should see why and be able to submit again.
 $stmt = $pdo->prepare("SELECT * FROM payments WHERE booking_id = ? ORDER BY id DESC LIMIT 1");
 $stmt->execute([$booking_id]);
 $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
+$is_blocking = $existing_payment && $existing_payment['status'] !== 'rejected';
 
 $errors = [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$existing_payment) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$is_blocking) {
     csrf_verify();
 
     $payment_reference = trim($_POST['payment_reference'] ?? '');
@@ -104,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$existing_payment) {
 $stmt = $pdo->prepare("SELECT * FROM payments WHERE booking_id = ? ORDER BY id DESC LIMIT 1");
 $stmt->execute([$booking_id]);
 $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
+$is_blocking = $existing_payment && $existing_payment['status'] !== 'rejected';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -189,7 +192,7 @@ $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
         </div>
 
         <div class="card">
-            <?php if ($existing_payment): ?>
+            <?php if ($is_blocking): ?>
                 <div class="status-box">
                     <div class="check-wrap"><i class="fas fa-clock"></i></div>
                     <h3>Payment Submitted -- Awaiting Confirmation</h3>
@@ -197,6 +200,16 @@ $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
                     <a href="dashboard.php">Go to My Bookings</a>
                 </div>
             <?php else: ?>
+                <?php if ($existing_payment && $existing_payment['status'] === 'rejected'): ?>
+                <div class="error-message" style="display:flex; align-items:flex-start; gap:10px;">
+                    <i class="fas fa-circle-exclamation" style="margin-top:2px;"></i>
+                    <div>
+                        <strong>Your previous payment couldn't be verified.</strong><br>
+                        <?php echo htmlspecialchars($existing_payment['rejection_reason'] ?: 'Please check your payment details and submit again.'); ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
                 <h2>Complete Your Payment</h2>
                 <p class="sub">Please send SAR <?php echo number_format($booking['total_amount']); ?> to the account below, then upload your payment proof.</p>
 

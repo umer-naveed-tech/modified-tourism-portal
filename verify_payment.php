@@ -28,7 +28,19 @@ if (!csrf_valid()) {
     exit();
 }
 
+// NEW: accepts EITHER booking_id (used by the booking-details modal on
+// agent_dashboard.php) OR payment_id (used by the dedicated Payments
+// page, agent_payments.php, where the payment row is what's on screen)
+// -- whichever is provided resolves to the same booking either way.
 $booking_id = (int)($_POST['booking_id'] ?? 0);
+$payment_id_input = (int)($_POST['payment_id'] ?? 0);
+
+if ($payment_id_input && !$booking_id) {
+    $stmt = $pdo->prepare("SELECT booking_id FROM payments WHERE id = ?");
+    $stmt->execute([$payment_id_input]);
+    $booking_id = (int)$stmt->fetchColumn();
+}
+
 if (!$booking_id) {
     echo json_encode(['success' => false, 'error' => 'Missing booking id']);
     exit();
@@ -43,8 +55,17 @@ if (!$booking) {
     exit();
 }
 
-$stmt = $pdo->prepare("SELECT * FROM payments WHERE booking_id = ? ORDER BY id DESC LIMIT 1");
-$stmt->execute([$booking_id]);
+// If a specific payment_id was given (from agent_payments.php), verify
+// exactly that one -- otherwise (called from the booking-details modal
+// with only a booking_id) fall back to the most recent payment for
+// that booking, same as before.
+if ($payment_id_input) {
+    $stmt = $pdo->prepare("SELECT * FROM payments WHERE id = ? AND booking_id = ?");
+    $stmt->execute([$payment_id_input, $booking_id]);
+} else {
+    $stmt = $pdo->prepare("SELECT * FROM payments WHERE booking_id = ? ORDER BY id DESC LIMIT 1");
+    $stmt->execute([$booking_id]);
+}
 $payment = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$payment) {
