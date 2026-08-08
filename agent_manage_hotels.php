@@ -11,6 +11,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'agent') {
     exit();
 }
 require_once 'config.php';
+require_once 'hotel_handlers/handler_factory.php';
 
 $city_filter = $_GET['city'] ?? 'all';
 $where = '';
@@ -22,7 +23,10 @@ if (in_array($city_filter, ['Mecca', 'Madinah'])) {
 
 $stmt = $pdo->prepare("
     SELECT h.*,
-        (SELECT COUNT(*) FROM hotel_room_types WHERE hotel_id = h.id) AS room_type_count,
+        (
+            (SELECT COUNT(*) FROM hotel_room_types WHERE hotel_id = h.id) +
+            (SELECT COUNT(*) FROM hotel_rooms WHERE hotel_id = h.id)
+        ) AS room_type_count,
         (SELECT COUNT(*) FROM bookings WHERE service_type = 'hotel' AND service_id = h.id) AS booking_count
     FROM hotels_saudi h
     $where
@@ -107,6 +111,9 @@ $hotels = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <span class="badge has-data"><?php echo $h['room_type_count']; ?> room types</span>
                     <?php else: ?>
                         <span class="badge empty">No rooms yet</span>
+                    <?php endif; ?>
+                    <?php if (HotelHandlerFactory::hasCustomHandler((int)$h['id'])): ?>
+                        <br><span style="font-size:10.5px; color:rgba(255,255,255,0.35);" title="This hotel has its own custom pricing code. Editing it here won't change what customers see.">Custom-coded hotel</span>
                     <?php endif; ?>
                 </td>
                 <td><?php echo $h['booking_count']; ?></td>

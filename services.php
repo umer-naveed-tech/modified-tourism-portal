@@ -40,7 +40,19 @@ if($type == 'hotels') {
     $services = [];
 }
 
-$stmt = $pdo->query("SELECT DISTINCT from_city FROM car_fares WHERE from_city NOT LIKE '%ZIARAT%' ORDER BY from_city");
+// FIX: pulls cities from BOTH from_city and to_city columns, so every
+// city that appears anywhere in a route shows up in both the pickup
+// and drop-off dropdowns -- previously a city that only ever appeared
+// as a destination (never as a starting point) was invisible here.
+$stmt = $pdo->query("
+    SELECT DISTINCT city FROM (
+        SELECT from_city AS city FROM car_fares
+        UNION
+        SELECT to_city AS city FROM car_fares
+    ) all_cities
+    WHERE city NOT LIKE '%ZIARAT%'
+    ORDER BY city
+");
 $cities = $stmt->fetchAll(PDO::FETCH_COLUMN);
 if(empty($cities)) {
     $cities = ['JEDDAH', 'MAKKAH', 'MADINA', 'JEDDAH ARPT', 'MADINA ARPT', 'MADINAH HTL'];
@@ -557,7 +569,11 @@ if(empty($cities)) {
                 
                 let faresHtml = '<table class="fare-table"><thead><tr><th>Route</th><th>Fare (SAR)</th></tr></thead><tbody>';
                 car.fares.forEach(fare => {
-                    faresHtml += '<tr><td style="padding: 10px;">'+fare.from_city+' → '+fare.to_city+'</td><td style="font-weight: bold; color: #d4af37;">SAR '+fare.price_sar+'</td></tr>';
+                    // Consistent Title Case display regardless of how the
+                    // agent originally typed the city name.
+                    const fromDisp = fare.from_city.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+                    const toDisp = fare.to_city.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+                    faresHtml += '<tr><td style="padding: 10px;">'+fromDisp+' → '+toDisp+'</td><td style="font-weight: bold; color: #d4af37;">SAR '+fare.price_sar+'</td></tr>';
                 });
                 faresHtml += '</tbody></table>';
                 
@@ -590,27 +606,76 @@ if(empty($cities)) {
                     const toCity = document.getElementById('toCity');
                     const fareDisplay = document.getElementById('fareDisplay');
                     const bookBtn = document.getElementById('bookNowBtn');
-                    
+
+                    // FIX: dropdowns now only show cities that actually
+                    // have a route on THIS car (previously they listed
+                    // every city ever entered for every car, so picking
+                    // a real-looking combination could still say "no
+                    // route" if this specific car didn't serve it).
+                    // Case is also normalized for display/matching here,
+                    // so "JEDDAH" and "jeddah" are treated as the same
+                    // city instead of showing as two separate options.
+                    function titleCase(s) {
+                        return s.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+                    }
+                    function canon(s) { return s.trim().toUpperCase(); }
+
+                    // Build a canon-key -> display-label map from every
+                    // city that appears (either side) in this car's fares.
+                    const cityMap = {};
+                    car.fares.forEach(f => {
+                        cityMap[canon(f.from_city)] = titleCase(f.from_city);
+                        cityMap[canon(f.to_city)] = titleCase(f.to_city);
+                    });
+                    const allCarCities = Object.keys(cityMap).sort();
+
+                    function fillSelect(select, options, placeholder) {
+                        const current = select.value;
+                        select.innerHTML = `<option value="" style="color:rgba(255,255,255,0.3);">${placeholder}</option>` +
+                            options.map(k => `<option value="${k}">${cityMap[k]}</option>`).join('');
+                        if (options.includes(current)) select.value = current;
+                    }
+
+                    fillSelect(fromCity, allCarCities, 'Select Pickup City');
+                    fillSelect(toCity, allCarCities, 'Select Drop City');
+
+                    // Cascading: once a pickup city is picked, only show
+                    // drop-off cities this car actually has a route to
+                    // (checked both directions, same as the fare lookup).
+                    fromCity.addEventListener('change', function() {
+                        const fromKey = fromCity.value;
+                        if (!fromKey) {
+                            fillSelect(toCity, allCarCities, 'Select Drop City');
+                        } else {
+                            const reachable = new Set();
+                            car.fares.forEach(f => {
+                                const ff = canon(f.from_city), ft = canon(f.to_city);
+                                if (ff === fromKey) reachable.add(ft);
+                                if (ft === fromKey) reachable.add(ff);
+                            });
+                            fillSelect(toCity, Array.from(reachable).sort(), 'Select Drop City');
+                        }
+                        updateFare();
+                    });
+
                     function updateFare() {
                         const from = fromCity.value, to = toCity.value;
                         if(from && to && from !== to && car.fares) {
-                            // FIX: taxi routes are the same price either
-                            // direction (Jeddah->Makkah costs the same as
-                            // Makkah->Jeddah) but only one direction was
-                            // ever entered, so a customer picking the
-                            // reverse order used to see "no route found"
-                            // even though the fare genuinely exists.
-                            const fare = car.fares.find(f =>
-                                (f.from_city === from && f.to_city === to) ||
-                                (f.from_city === to && f.to_city === from)
-                            );
+                            // Case-insensitive AND bidirectional -- "makkah"
+                            // matches "MAKKAH", and a route entered as
+                            // "Jeddah -> Makkah" also matches a customer
+                            // selecting "Makkah -> Jeddah".
+                            const fare = car.fares.find(f => {
+                                const ffU = canon(f.from_city), ftU = canon(f.to_city);
+                                return (ffU === from && ftU === to) || (ffU === to && ftU === from);
+                            });
                             if(fare) { 
                                 fareDisplay.innerHTML = 'Total Fare: SAR '+fare.price_sar; 
                                 bookBtn.disabled = false; 
                                 bookBtn.setAttribute('data-from', from); 
                                 bookBtn.setAttribute('data-to', to); 
                             } else { 
-                                fareDisplay.innerHTML = 'No route from '+from+' to '+to; 
+                                fareDisplay.innerHTML = 'No route from '+cityMap[from]+' to '+cityMap[to]; 
                                 bookBtn.disabled = true; 
                             }
                         } else if(from === to && from) { 
@@ -621,11 +686,10 @@ if(empty($cities)) {
                             bookBtn.disabled = true; 
                         }
                     }
-                    fromCity.addEventListener('change', updateFare);
                     toCity.addEventListener('change', updateFare);
                     bookBtn.addEventListener('click', function() {
                         const from = fromCity.value, to = toCity.value;
-                        if(from && to) goTo('booking_taxi.php?car_id='+car.id+'&car_name='+encodeURIComponent(car.name)+'&from='+from+'&to='+to);
+                        if(from && to) goTo('booking_taxi.php?car_id='+car.id+'&car_name='+encodeURIComponent(car.name)+'&from='+encodeURIComponent(cityMap[from])+'&to='+encodeURIComponent(cityMap[to]));
                     });
                 }, 100);
             }

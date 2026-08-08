@@ -62,8 +62,12 @@ try {
 
     $stmt = $pdo->prepare("INSERT INTO car_fares (car_id, from_city, to_city, price_sar) VALUES (?, ?, ?, ?)");
     foreach ($routes as $r) {
-        $from = trim($r['from_city'] ?? '');
-        $to = trim($r['to_city'] ?? '');
+        // FIX: always store city names in UPPERCASE, so "makkah" and
+        // "MAKKAH" (or any other casing an agent types) always end up
+        // as the exact same value -- this is what was causing routes
+        // to silently fail to match on the customer-facing pages.
+        $from = strtoupper(trim($r['from_city'] ?? ''));
+        $to = strtoupper(trim($r['to_city'] ?? ''));
         $price = (float)($r['price_sar'] ?? 0);
         if ($from === '' || $to === '' || $price <= 0) continue;
         $stmt->execute([$car_id, $from, $to, $price]);
