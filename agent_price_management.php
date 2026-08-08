@@ -378,7 +378,7 @@ if($car_id) {
         <div class="nav-links">
             <a href="agent_dashboard.php">Dashboard</a>
             <a href="agent_price_management.php" style="color:#d4af37;">Price Management</a>
-            <a href="logout.php" class="btn-logout">Logout</a>
+            <a href="logout.php" class="btn-logout" onclick="return confirm('Are you sure you want to log out?');">Logout</a>
         </div>
     </div>
 </nav>

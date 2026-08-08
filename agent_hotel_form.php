@@ -651,6 +651,8 @@ function addRoomType() {
 }
 
 function removeRoomType(i) {
+    const name = roomTypes[i].display_name || 'this room type';
+    if (!confirm('Remove "' + name + '"? Its pricing will also be removed when you save.')) return;
     roomTypes.splice(i, 1);
     renderRoomTypes();
     renderPricingPeriods();
@@ -772,6 +774,7 @@ function addPricingPeriod() {
 }
 
 function removePeriod(i) {
+    if (!confirm('Remove this pricing period? This cannot be undone once you save.')) return;
     pricingPeriods.splice(i, 1);
     renderPricingPeriods();
 }

@@ -450,7 +450,7 @@ if(empty($cities)) {
                 <a href="services.php">Services</a>
                 <a href="dashboard.php">Dashboard</a>
                 <?php if(isset($_SESSION['user_id'])): ?>
-                    <a href="logout.php" class="btn-logout">Logout</a>
+                    <a href="logout.php" class="btn-logout" onclick="return confirm('Are you sure you want to log out?');">Logout</a>
                 <?php else: ?>
                     <a href="login.php" class="btn-login">Login</a>
                 <?php endif; ?>

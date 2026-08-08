@@ -460,7 +460,7 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
             <a href="agent_payments.php" class="side-link"><i class="fas fa-credit-card" aria-hidden="true"></i>Payments</a>
             <div class="side-div"></div>
             <a href="services.php" class="side-link"><i class="fas fa-globe" aria-hidden="true"></i>View Site</a>
-            <a href="logout.php" class="side-link side-logout"><i class="fas fa-right-from-bracket" aria-hidden="true"></i>Logout</a>
+            <a href="logout.php" class="side-link side-logout" onclick="return confirm('Are you sure you want to log out?');"><i class="fas fa-right-from-bracket" aria-hidden="true"></i>Logout</a>
         </div>
 
         <div class="agent-main">
@@ -559,18 +559,16 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                 <thead>
                     <tr>
                         <th style="width:36px;"><input type="checkbox" id="selectAll" class="bulk-checkbox"></th>
-                        <th><a href="<?php echo qs(['sort' => 'id', 'dir' => ($sort_col === 'id' && $sort_dir === 'DESC') ? 'asc' : 'desc']); ?>">ID<?php echo sortIndicator('id', $sort_col, $sort_dir); ?></a></th>
                         <th>Booking No</th><th>Customer</th><th>Email</th><th>Phone</th>
                         <th>Service</th>
                         <th><a href="<?php echo qs(['sort' => 'total_amount', 'dir' => ($sort_col === 'total_amount' && $sort_dir === 'DESC') ? 'asc' : 'desc']); ?>">Amount<?php echo sortIndicator('total_amount', $sort_col, $sort_dir); ?></a></th>
-                        <th><a href="<?php echo qs(['sort' => 'booking_date', 'dir' => ($sort_col === 'booking_date' && $sort_dir === 'DESC') ? 'asc' : 'desc']); ?>">Travel Date<?php echo sortIndicator('booking_date', $sort_col, $sort_dir); ?></a></th>
                         <th><a href="<?php echo qs(['sort' => 'created_at', 'dir' => ($sort_col === 'created_at' && $sort_dir === 'DESC') ? 'asc' : 'desc']); ?>">Booked On<?php echo sortIndicator('created_at', $sort_col, $sort_dir); ?></a></th>
                         <th>Status</th><th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($bookings)): ?>
-                    <tr class="empty-row"><td colspan="11">No bookings found matching these filters.</td></tr>
+                    <tr class="empty-row"><td colspan="10">No bookings found matching these filters.</td></tr>
                     <?php else: foreach($bookings as $b):
                         // NEW: flag pending bookings older than 24 hours
                         // so they visually stand out instead of getting
@@ -579,7 +577,6 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                     ?>
                     <tr class="table-row <?php echo $is_stale_pending ? 'stale-pending-row' : ''; ?>">
                         <td><input type="checkbox" class="row-check bulk-checkbox" value="<?php echo (int)$b['id']; ?>"></td>
-                        <td><?php echo $b['id']; ?></td>
                         <td>
                             <?php echo htmlspecialchars($b['booking_no']); ?>
                             <?php if ($is_stale_pending): ?>
@@ -591,12 +588,8 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                         <td><?php echo htmlspecialchars($b['user_phone']); ?></td>
                         <td>
                             <?php echo htmlspecialchars(ucfirst($b['service_type'])); ?>
-                            <?php if(!empty($b['service_title'])): ?>
-                                <br><small style="color:rgba(255,255,255,0.3);"><?php echo htmlspecialchars($b['service_title']); ?></small>
-                            <?php endif; ?>
                         </td>
                         <td><strong style="color:#d4af37;">SAR <?php echo number_format($b['total_amount']); ?></strong></td>
-                        <td><?php echo htmlspecialchars($b['travel_date']); ?></td>
                         <td><?php echo date('d M Y h:i A', strtotime($b['created_at'])); ?></td>
                         <td>
                             <select class="status-select" data-id="<?php echo (int)$b['id']; ?>">
@@ -658,9 +651,20 @@ let revealObserver;
    was just swapped in via AJAX. ---------- */
 function bindStatusSelects(root) {
     root.querySelectorAll('.status-select').forEach(select => {
+        // 🔴 FIX: capture the value BEFORE it changes, so if the agent
+        // declines the confirmation below, the dropdown visually snaps
+        // back to what it actually still is in the database -- before
+        // this, a declined confirm left the dropdown showing the new
+        // status even though nothing was saved, which is misleading.
+        select.addEventListener('focus', function() {
+            this.dataset.prevValue = this.value;
+        });
+
         select.addEventListener('change', function() {
             const bookingId = this.dataset.id;
             const newStatus = this.value;
+            const prevValue = this.dataset.prevValue || this.value;
+            const selectEl = this;
 
             if(confirm('Change booking status to ' + newStatus.toUpperCase() + '? Customer will be notified.')) {
                 fetch('update_booking_status.php', {
@@ -674,8 +678,11 @@ function bindStatusSelects(root) {
                         refreshAjaxContent();
                     } else {
                         alert('Error updating status');
+                        selectEl.value = prevValue;
                     }
                 });
+            } else {
+                selectEl.value = prevValue;
             }
         });
     });

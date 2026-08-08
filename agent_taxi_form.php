@@ -125,7 +125,11 @@ function renderRoutes() {
 function escAttr(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML.replace(/"/g, '&quot;'); }
 function updateRoute(i, field, value) { routes[i][field] = field === 'price_sar' ? (parseFloat(value) || 0) : value; }
 function addRoute() { routes.push({ from_city: '', to_city: '', price_sar: '' }); renderRoutes(); }
-function removeRoute(i) { routes.splice(i, 1); renderRoutes(); }
+function removeRoute(i) {
+    if (!confirm('Remove this route? This cannot be undone once you save.')) return;
+    routes.splice(i, 1);
+    renderRoutes();
+}
 
 document.getElementById('taxiForm').addEventListener('submit', function(e) {
     const errors = [];
