@@ -23,6 +23,8 @@ $booking_no = '';
 $wa_link = '';
 
 if($_SERVER['REQUEST_METHOD'] == 'POST') {
+    csrf_verify();
+
     $check_in = $_POST['check_in'];
     $check_out = $_POST['check_out'];
     $guests = $_POST['guests'] ?? 1;
@@ -30,8 +32,18 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Calculate nights
     $date1 = new DateTime($check_in);
     $date2 = new DateTime($check_out);
-    $nights = $date1->diff($date2)->days;
-    
+    // 🔴 FIX: DateTime::diff()->days is ALWAYS positive even when
+    // check-out is before check-in, so a reversed date pair used to
+    // slip through and produce a nonsensical night count (same class
+    // of bug already fixed in price_calculator.php).
+    if ($date2 <= $date1) {
+        $error = "Check-out date must be after check-in date.";
+        $nights = 0;
+    } else {
+        $nights = $date1->diff($date2)->days;
+    }
+
+    if (empty($error)) {
     $total_amount = $hotel['price_per_night_sar'] * $nights;
     $booking_no = 'HOTEL-' . date('Ymd') . '-' . rand(1000, 9999);
     
@@ -56,6 +68,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     } else {
         $error = "Booking failed. Please try again.";
     }
+    } // closes if (empty($error))
 }
 ?>
 
@@ -211,6 +224,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 </div>
 
                 <form method="POST">
+                    <?php echo csrf_field(); ?>
                     <div class="field-col">
                         <label><i class="fas fa-calendar-check"></i> Check-in Date *</label>
                         <input type="date" name="check_in" required min="<?php echo date('Y-m-d'); ?>">

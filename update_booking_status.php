@@ -15,8 +15,17 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         echo json_encode(['success' => false, 'error' => 'Security check failed. Please refresh the page and try again.']);
         exit();
     }
-    $id = $_POST['id'];
+    $id = (int)$_POST['id'];
     $new_status = $_POST['status'];
+
+    // 🔴 FIX: $new_status was written straight to the database with no
+    // validation -- any value could be sent here, not just a real
+    // status. Whitelisting to the actual statuses this site uses.
+    $allowed_statuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+    if (!in_array($new_status, $allowed_statuses, true)) {
+        echo json_encode(['success' => false, 'error' => 'Invalid status value.']);
+        exit();
+    }
     
     $stmt = $pdo->prepare("SELECT b.*, u.name as user_name, u.email as user_email FROM bookings b JOIN users u ON b.user_id = u.id WHERE b.id = ?");
     $stmt->execute([$id]);

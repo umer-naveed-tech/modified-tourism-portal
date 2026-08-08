@@ -556,7 +556,19 @@ if(empty($cities)) {
             ?>;
             
             const cities = <?php echo json_encode($cities); ?>;
-            
+
+            // 🔴 FIX: every value below that comes from car/route data
+            // (car name, model, image URL, city names) used to go
+            // straight into innerHTML unescaped -- if any of that text
+            // ever contained something like "<script>", it would
+            // execute in the customer's browser. escHtml() neutralizes
+            // that by rendering it as plain text no matter what's in it.
+            function escHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = (str === null || str === undefined) ? '' : String(str);
+                return div.innerHTML;
+            }
+
             function showCarDetails(carId) {
                 const car = carsData[carId];
                 if(!car) return;
@@ -571,27 +583,27 @@ if(empty($cities)) {
                 car.fares.forEach(fare => {
                     // Consistent Title Case display regardless of how the
                     // agent originally typed the city name.
-                    const fromDisp = fare.from_city.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-                    const toDisp = fare.to_city.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-                    faresHtml += '<tr><td style="padding: 10px;">'+fromDisp+' → '+toDisp+'</td><td style="font-weight: bold; color: #d4af37;">SAR '+fare.price_sar+'</td></tr>';
+                    const fromDisp = escHtml(fare.from_city.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase()));
+                    const toDisp = escHtml(fare.to_city.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase()));
+                    faresHtml += '<tr><td style="padding: 10px;">'+fromDisp+' → '+toDisp+'</td><td style="font-weight: bold; color: #d4af37;">SAR '+Number(fare.price_sar)+'</td></tr>';
                 });
                 faresHtml += '</tbody></table>';
                 
                 let html = `
                     <div class="car-details-card">
                         <div class="car-header">
-                            <h2 style="color:white;">${car.name} ${car.model}</h2>
+                            <h2 style="color:white;">${escHtml(car.name)} ${escHtml(car.model)}</h2>
                             <span class="car-category ${categoryClass}">${categoryName} Class</span>
                         </div>
                         <div class="car-image-wrap">
-                            <img class="car-image" src="${car.image_url}" onerror="this.src='https://placehold.co/600x300/1a1a2e/333?text=${car.name}'">
+                            <img class="car-image" src="${escHtml(car.image_url)}" onerror="this.src='https://placehold.co/600x300/1a1a2e/333?text=${encodeURIComponent(car.name)}'">
                         </div>
                         <div style="padding: 25px;">
-                            <p style="margin-bottom: 15px; color:rgba(255,255,255,0.5);"><strong style="color:rgba(255,255,255,0.7);">Capacity:</strong> ${car.capacity} persons &nbsp;|&nbsp; <strong style="color:rgba(255,255,255,0.7);">Air Conditioning:</strong> Yes</p>
+                            <p style="margin-bottom: 15px; color:rgba(255,255,255,0.5);"><strong style="color:rgba(255,255,255,0.7);">Capacity:</strong> ${Number(car.capacity)} persons &nbsp;|&nbsp; <strong style="color:rgba(255,255,255,0.7);">Air Conditioning:</strong> Yes</p>
                             ${faresHtml}
                             <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 16px; margin-top: 20px; border: 1px solid rgba(255,255,255,0.04);">
-                                <select id="fromCity" class="city-select"><option value="" style="color:rgba(255,255,255,0.3);">Select Pickup City</option>${cities.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
-                                <select id="toCity" class="city-select"><option value="" style="color:rgba(255,255,255,0.3);">Select Drop City</option>${cities.map(c => `<option value="${c}">${c}</option>`).join('')}</select>
+                                <select id="fromCity" class="city-select"><option value="" style="color:rgba(255,255,255,0.3);">Select Pickup City</option>${cities.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}</select>
+                                <select id="toCity" class="city-select"><option value="" style="color:rgba(255,255,255,0.3);">Select Drop City</option>${cities.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}</select>
                                 <div id="fareDisplay" class="fare-display">Select cities to see fare</div>
                                 <button id="bookNowBtn" class="service-card-btn" disabled>Book Now</button>
                             </div>
@@ -631,8 +643,8 @@ if(empty($cities)) {
 
                     function fillSelect(select, options, placeholder) {
                         const current = select.value;
-                        select.innerHTML = `<option value="" style="color:rgba(255,255,255,0.3);">${placeholder}</option>` +
-                            options.map(k => `<option value="${k}">${cityMap[k]}</option>`).join('');
+                        select.innerHTML = `<option value="" style="color:rgba(255,255,255,0.3);">${escHtml(placeholder)}</option>` +
+                            options.map(k => `<option value="${escHtml(k)}">${escHtml(cityMap[k])}</option>`).join('');
                         if (options.includes(current)) select.value = current;
                     }
 
@@ -675,7 +687,7 @@ if(empty($cities)) {
                                 bookBtn.setAttribute('data-from', from); 
                                 bookBtn.setAttribute('data-to', to); 
                             } else { 
-                                fareDisplay.innerHTML = 'No route from '+cityMap[from]+' to '+cityMap[to]; 
+                                fareDisplay.innerHTML = 'No route from '+escHtml(cityMap[from])+' to '+escHtml(cityMap[to]); 
                                 bookBtn.disabled = true; 
                             }
                         } else if(from === to && from) { 
