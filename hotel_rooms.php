@@ -719,8 +719,21 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
             <div class="stars"><?php echo str_repeat('★', (int)$hotel['rating']); ?></div>
             <h2><?php echo htmlspecialchars($hotel['hotel_name']); ?></h2>
             <div class="city"><?php echo htmlspecialchars($hotel['city']); ?></div>
+            <?php
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM hotel_gallery_images WHERE hotel_id = ?");
+                $stmt->execute([$hotel_id]);
+                if ($stmt->fetchColumn() > 0):
+            ?>
+            <a href="hotel_gallery.php?hotel_id=<?php echo $hotel_id; ?>" style="display:inline-block; margin-top:10px; color:#d4af37; font-size:13px; text-decoration:none; border-bottom:1px solid rgba(212,175,55,0.3);">View Photo Gallery →</a>
+            <?php endif; ?>
         </div>
     </div>
+
+    <?php if (!empty($hotel['rooms_image_url'])): ?>
+    <div class="container" style="padding-top:20px;">
+        <img src="<?php echo htmlspecialchars($hotel['rooms_image_url']); ?>" alt="Rooms" style="width:100%; max-height:320px; object-fit:cover; border-radius:16px; border:1px solid rgba(255,255,255,0.05);">
+    </div>
+    <?php endif; ?>
 
     <div class="container">
         <?php if(isset($_GET['error'])): ?>

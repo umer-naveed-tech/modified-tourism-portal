@@ -97,7 +97,7 @@ $hotels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     <table>
         <thead>
-            <tr><th></th><th>Hotel</th><th>City</th><th>Rating</th><th>Room Types</th><th>Bookings</th><th>Action</th></tr>
+            <tr><th></th><th>Hotel</th><th>City</th><th>Rating</th><th>Bookings</th><th>Action</th></tr>
         </thead>
         <tbody>
             <?php foreach ($hotels as $h): ?>
@@ -106,13 +106,6 @@ $hotels = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <td><?php echo htmlspecialchars($h['hotel_name']); ?></td>
                 <td><?php echo htmlspecialchars($h['city']); ?></td>
                 <td><?php echo str_repeat('★', (int)($h['rating'] ?? 0)); ?></td>
-                <td>
-                    <?php if ($h['room_type_count'] > 0): ?>
-                        <span class="badge has-data"><?php echo $h['room_type_count']; ?> room types</span>
-                    <?php else: ?>
-                        <span class="badge empty">No rooms yet</span>
-                    <?php endif; ?>
-                </td>
                 <td><?php echo $h['booking_count']; ?></td>
                 <td class="actions">
                     <a href="agent_hotel_form.php?id=<?php echo (int)$h['id']; ?>" class="btn-edit">Edit</a>

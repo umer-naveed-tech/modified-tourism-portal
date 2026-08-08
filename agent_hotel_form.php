@@ -115,7 +115,7 @@ if ($hotel_id) {
             if (!empty($prices)) {
                 $pricing_periods = [[
                     'start_date' => date('Y-m-d'),
-                    'end_date' => date('Y-m-d', strtotime('+2 years')),
+                    'end_date' => date('Y-m-d', strtotime('+1 year')),
                     'has_weekend_split' => false,
                     'extra_bed' => 0,
                     'prices' => $prices,
@@ -126,6 +126,27 @@ if ($hotel_id) {
 }
 
 $is_edit = $hotel_id > 0;
+
+// ---- Gallery (images + layout/theme settings, if any exist yet) ----
+$gallery_settings = ['layout' => 'grid2', 'bg_color' => '#0a0f1e', 'font_family' => 'Inter'];
+$gallery_images = [];
+if ($hotel_id) {
+    $stmt = $pdo->prepare("SELECT layout, bg_color, font_family FROM hotel_galleries WHERE hotel_id = ?");
+    $stmt->execute([$hotel_id]);
+    $g = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($g) $gallery_settings = $g;
+
+    $stmt = $pdo->prepare("SELECT id, image_path, caption FROM hotel_gallery_images WHERE hotel_id = ? ORDER BY sort_order, id");
+    $stmt->execute([$hotel_id]);
+    $gallery_images = $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+$gallery_layouts = [
+    'grid2' => '2-Column Grid', 'grid3' => '3-Column Grid', 'grid4' => '4-Column Grid',
+    'masonry' => 'Masonry', 'carousel' => 'Scrolling Carousel', 'hero' => 'Hero + Thumbnails',
+    'mosaic' => 'Mosaic', 'stack' => 'Full-Width Stack', 'polaroid' => 'Polaroid Style', 'split' => 'Split Rows',
+];
+$font_choices = ['Inter', 'Playfair Display', 'Georgia', 'Poppins', 'Montserrat', 'Merriweather', 'Roboto'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -149,7 +170,61 @@ $is_edit = $hotel_id > 0;
         .field input, .field select { width: 100%; padding: 11px 13px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: white; font-family: inherit; font-size: 13.5px; }
         .field input:focus, .field select:focus { outline: none; border-color: #d4af37; }
 
-        .room-row, .period-block { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; margin-bottom: 12px; position: relative; }
+        .room-row, .period-block { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 10px; position: relative; overflow: hidden; }
+        .period-block { padding: 16px; }
+        .room-row-header { display: flex; justify-content: space-between; align-items: center; padding: 13px 16px; cursor: pointer; transition: background 0.15s ease; }
+        .room-row-header:hover { background: rgba(255,255,255,0.02); }
+        .room-row-title { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: white; font-weight: 500; }
+        .room-row-summary { font-size: 11.5px; color: rgba(255,255,255,0.35); font-weight: 400; }
+        .room-row-body { padding: 4px 16px 16px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .room-row.expanded { border-color: rgba(212,175,55,0.15); }
+        .room-row .btn-remove { position: static; }
+
+        /* NEW: Hotel Gallery -- layout picker + existing image thumbnails */
+        .layout-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 6px; }
+        .layout-option { border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px; cursor: pointer; text-align: center; transition: all 0.2s ease; }
+        .layout-option:hover { border-color: rgba(212,175,55,0.25); }
+        .layout-option.selected { border-color: #d4af37; background: rgba(212,175,55,0.06); }
+        .layout-option input { display: none; }
+        .layout-preview { height: 40px; display: grid; gap: 3px; margin-bottom: 6px; }
+        .layout-preview span { background: rgba(212,175,55,0.4); border-radius: 2px; }
+        .layout-preview-grid2 { grid-template-columns: 1fr 1fr; }
+        .layout-preview-grid3 { grid-template-columns: 1fr 1fr 1fr; }
+        .layout-preview-grid4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+        .layout-preview-masonry { grid-template-columns: 1fr 1fr; }
+        .layout-preview-masonry span:first-child { grid-row: span 2; }
+        .layout-preview-carousel { grid-template-columns: 1fr 1fr 1fr; grid-auto-flow: column; }
+        .layout-preview-hero { grid-template-rows: 2fr 1fr; }
+        .layout-preview-hero span:first-child { grid-column: span 3; }
+        .layout-preview-mosaic { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+        .layout-preview-mosaic span:first-child { grid-row: span 2; }
+        .layout-preview-stack { grid-template-rows: 1fr 1fr 1fr; }
+        .layout-preview-polaroid { grid-template-columns: 1fr 1fr 1fr; }
+        .layout-preview-polaroid span { transform: rotate(-3deg); }
+        .layout-preview-split { grid-template-columns: 1fr 1fr; }
+        .layout-name { font-size: 10.5px; color: rgba(255,255,255,0.5); }
+        .gallery-existing { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+        .gallery-existing-item { display: block; text-align: center; }
+        .gallery-existing-item img { width: 80px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); }
+        .gallery-existing-item span { display: block; font-size: 10.5px; color: #f87171; margin-top: 4px; cursor: pointer; }
+        @media (max-width: 700px) { .layout-grid { grid-template-columns: repeat(3, 1fr); } }
+
+        /* NEW: gallery file-picker feedback + layout checkmark + color swatch */
+        .gallery-card { border-color: rgba(212,175,55,0.1); }
+        .file-drop { display: block; border: 1px dashed rgba(255,255,255,0.15); border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s ease; }
+        .file-drop:hover { border-color: rgba(212,175,55,0.4); background: rgba(212,175,55,0.03); }
+        .file-drop input { display: none; }
+        .file-drop-text { font-size: 13px; color: rgba(255,255,255,0.5); }
+        .file-drop-text i { margin-right: 6px; color: #d4af37; }
+        .layout-option { position: relative; }
+        .layout-check { position: absolute; top: 6px; right: 6px; color: #d4af37; font-size: 15px; opacity: 0; transition: opacity 0.15s ease; }
+        .layout-option.selected .layout-check { opacity: 1; }
+        .color-field { display: flex; align-items: center; gap: 10px; }
+        .color-field input[type="color"] { width: 44px; height: 44px; padding: 3px; border-radius: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.08); background: transparent; }
+        .color-field span { font-size: 12.5px; color: rgba(255,255,255,0.5); font-family: monospace; }
+        .gallery-flash { padding: 12px 16px; border-radius: 10px; font-size: 13px; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+        .gallery-flash-success { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: #34d399; }
+        .gallery-flash-error { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #f87171; }
         .btn-remove { position: absolute; top: 12px; right: 12px; background: rgba(239,68,68,0.1); color: #f87171; border: none; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; font-size: 13px; }
         .btn-remove:hover { background: #dc2626; color: white; }
         .btn-add-row { background: rgba(212,175,55,0.1); color: #d4af37; border: 1px dashed rgba(212,175,55,0.3); padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; width: 100%; margin-top: 6px; }
@@ -173,12 +248,6 @@ $is_edit = $hotel_id > 0;
 <div class="container">
     <a href="agent_manage_hotels.php" class="btn-back">← Back to Manage Hotels</a>
     <h1><?php echo $is_edit ? 'Edit Hotel' : 'Add New Hotel'; ?></h1>
-
-    <?php if ($using_legacy_data): ?>
-    <div style="background:rgba(212,175,55,0.06); border:1px solid rgba(212,175,55,0.15); color:#d4af37; padding:14px 18px; border-radius:10px; margin-bottom:20px; font-size:13px; line-height:1.6;">
-        This hotel's rooms were set up in an older format (no seasonal pricing). Your existing prices are shown below, filled in as one period covering the next 2 years. Nothing has changed for customers yet -- review the prices below and click Save to switch this hotel over to the newer format.
-    </div>
-    <?php endif; ?>
 
     <div id="errorBox" class="error-box" style="display:none;"></div>
 
@@ -226,10 +295,24 @@ $is_edit = $hotel_id > 0;
             </div>
             <div class="field">
                 <label>Hotel Photo</label>
-                <input type="file" name="hotel_image" accept="image/jpeg,image/png,image/webp">
+                <label class="file-drop" for="hotelImageInput">
+                    <input type="file" name="hotel_image" id="hotelImageInput" accept="image/jpeg,image/png,image/webp">
+                    <div class="file-drop-text" id="hotelImageText"><i class="fas fa-cloud-arrow-up"></i> Click to choose a photo</div>
+                </label>
                 <div class="hint">JPG, PNG, or WEBP -- max 5 MB. Leave empty to keep the current photo.</div>
                 <?php if (!empty($hotel['image_url'])): ?>
                     <img class="img-preview" src="<?php echo htmlspecialchars($hotel['image_url']); ?>" alt="Current photo">
+                <?php endif; ?>
+            </div>
+            <div class="field">
+                <label>Room Photo <span style="color:rgba(255,255,255,0.35); font-weight:400;">(shown above the room list -- one photo for all room types)</span></label>
+                <label class="file-drop" for="roomsImageInput">
+                    <input type="file" name="rooms_image" id="roomsImageInput" accept="image/jpeg,image/png,image/webp">
+                    <div class="file-drop-text" id="roomsImageText"><i class="fas fa-cloud-arrow-up"></i> Click to choose a photo</div>
+                </label>
+                <div class="hint">JPG, PNG, or WEBP -- max 5 MB. Leave empty to keep the current photo.</div>
+                <?php if (!empty($hotel['rooms_image_url'])): ?>
+                    <img class="img-preview" src="<?php echo htmlspecialchars($hotel['rooms_image_url']); ?>" alt="Current room photo">
                 <?php endif; ?>
             </div>
         </div>
@@ -242,16 +325,126 @@ $is_edit = $hotel_id > 0;
 
         <div class="card">
             <h3>Seasonal Pricing</h3>
-            <div class="hint" style="margin-bottom:14px;">Enter the FINAL price the customer should see (your normal markup is applied automatically, same as everywhere else on the site).</div>
             <div id="pricingContainer"></div>
             <button type="button" class="btn-add-row" onclick="addPricingPeriod()"><i class="fas fa-plus"></i> Add Pricing Period</button>
         </div>
 
         <button type="submit" class="btn-save"><?php echo $is_edit ? 'Save Changes' : 'Create Hotel'; ?></button>
     </form>
+
+    <?php if ($is_edit): ?>
+    <!-- NEW: Hotel Gallery is now its OWN form, completely separate
+         from the hotel-details form above. It has its own Save button
+         and its own backend (save_gallery.php) -- so it always saves
+         correctly on its own, even if something else on the page has
+         a validation issue. Only shown once the hotel actually exists
+         (a brand-new hotel needs to be created first). -->
+    <div class="card gallery-card">
+        <h3>Hotel Gallery <span style="color:rgba(255,255,255,0.35); font-weight:400; text-transform:none; letter-spacing:0;">(optional -- saves independently of the details above)</span></h3>
+
+        <?php if (isset($_GET['gallery_saved'])): ?>
+            <div class="gallery-flash gallery-flash-success"><i class="fas fa-circle-check"></i> Gallery saved.</div>
+        <?php elseif (isset($_GET['gallery_error'])): ?>
+            <div class="gallery-flash gallery-flash-error"><i class="fas fa-circle-exclamation"></i> Something went wrong saving the gallery. Please try again.</div>
+        <?php endif; ?>
+
+        <form method="POST" action="save_gallery.php" enctype="multipart/form-data" id="galleryForm">
+            <?php echo csrf_field(); ?>
+            <input type="hidden" name="hotel_id" value="<?php echo $hotel_id; ?>">
+
+            <?php if (!empty($gallery_images)): ?>
+            <div class="field">
+                <label>Current Photos</label>
+                <div class="gallery-existing">
+                    <?php foreach ($gallery_images as $gi): ?>
+                    <label class="gallery-existing-item">
+                        <img src="<?php echo htmlspecialchars($gi['image_path']); ?>" alt="">
+                        <span><input type="checkbox" name="remove_gallery_images[]" value="<?php echo (int)$gi['id']; ?>"> Remove</span>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <div class="field">
+                <label>Add Photos <span style="color:rgba(255,255,255,0.35); font-weight:400;">(you can select more than one)</span></label>
+                <label class="file-drop" for="galleryFileInput">
+                    <input type="file" name="gallery_images[]" id="galleryFileInput" accept="image/jpeg,image/png,image/webp" multiple>
+                    <div class="file-drop-text" id="galleryFileText"><i class="fas fa-cloud-arrow-up"></i> Click to choose photos, or drag them here</div>
+                </label>
+                <div class="hint">JPG, PNG, or WEBP -- max 5 MB each.</div>
+            </div>
+
+            <div class="field">
+                <label>Gallery Layout</label>
+                <div class="layout-grid">
+                    <?php foreach ($gallery_layouts as $lkey => $lname): ?>
+                    <label class="layout-option <?php echo $gallery_settings['layout'] === $lkey ? 'selected' : ''; ?>">
+                        <input type="radio" name="gallery_layout" value="<?php echo $lkey; ?>" <?php echo $gallery_settings['layout'] === $lkey ? 'checked' : ''; ?> onchange="selectLayout(this)">
+                        <div class="layout-preview layout-preview-<?php echo $lkey; ?>"><span></span><span></span><span></span></div>
+                        <div class="layout-name"><?php echo $lname; ?></div>
+                        <div class="layout-check"><i class="fas fa-circle-check"></i></div>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="field">
+                    <label>Background Color</label>
+                    <div class="color-field">
+                        <input type="color" name="gallery_bg_color" id="galleryBgColor" value="<?php echo htmlspecialchars($gallery_settings['bg_color']); ?>" onchange="document.getElementById('galleryBgSwatch').textContent = this.value;">
+                        <span id="galleryBgSwatch"><?php echo htmlspecialchars($gallery_settings['bg_color']); ?></span>
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Font</label>
+                    <select name="gallery_font">
+                        <?php foreach ($font_choices as $f): ?>
+                        <option value="<?php echo $f; ?>" <?php echo $gallery_settings['font_family'] === $f ? 'selected' : ''; ?>><?php echo $f; ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-save" style="margin-top:6px;">Save Gallery</button>
+            <a href="hotel_gallery.php?hotel_id=<?php echo $hotel_id; ?>" target="_blank" class="hint" style="display:inline-block; margin-top:12px; color:#d4af37; text-decoration:none;">Preview gallery →</a>
+        </form>
+    </div>
+    <?php else: ?>
+    <div class="card gallery-card">
+        <h3>Hotel Gallery</h3>
+        <div class="hint">Create the hotel first (button above) -- you'll be able to add gallery photos once it's saved.</div>
+    </div>
+    <?php endif; ?>
 </div>
 
 <script>
+document.getElementById('hotelImageInput')?.addEventListener('change', function() {
+    const text = document.getElementById('hotelImageText');
+    text.innerHTML = this.files.length ? '<i class="fas fa-check" style="color:#34d399;"></i> ' + this.files[0].name : '<i class="fas fa-cloud-arrow-up"></i> Click to choose a photo';
+});
+document.getElementById('roomsImageInput')?.addEventListener('change', function() {
+    const text = document.getElementById('roomsImageText');
+    text.innerHTML = this.files.length ? '<i class="fas fa-check" style="color:#34d399;"></i> ' + this.files[0].name : '<i class="fas fa-cloud-arrow-up"></i> Click to choose a photo';
+});
+document.getElementById('galleryFileInput')?.addEventListener('change', function() {
+    const text = document.getElementById('galleryFileText');
+    if (this.files.length === 0) {
+        text.innerHTML = '<i class="fas fa-cloud-arrow-up"></i> Click to choose photos, or drag them here';
+    } else if (this.files.length === 1) {
+        text.innerHTML = '<i class="fas fa-check" style="color:#34d399;"></i> 1 photo selected: ' + this.files[0].name;
+    } else {
+        text.innerHTML = '<i class="fas fa-check" style="color:#34d399;"></i> ' + this.files.length + ' photos selected';
+    }
+});
+
+function selectLayout(input) {
+    document.querySelectorAll('.layout-option').forEach(el => el.classList.remove('selected'));
+    input.closest('.layout-option').classList.add('selected');
+}
+</script>
+
 let roomTypes = <?php echo json_encode(array_map(function($r) use ($pdo, $hotel_id) {
     // Pull any bed-type variants already saved for this room category
     // (room_type_code = the room's code, room_type = each bed variant's
@@ -272,7 +465,7 @@ let roomTypes = <?php echo json_encode(array_map(function($r) use ($pdo, $hotel_
 let pricingPeriods = <?php echo json_encode($pricing_periods); ?>;
 
 if (roomTypes.length === 0) {
-    roomTypes.push({ code: '', display_name: '', capacity: 2, description: 'Breakfast included', bed_types: [] });
+    roomTypes.push({ code: '', display_name: '', capacity: 2, description: 'Breakfast included', bed_types: [], _expanded: true });
 }
 
 function slugify(text) {
@@ -284,31 +477,55 @@ function renderRoomTypes() {
     container.innerHTML = '';
     roomTypes.forEach((rt, i) => {
         const div = document.createElement('div');
-        div.className = 'room-row';
+        div.className = 'room-row' + (rt._expanded ? ' expanded' : '');
         const bedTypesText = (rt.bed_types || []).map(b => b.name).join(', ');
+        const summaryBits = [];
+        if (rt.capacity) summaryBits.push(rt.capacity + ' guests');
+        if (rt.bed_types && rt.bed_types.length) summaryBits.push(rt.bed_types.length + ' bed types');
+
+        // NEW: condensed by default -- shows just the room name +
+        // a quick summary in one line, click to expand and edit the
+        // full details. Nothing was removed, every field below still
+        // exists exactly as before -- this only changes how much is
+        // visible at once, so a hotel with many room types doesn't
+        // turn into one long overwhelming page.
         div.innerHTML = `
-            ${roomTypes.length > 1 ? '<button type="button" class="btn-remove" onclick="removeRoomType(' + i + ')">&times;</button>' : ''}
-            <div class="row">
-                <div class="field">
-                    <label>Room Type Name (shown to customer)</label>
-                    <input type="text" value="${escAttr(rt.display_name)}" placeholder="e.g. Double Room" oninput="updateRoomType(${i}, 'display_name', this.value)">
+            <div class="room-row-header" onclick="toggleRoomExpand(${i})">
+                <div class="room-row-title">
+                    <i class="fas fa-chevron-${rt._expanded ? 'down' : 'right'}" style="font-size:11px; color:rgba(255,255,255,0.35); width:12px;"></i>
+                    <span>${escAttr(rt.display_name) || 'New Room Type'}</span>
+                    ${summaryBits.length ? '<span class="room-row-summary">' + summaryBits.join(' · ') + '</span>' : ''}
+                </div>
+                ${roomTypes.length > 1 ? '<button type="button" class="btn-remove" onclick="event.stopPropagation(); removeRoomType(' + i + ')">&times;</button>' : ''}
+            </div>
+            <div class="room-row-body" style="${rt._expanded ? '' : 'display:none;'}">
+                <div class="row">
+                    <div class="field">
+                        <label>Room Type Name (shown to customer)</label>
+                        <input type="text" value="${escAttr(rt.display_name)}" placeholder="e.g. Double Room" oninput="updateRoomType(${i}, 'display_name', this.value)">
+                    </div>
+                    <div class="field">
+                        <label>Capacity (guests)</label>
+                        <input type="number" min="1" value="${rt.capacity}" oninput="updateRoomType(${i}, 'capacity', this.value)">
+                    </div>
                 </div>
                 <div class="field">
-                    <label>Capacity (guests)</label>
-                    <input type="number" min="1" value="${rt.capacity}" oninput="updateRoomType(${i}, 'capacity', this.value)">
+                    <label>Meal Plan (shown to customer, e.g. "Breakfast Included" or "Room Only")</label>
+                    <input type="text" value="${escAttr(rt.description)}" oninput="updateRoomType(${i}, 'description', this.value)">
                 </div>
-            </div>
-            <div class="field">
-                <label>Meal Plan (shown to customer, e.g. "Breakfast Included" or "Room Only")</label>
-                <input type="text" value="${escAttr(rt.description)}" oninput="updateRoomType(${i}, 'description', this.value)">
-            </div>
-            <div class="field">
-                <label>Bed Type <span style="color:rgba(255,255,255,0.35); font-weight:400;">(optional -- only if this room comes in variants, e.g. "City View, Haram View". Leave empty if not.)</span></label>
-                <input type="text" value="${escAttr(bedTypesText)}" placeholder="e.g. City View, Haram View" oninput="updateBedTypes(${i}, this.value)">
+                <div class="field">
+                    <label>Bed Type <span style="color:rgba(255,255,255,0.35); font-weight:400;">(optional -- only if this room comes in variants, e.g. "City View, Haram View". Leave empty if not.)</span></label>
+                    <input type="text" value="${escAttr(bedTypesText)}" placeholder="e.g. City View, Haram View" oninput="updateBedTypes(${i}, this.value)">
+                </div>
             </div>
         `;
         container.appendChild(div);
     });
+}
+
+function toggleRoomExpand(i) {
+    roomTypes[i]._expanded = !roomTypes[i]._expanded;
+    renderRoomTypes();
 }
 
 function escAttr(s) {
@@ -332,7 +549,7 @@ function updateBedTypes(i, value) {
 }
 
 function addRoomType() {
-    roomTypes.push({ code: '', display_name: '', capacity: 2, description: 'Breakfast included', bed_types: [] });
+    roomTypes.push({ code: '', display_name: '', capacity: 2, description: 'Breakfast included', bed_types: [], _expanded: true });
     renderRoomTypes();
     renderPricingPeriods();
 }

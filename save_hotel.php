@@ -57,18 +57,38 @@ if (!empty($_FILES['hotel_image']) && $_FILES['hotel_image']['error'] === UPLOAD
     }
 }
 
+// ---- Room photo (ONE shared photo shown above the room list) ----
+$rooms_image_url = null;
+if (!empty($_FILES['rooms_image']) && $_FILES['rooms_image']['error'] === UPLOAD_ERR_OK) {
+    $file = $_FILES['rooms_image'];
+    $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    if (isset($allowed[$mime]) && $file['size'] <= 5 * 1024 * 1024) {
+        $upload_dir = __DIR__ . '/uploads/hotel_images/';
+        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
+        $filename = 'rooms-' . preg_replace('/[^a-z0-9]/i', '', strtolower($hotel_name)) . '-' . time() . '.' . $allowed[$mime];
+        if (move_uploaded_file($file['tmp_name'], $upload_dir . $filename)) {
+            $rooms_image_url = 'uploads/hotel_images/' . $filename;
+        }
+    }
+}
+
 $pdo->beginTransaction();
 try {
     if ($hotel_id) {
         // ---- Editing an existing hotel ----
-        $stmt = $pdo->prepare("SELECT image_url FROM hotels_saudi WHERE id = ?");
+        $stmt = $pdo->prepare("SELECT image_url, rooms_image_url FROM hotels_saudi WHERE id = ?");
         $stmt->execute([$hotel_id]);
         $existing = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$existing) throw new Exception('Hotel not found');
         if ($image_url === null) $image_url = $existing['image_url']; // keep old photo if none uploaded
+        if ($rooms_image_url === null) $rooms_image_url = $existing['rooms_image_url'];
 
-        $stmt = $pdo->prepare("UPDATE hotels_saudi SET hotel_name = ?, city = ?, rating = ?, distance_meters = ?, shuttle_service = ?, image_url = ? WHERE id = ?");
-        $stmt->execute([$hotel_name, $city, $rating, $distance_meters, $shuttle_service, $image_url, $hotel_id]);
+        $stmt = $pdo->prepare("UPDATE hotels_saudi SET hotel_name = ?, city = ?, rating = ?, distance_meters = ?, shuttle_service = ?, image_url = ?, rooms_image_url = ? WHERE id = ?");
+        $stmt->execute([$hotel_name, $city, $rating, $distance_meters, $shuttle_service, $image_url, $rooms_image_url, $hotel_id]);
 
         // Simplest, safest re-sync: wipe this hotel's rooms/pricing and
         // rebuild fresh from the form -- avoids complex row-by-row
@@ -78,8 +98,8 @@ try {
         $pdo->prepare("DELETE FROM hotel_seasonal_pricing WHERE hotel_id = ?")->execute([$hotel_id]);
     } else {
         // ---- Creating a new hotel ----
-        $stmt = $pdo->prepare("INSERT INTO hotels_saudi (hotel_name, city, rating, distance_meters, shuttle_service, image_url, min_price) VALUES (?, ?, ?, ?, ?, ?, 0)");
-        $stmt->execute([$hotel_name, $city, $rating, $distance_meters, $shuttle_service, $image_url]);
+        $stmt = $pdo->prepare("INSERT INTO hotels_saudi (hotel_name, city, rating, distance_meters, shuttle_service, image_url, rooms_image_url, min_price) VALUES (?, ?, ?, ?, ?, ?, ?, 0)");
+        $stmt->execute([$hotel_name, $city, $rating, $distance_meters, $shuttle_service, $image_url, $rooms_image_url]);
         $hotel_id = (int)$pdo->lastInsertId();
     }
 
