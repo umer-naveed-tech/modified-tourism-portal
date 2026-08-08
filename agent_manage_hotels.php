@@ -112,9 +112,6 @@ $hotels = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <?php else: ?>
                         <span class="badge empty">No rooms yet</span>
                     <?php endif; ?>
-                    <?php if (HotelHandlerFactory::hasCustomHandler((int)$h['id'])): ?>
-                        <br><span style="font-size:10.5px; color:rgba(255,255,255,0.35);" title="This hotel has its own custom pricing code. Editing it here won't change what customers see.">Custom-coded hotel</span>
-                    <?php endif; ?>
                 </td>
                 <td><?php echo $h['booking_count']; ?></td>
                 <td class="actions">

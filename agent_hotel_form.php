@@ -23,6 +23,7 @@ $hotel_id = (int)($_GET['id'] ?? 0);
 $hotel = null;
 $room_types = [];
 $pricing_periods = [];
+$using_legacy_data = false;
 
 if ($hotel_id) {
     $stmt = $pdo->prepare("SELECT * FROM hotels_saudi WHERE id = ?");
@@ -37,40 +38,91 @@ if ($hotel_id) {
     $stmt->execute([$hotel_id]);
     $room_types = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Reconstruct pricing periods from the raw rows -- group by
-    // (start_date, end_date), each group holds every room's weekday/
-    // weekend + extra bed price for that period, converted back to the
-    // FINAL (agent-facing) price by adding the stored markup back on.
-    $stmt = $pdo->prepare("SELECT * FROM hotel_seasonal_pricing WHERE hotel_id = ? ORDER BY start_date, room_type_code, is_weekend");
-    $stmt->execute([$hotel_id]);
-    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (count($room_types) > 0) {
+        // Reconstruct pricing periods from the raw rows -- group by
+        // (start_date, end_date), each holding every room's weekday/
+        // weekend + extra bed price for that period, converted back to
+        // the FINAL (agent-facing) price by adding the stored markup
+        // back on. Prices are keyed as [room_type_code][bed_variant] --
+        // bed_variant is '_default' for a plain room (room_type equals
+        // room_type_code, no real variant), or the actual bed-type code
+        // when the room has real variants (e.g. City View / Haram View).
+        $stmt = $pdo->prepare("SELECT * FROM hotel_seasonal_pricing WHERE hotel_id = ? ORDER BY start_date, room_type_code, room_type, is_weekend");
+        $stmt->execute([$hotel_id]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $grouped = [];
-    foreach ($rows as $r) {
-        $key = $r['start_date'] . '|' . $r['end_date'];
-        if (!isset($grouped[$key])) {
-            $grouped[$key] = ['start_date' => $r['start_date'], 'end_date' => $r['end_date'], 'prices' => [], 'extra_bed' => 0, 'has_weekend_split' => false];
+        $grouped = [];
+        foreach ($rows as $r) {
+            $key = $r['start_date'] . '|' . $r['end_date'];
+            if (!isset($grouped[$key])) {
+                $grouped[$key] = ['start_date' => $r['start_date'], 'end_date' => $r['end_date'], 'prices' => [], 'extra_bed' => 0, 'has_weekend_split' => false];
+            }
+            $code = $r['room_type_code'];
+            $bed_key = ($r['room_type'] === $code) ? '_default' : $r['room_type'];
+            if (!isset($grouped[$key]['prices'][$code])) $grouped[$key]['prices'][$code] = [];
+            if (!isset($grouped[$key]['prices'][$code][$bed_key])) {
+                $grouped[$key]['prices'][$code][$bed_key] = ['weekday' => 0, 'weekend' => 0];
+            }
+            $final_price = $r['base_price_sar'] + $r['markup_sar'];
+            if ($r['is_weekend'] == 1) {
+                $grouped[$key]['prices'][$code][$bed_key]['weekend'] = $final_price;
+            } else {
+                $grouped[$key]['prices'][$code][$bed_key]['weekday'] = $final_price;
+            }
+            if ($r['extra_bed_base'] > 0) {
+                $grouped[$key]['extra_bed'] = $r['extra_bed_base'] + $r['extra_bed_markup'];
+            }
         }
-        $code = $r['room_type_code'];
-        if (!isset($grouped[$key]['prices'][$code])) {
-            $grouped[$key]['prices'][$code] = ['weekday' => 0, 'weekend' => 0];
+        foreach ($grouped as &$g) {
+            foreach ($g['prices'] as $variants) {
+                foreach ($variants as $p) {
+                    if ($p['weekday'] != $p['weekend']) { $g['has_weekend_split'] = true; break 2; }
+                }
+            }
         }
-        $final_price = $r['base_price_sar'] + $r['markup_sar'];
-        if ($r['is_weekend'] == 1) {
-            $grouped[$key]['prices'][$code]['weekend'] = $final_price;
-        } else {
-            $grouped[$key]['prices'][$code]['weekday'] = $final_price;
-        }
-        if ($r['extra_bed_base'] > 0) {
-            $grouped[$key]['extra_bed'] = $r['extra_bed_base'] + $r['extra_bed_markup'];
+        $pricing_periods = array_values($grouped);
+    } else {
+        // FIX: some hotels (e.g. Marriot Jabal Omer, Shaza Al Wasam) were
+        // set up before this form existed, using the older `hotel_rooms`
+        // table (a simple room_type + flat price_per_night_sar, no
+        // seasonal periods). Their data was never missing -- this form
+        // just never looked at that table, so it appeared empty here
+        // even though the hotel works fine for customers. Bridge it in:
+        // pre-fill the form from hotel_rooms as ONE wide "always" period,
+        // so the agent can see and edit their real existing prices
+        // instead of starting from a blank form.
+        $stmt = $pdo->prepare("SELECT * FROM hotel_rooms WHERE hotel_id = ?");
+        $stmt->execute([$hotel_id]);
+        $legacy_rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (count($legacy_rooms) > 0) {
+            $using_legacy_data = true;
+            $prices = [];
+            foreach ($legacy_rooms as $lr) {
+                $room_type_raw = $lr['room_type'] ?? ('Room');
+                $code = preg_replace('/[^a-z0-9_]/', '', strtolower(str_replace(' ', '_', $room_type_raw)));
+                if ($code === '') continue;
+                $price = (float)($lr['price_per_night_sar'] ?? 0);
+
+                $room_types[] = [
+                    'room_type' => $code,
+                    'display_name' => $room_type_raw,
+                    'capacity' => (int)($lr['capacity'] ?? 2),
+                    'description' => $lr['description'] ?? '',
+                ];
+                $prices[$code] = ['_default' => ['weekday' => $price, 'weekend' => $price]];
+            }
+            if (!empty($prices)) {
+                $pricing_periods = [[
+                    'start_date' => date('Y-m-d'),
+                    'end_date' => date('Y-m-d', strtotime('+2 years')),
+                    'has_weekend_split' => false,
+                    'extra_bed' => 0,
+                    'prices' => $prices,
+                ]];
+            }
         }
     }
-    foreach ($grouped as &$g) {
-        foreach ($g['prices'] as $p) {
-            if ($p['weekday'] != $p['weekend']) { $g['has_weekend_split'] = true; break; }
-        }
-    }
-    $pricing_periods = array_values($grouped);
 }
 
 $is_edit = $hotel_id > 0;
@@ -121,6 +173,12 @@ $is_edit = $hotel_id > 0;
 <div class="container">
     <a href="agent_manage_hotels.php" class="btn-back">← Back to Manage Hotels</a>
     <h1><?php echo $is_edit ? 'Edit Hotel' : 'Add New Hotel'; ?></h1>
+
+    <?php if ($using_legacy_data): ?>
+    <div style="background:rgba(212,175,55,0.06); border:1px solid rgba(212,175,55,0.15); color:#d4af37; padding:14px 18px; border-radius:10px; margin-bottom:20px; font-size:13px; line-height:1.6;">
+        This hotel's rooms were set up in an older format (no seasonal pricing). Your existing prices are shown below, filled in as one period covering the next 2 years. Nothing has changed for customers yet -- review the prices below and click Save to switch this hotel over to the newer format.
+    </div>
+    <?php endif; ?>
 
     <div id="errorBox" class="error-box" style="display:none;"></div>
 
