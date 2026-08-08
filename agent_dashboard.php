@@ -6,8 +6,10 @@ if(!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'agent') {
 }
 require_once 'config.php';
 
-// 🔴 NEW: opportunistically cancel truly-abandoned bookings (pending,
-// no payment ever submitted, older than 48 hours) -- runs at most once
+// 🔴 NEW: opportunistic booking-lifecycle maintenance -- auto-completes
+// confirmed bookings whose stay/trip has passed, sends a one-time 24h
+// payment reminder, and cancels truly-abandoned bookings (pending, no
+// payment ever submitted, older than 48 hours). Runs at most once
 // every 6 hours via a small marker file, so this never adds real cost
 // to normal page loads. Safe even without true cron access on shared
 // hosting; if cron IS available, cleanup_abandoned_bookings.php can
@@ -15,7 +17,7 @@ require_once 'config.php';
 require_once 'cleanup_abandoned_bookings.php';
 $marker_file = __DIR__ . '/uploads/.last_abandoned_cleanup';
 if (!file_exists($marker_file) || (time() - filemtime($marker_file)) > 6 * 3600) {
-    cleanupAbandonedBookings($pdo);
+    runBookingMaintenance($pdo);
     @touch($marker_file);
 }
 
@@ -26,7 +28,13 @@ $type_filter = $_GET['type'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
 $sort_col = $_GET['sort'] ?? 'created_at';
-$sort_dir = (strtolower($_GET['dir'] ?? 'desc') === 'asc') ? 'ASC' : 'DESC';
+// 🔴 FIX: default was always "newest first" -- for the Pending tab
+// specifically that buries old, still-unreviewed payments under a
+// stream of new ones. If the agent hasn't explicitly clicked a sort
+// column, Pending defaults to oldest-first instead; clicking any
+// column header still works exactly as before and overrides this.
+$default_dir = ($status === 'pending' && !isset($_GET['sort']) && !isset($_GET['dir'])) ? 'asc' : 'desc';
+$sort_dir = (strtolower($_GET['dir'] ?? $default_dir) === 'asc') ? 'ASC' : 'DESC';
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 25;
 $offset = ($page - 1) * $per_page;
@@ -138,6 +146,16 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
            directly. This fixes it everywhere on this page. */
         select { background-color: rgba(255,255,255,0.03); color: white; }
         select option { background-color: #10182c; color: white; }
+
+        /* NEW: highlight pending bookings older than 24h so they stand
+           out from newer ones instead of getting lost in the list. */
+        .stale-pending-row td { background: rgba(251,191,36,0.03); }
+        .stale-pending-row:hover td { background: rgba(251,191,36,0.06) !important; }
+        .stale-badge {
+            display: inline-block; margin-left: 6px; padding: 2px 8px; border-radius: 20px;
+            background: rgba(251,191,36,0.12); color: #fbbf24; font-size: 10px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.3px; vertical-align: middle;
+        }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; }
@@ -553,11 +571,21 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                 <tbody>
                     <?php if (empty($bookings)): ?>
                     <tr class="empty-row"><td colspan="11">No bookings found matching these filters.</td></tr>
-                    <?php else: foreach($bookings as $b): ?>
-                    <tr class="table-row">
+                    <?php else: foreach($bookings as $b):
+                        // NEW: flag pending bookings older than 24 hours
+                        // so they visually stand out instead of getting
+                        // buried once newer ones come in.
+                        $is_stale_pending = ($b['status'] === 'pending') && (strtotime($b['created_at']) < strtotime('-24 hours'));
+                    ?>
+                    <tr class="table-row <?php echo $is_stale_pending ? 'stale-pending-row' : ''; ?>">
                         <td><input type="checkbox" class="row-check bulk-checkbox" value="<?php echo (int)$b['id']; ?>"></td>
                         <td><?php echo $b['id']; ?></td>
-                        <td><?php echo htmlspecialchars($b['booking_no']); ?></td>
+                        <td>
+                            <?php echo htmlspecialchars($b['booking_no']); ?>
+                            <?php if ($is_stale_pending): ?>
+                                <span class="stale-badge" title="Pending for more than 24 hours">Waiting <?php echo (int)floor((time() - strtotime($b['created_at'])) / 3600); ?>h</span>
+                            <?php endif; ?>
+                        </td>
                         <td><a href="customer_profile.php?user_id=<?php echo (int)$b['user_id']; ?>" class="customer-link"><?php echo htmlspecialchars($b['user_name']); ?></a></td>
                         <td><?php echo htmlspecialchars($b['user_email']); ?></td>
                         <td><?php echo htmlspecialchars($b['user_phone']); ?></td>
