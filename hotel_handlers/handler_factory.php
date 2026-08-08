@@ -76,7 +76,13 @@ define('EMAARMEKTAN_HOTEL_ID', 120);       // NAYA -- Emaar Mektan Hotel Madinah
 require_once __DIR__ . '/base_handler.php';
 require_once __DIR__ . '/generic_hotel_handler.php'; // NAYA -- agent-created hotels use this automatically
 require_once __DIR__ . '/normal_hotel.php';
-require_once __DIR__ . '/marriot_jabal_omer.php';
+// NOTE: Marriot Jabal Omer (hotel_id 41) used to have its own custom
+// handler file (marriot_jabal_omer.php) required here -- it's been
+// migrated into the standard schema (see migrate_marriot_to_generic.sql)
+// and now works through GenericHotelHandler like every other hotel, so
+// this require_once and its $handlers entry below have both been
+// removed. The old marriot_jabal_omer.php file on the server is no
+// longer used and can be safely deleted.
 require_once __DIR__ . '/movenpick_hajar_tower.php';
 require_once __DIR__ . '/makkah_hotel.php';
 require_once __DIR__ . '/makkah_towers.php';
@@ -148,7 +154,6 @@ require_once __DIR__ . '/emaar_mektan_madinah.php';                   // NAYA
 class HotelHandlerFactory {
 
     private static $handlers = [
-        41 => 'MarriotJabalOmerHandler',
         43 => 'MakkahHotelHandler',
         44 => 'MakkahTowersHandler',
         63 => 'MovenpickHajarTowerHandler',

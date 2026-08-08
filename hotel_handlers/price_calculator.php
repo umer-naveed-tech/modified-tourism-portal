@@ -206,66 +206,11 @@ function calculateHotelStayPrice(PDO $pdo, array $input) {
         ];
     }
 
-    // ============================================================
-    // MARRIOT JABAL OMER (hotel_id = 41)
-    // ============================================================
-    if ($hotel_id === 41) {
-        $db_room_type = strtolower($room_type);
-        $total = 0;
-        $meal_total = 0;
-        $nights = 0;
-        $breakdown = [];
-        $is_full_board = false;
-
-        foreach ($period as $date) {
-            $current_date = $date->format('Y-m-d');
-            $is_weekend_val = hotelStayIsWeekend($current_date) ? 1 : 0;
-
-            $stmt = $pdo->prepare("
-                SELECT * FROM hotel_seasonal_pricing
-                WHERE hotel_id = ? AND room_type = ?
-                AND ? BETWEEN start_date AND end_date
-            ");
-            $stmt->execute([$hotel_id, $db_room_type, $current_date]);
-            $rule = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$rule) {
-                return ['success' => false, 'error' => "No pricing available for date: $current_date"];
-            }
-
-            $night_price = $rule['base_price_sar'] + $rule['markup_sar'];
-            $total += $night_price;
-            $nights++;
-
-            if (!$rule['is_full_board']) {
-                if (in_array('breakfast', $meals) && $rule['breakfast_price_sar'] !== null) {
-                    $meal_total += $rule['breakfast_price_sar'];
-                }
-                if (in_array('lunch', $meals) && $rule['lunch_price_sar'] !== null) {
-                    $meal_total += $rule['lunch_price_sar'];
-                }
-                if (in_array('dinner', $meals) && $rule['dinner_price_sar'] !== null) {
-                    $meal_total += $rule['dinner_price_sar'];
-                }
-            } else {
-                $is_full_board = true;
-            }
-
-            $breakdown[] = [
-                'date' => $current_date, 'price' => $night_price, 'is_weekend' => $is_weekend_val,
-                'rule_name' => date('d M Y', strtotime($rule['start_date'])) . ' - ' . date('d M Y', strtotime($rule['end_date'])),
-            ];
-        }
-
-        $grand_total = $total + $meal_total;
-
-        return [
-            'success' => true, 'room_total' => $total, 'meal_total' => $meal_total,
-            'grand_total' => $grand_total, 'nights' => $nights, 'breakdown' => $breakdown,
-            'is_full_board' => $is_full_board,
-        ];
-    }
-
+    // NOTE: Marriot Jabal Omer (hotel_id 41) used to have its own
+    // dedicated block here -- it's been migrated into the standard
+    // schema (see migrate_marriot_to_generic.sql) and now works
+    // through the SIMPLE HIDDEN-MARKUP HOTELS branch below like every
+    // other hotel, so this block has been removed.
     // ============================================================
     // MAKKAH TOWERS (hotel_id = 44) -- rooms + extra bed only
     // ============================================================
