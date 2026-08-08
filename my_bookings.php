@@ -76,6 +76,10 @@ $active_page = 'bookings';
                 <a href="services.php" class="btn-book-service"><i class="fas fa-plus" aria-hidden="true"></i>Book a Service</a>
             </div>
 
+            <?php if (isset($_GET['removed'])): ?>
+            <div style="background:rgba(52,211,153,0.06); border:1px solid rgba(52,211,153,0.15); color:#34d399; padding:12px 16px; border-radius:10px; margin-bottom:18px; font-size:13px;"><i class="fas fa-circle-check"></i> Booking removed from your list.</div>
+            <?php endif; ?>
+
             <div class="tab-row">
                 <a href="my_bookings.php?tab=completed" class="tab-link <?php echo $tab === 'completed' ? 'active' : ''; ?>">Completed</a>
                 <a href="my_bookings.php?tab=upcoming" class="tab-link <?php echo $tab === 'upcoming' ? 'active' : ''; ?>">Upcoming</a>
@@ -104,7 +108,10 @@ $active_page = 'bookings';
                         <td><?php echo safe_date($b['travel_date']); ?></td>
                         <td><span class="dot <?php echo $dotClass; ?>"></span><?php echo htmlspecialchars(ucfirst($b['status'])); ?></td>
                         <td style="text-align:right;" class="amt">SAR <?php echo number_format($b['total_amount']); ?></td>
-                        <td><a href="booking_detail_view.php?id=<?php echo (int)$b['id']; ?>" class="action">Details →</a></td>
+                        <td>
+                            <a href="booking_detail_view.php?id=<?php echo (int)$b['id']; ?>" class="action">Details →</a>
+                            <a href="hide_booking.php?id=<?php echo (int)$b['id']; ?>" class="action" style="margin-left:10px; color:rgba(255,255,255,0.25);" title="Remove from my bookings"><i class="fas fa-trash-can"></i></a>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

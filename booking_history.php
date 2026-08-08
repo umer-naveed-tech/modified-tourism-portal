@@ -109,7 +109,10 @@ $active_page = 'history';
                         <td><?php echo safe_date($b['travel_date']); ?></td>
                         <td><span class="dot <?php echo $dotClass; ?>"></span><?php echo htmlspecialchars(ucfirst($b['status'])); ?></td>
                         <td style="text-align:right;" class="amt">SAR <?php echo number_format($b['total_amount']); ?></td>
-                        <td><a href="booking_detail_view.php?id=<?php echo (int)$b['id']; ?>" class="action">Details →</a></td>
+                        <td>
+                            <a href="booking_detail_view.php?id=<?php echo (int)$b['id']; ?>" class="action">Details →</a>
+                            <a href="hide_booking.php?id=<?php echo (int)$b['id']; ?>" class="action" style="margin-left:10px; color:rgba(255,255,255,0.25);" title="Remove from my bookings"><i class="fas fa-trash-can"></i></a>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                 </tbody>

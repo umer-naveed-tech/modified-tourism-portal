@@ -46,6 +46,11 @@ if (!in_array($sort_col, $allowed_sort_cols)) $sort_col = 'created_at';
 $where = [];
 $params = [];
 
+// Bookings the agent removed from their own view stay in the database
+// (and still show for the customer, and still count toward revenue/
+// analytics elsewhere) -- they're just excluded from this list.
+$where[] = "b.hidden_by_agent = 0";
+
 if ($status !== 'all') {
     $where[] = "b.status = ?";
     $params[] = $status;
@@ -339,6 +344,13 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
         }
         .btn-details:hover { background: #d4af37; color: #0a0f1e; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(212,175,55,0.25); }
 
+        .btn-remove-booking {
+            background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.35); width: 26px; height: 26px; border-radius: 8px;
+            font-size: 15px; line-height: 1; border: 1px solid rgba(255,255,255,0.06); cursor: pointer; font-family: inherit;
+            vertical-align: middle;
+        }
+        .btn-remove-booking:hover { background: rgba(239,68,68,0.12); color: #f87171; border-color: rgba(239,68,68,0.2); }
+
         .modal-overlay {
             position: fixed; inset: 0; z-index: 9999; background: rgba(5,8,16,0.75); backdrop-filter: blur(6px);
             display: none; align-items: center; justify-content: center; padding: 20px;
@@ -601,6 +613,7 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                         </td>
                         <td>
                             <button type="button" class="btn-details" data-id="<?php echo (int)$b['id']; ?>">Details</button>
+                            <button type="button" class="btn-remove-booking" data-id="<?php echo (int)$b['id']; ?>" title="Remove from my view">&times;</button>
                         </td>
                     </tr>
                     <?php endforeach; endif; ?>
@@ -857,6 +870,7 @@ function loadAjaxContent(url) {
             bindAjaxLinks(ajaxContentEl);
             bindAjaxForm(ajaxContentEl);
             bindDetailsButtons(ajaxContentEl);
+            bindRemoveBookingButtons(ajaxContentEl);
         })
         .catch(() => { window.location.href = url; })
         .finally(() => {
@@ -914,6 +928,7 @@ if (ajaxContentEl) {
     bindAjaxLinks(ajaxContentEl);
     bindAjaxForm(ajaxContentEl);
     bindDetailsButtons(ajaxContentEl);
+    bindRemoveBookingButtons(ajaxContentEl);
 }
 
 /* NEW: booking-details modal -- fetches get_booking_details.php and
@@ -1068,6 +1083,27 @@ function bindDetailsButtons(root) {
     });
 }
 bindDetailsButtons(document);
+
+function bindRemoveBookingButtons(root) {
+    root.querySelectorAll('.btn-remove-booking').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (!confirm('Remove this booking from your view? It stays in the system and the customer can still see it -- this only removes it from your list.')) return;
+            const id = this.dataset.id;
+            fetch('hide_booking_agent.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'id=' + encodeURIComponent(id) + '&csrf_token=' + encodeURIComponent(csrfToken)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) { refreshAjaxContent(); }
+                else { alert('Could not remove: ' + (data.error || 'unknown error')); }
+            })
+            .catch(() => alert('Network error. Please try again.'));
+        });
+    });
+}
+bindRemoveBookingButtons(document);
 
 document.getElementById('bookingModalClose').addEventListener('click', closeBookingDetails);
 document.getElementById('bookingDetailsModal').addEventListener('click', function(e) {

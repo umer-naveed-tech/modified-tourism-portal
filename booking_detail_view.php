@@ -149,6 +149,8 @@ $active_page = 'bookings';
             <?php if ($can_cancel): ?>
             <a href="cancel_booking.php?id=<?php echo $booking_id; ?>" style="display:block; text-align:center; margin-top:20px; padding:13px; background:rgba(201,98,92,0.1); color:#c9625c; border:1px solid rgba(201,98,92,0.2); border-radius:10px; font-family:'Helvetica Neue',sans-serif; font-size:13px; font-weight:600; text-decoration:none;">Cancel This Booking</a>
             <?php endif; ?>
+
+            <a href="hide_booking.php?id=<?php echo $booking_id; ?>" style="display:block; text-align:center; margin-top:10px; padding:13px; background:rgba(255,255,255,0.02); color:rgba(255,255,255,0.4); border:1px solid rgba(255,255,255,0.06); border-radius:10px; font-family:'Helvetica Neue',sans-serif; font-size:13px; font-weight:600; text-decoration:none;"><i class="fas fa-trash-can" style="margin-right:6px;"></i>Remove From My Bookings</a>
         </div>
     </div>
 </div>
