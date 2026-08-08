@@ -15,6 +15,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'agent') {
     exit();
 }
 require_once 'config.php';
+require_once 'image_helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: agent_manage_hotels.php');
@@ -38,43 +39,17 @@ if ($hotel_name === '' || empty($room_types) || empty($pricing_periods)) {
     exit();
 }
 
-// ---- Image upload (optional -- keeps the existing photo if none given) ----
+// ---- Image upload (optional -- keeps the existing photo if none
+// given). Automatically resized/compressed by image_helper.php so
+// page speed stays good regardless of the original photo's size. ----
 $image_url = null;
-if (!empty($_FILES['hotel_image']) && $_FILES['hotel_image']['error'] === UPLOAD_ERR_OK) {
-    $file = $_FILES['hotel_image'];
-    $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime = finfo_file($finfo, $file['tmp_name']);
-    finfo_close($finfo);
-
-    if (isset($allowed[$mime]) && $file['size'] <= 5 * 1024 * 1024) {
-        $upload_dir = __DIR__ . '/uploads/hotel_images/';
-        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
-        $filename = 'hotel-' . preg_replace('/[^a-z0-9]/i', '', strtolower($hotel_name)) . '-' . time() . '.' . $allowed[$mime];
-        if (move_uploaded_file($file['tmp_name'], $upload_dir . $filename)) {
-            $image_url = 'uploads/hotel_images/' . $filename;
-        }
-    }
-}
+$uploaded_filename = handleImageUpload($_FILES['hotel_image'] ?? null, __DIR__ . '/uploads/hotel_images/', 'hotel-' . preg_replace('/[^a-z0-9]/i', '', strtolower($hotel_name)));
+if ($uploaded_filename) $image_url = 'uploads/hotel_images/' . $uploaded_filename;
 
 // ---- Room photo (ONE shared photo shown above the room list) ----
 $rooms_image_url = null;
-if (!empty($_FILES['rooms_image']) && $_FILES['rooms_image']['error'] === UPLOAD_ERR_OK) {
-    $file = $_FILES['rooms_image'];
-    $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
-    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-    $mime = finfo_file($finfo, $file['tmp_name']);
-    finfo_close($finfo);
-
-    if (isset($allowed[$mime]) && $file['size'] <= 5 * 1024 * 1024) {
-        $upload_dir = __DIR__ . '/uploads/hotel_images/';
-        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
-        $filename = 'rooms-' . preg_replace('/[^a-z0-9]/i', '', strtolower($hotel_name)) . '-' . time() . '.' . $allowed[$mime];
-        if (move_uploaded_file($file['tmp_name'], $upload_dir . $filename)) {
-            $rooms_image_url = 'uploads/hotel_images/' . $filename;
-        }
-    }
-}
+$uploaded_filename = handleImageUpload($_FILES['rooms_image'] ?? null, __DIR__ . '/uploads/hotel_images/', 'rooms-' . preg_replace('/[^a-z0-9]/i', '', strtolower($hotel_name)));
+if ($uploaded_filename) $rooms_image_url = 'uploads/hotel_images/' . $uploaded_filename;
 
 $pdo->beginTransaction();
 try {

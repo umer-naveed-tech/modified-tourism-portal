@@ -18,6 +18,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'agent') {
     exit();
 }
 require_once 'config.php';
+require_once 'gallery_fonts.php';
 
 $hotel_id = (int)($_GET['id'] ?? 0);
 $hotel = null;
@@ -146,7 +147,7 @@ $gallery_layouts = [
     'masonry' => 'Masonry', 'carousel' => 'Scrolling Carousel', 'hero' => 'Hero + Thumbnails',
     'mosaic' => 'Mosaic', 'stack' => 'Full-Width Stack', 'polaroid' => 'Polaroid Style', 'split' => 'Split Rows',
 ];
-$font_choices = ['Inter', 'Playfair Display', 'Georgia', 'Poppins', 'Montserrat', 'Merriweather', 'Roboto'];
+$font_choices = array_keys(galleryFontChoices());
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -344,6 +345,8 @@ $font_choices = ['Inter', 'Playfair Display', 'Georgia', 'Poppins', 'Montserrat'
 
         <?php if (isset($_GET['gallery_saved'])): ?>
             <div class="gallery-flash gallery-flash-success"><i class="fas fa-circle-check"></i> Gallery saved.</div>
+        <?php elseif (isset($_GET['gallery_deleted'])): ?>
+            <div class="gallery-flash gallery-flash-success"><i class="fas fa-circle-check"></i> Gallery deleted. You can start a fresh one below.</div>
         <?php elseif (isset($_GET['gallery_error'])): ?>
             <div class="gallery-flash gallery-flash-error"><i class="fas fa-circle-exclamation"></i> Something went wrong saving the gallery. Please try again.</div>
         <?php endif; ?>
@@ -408,7 +411,12 @@ $font_choices = ['Inter', 'Playfair Display', 'Georgia', 'Poppins', 'Montserrat'
             </div>
 
             <button type="submit" class="btn-save" style="margin-top:6px;">Save Gallery</button>
-            <a href="hotel_gallery.php?hotel_id=<?php echo $hotel_id; ?>" target="_blank" class="hint" style="display:inline-block; margin-top:12px; color:#d4af37; text-decoration:none;">Preview gallery →</a>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+                <a href="hotel_gallery.php?hotel_id=<?php echo $hotel_id; ?>" target="_blank" class="hint" style="color:#d4af37; text-decoration:none;">Preview gallery →</a>
+                <?php if (!empty($gallery_images)): ?>
+                <button type="button" onclick="deleteEntireGallery()" style="background:none; border:none; color:#f87171; font-size:12.5px; cursor:pointer; font-family:inherit;">Delete Entire Gallery</button>
+                <?php endif; ?>
+            </div>
         </form>
     </div>
     <?php else: ?>
@@ -443,8 +451,28 @@ function selectLayout(input) {
     document.querySelectorAll('.layout-option').forEach(el => el.classList.remove('selected'));
     input.closest('.layout-option').classList.add('selected');
 }
+
+function deleteEntireGallery() {
+    if (!confirm('Delete ALL photos and settings for this gallery? This cannot be undone -- you can start a fresh gallery afterward.')) return;
+
+    fetch('delete_gallery.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'hotel_id=<?php echo $hotel_id; ?>&csrf_token=<?php echo urlencode(csrf_token()); ?>'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = 'agent_hotel_form.php?id=<?php echo $hotel_id; ?>&gallery_deleted=1';
+        } else {
+            alert('Could not delete gallery: ' + (data.error || 'unknown error'));
+        }
+    })
+    .catch(() => alert('Network error. Please try again.'));
+}
 </script>
 
+<script>
 let roomTypes = <?php echo json_encode(array_map(function($r) use ($pdo, $hotel_id) {
     // Pull any bed-type variants already saved for this room category
     // (room_type_code = the room's code, room_type = each bed variant's

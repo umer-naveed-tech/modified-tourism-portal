@@ -12,6 +12,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'agent') {
     exit();
 }
 require_once 'config.php';
+require_once 'image_helper.php';
+require_once 'gallery_fonts.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: agent_manage_hotels.php');
@@ -39,8 +41,7 @@ try {
     $gallery_layout = preg_replace('/[^a-z0-9]/', '', strtolower($_POST['gallery_layout'] ?? 'grid2'));
     if ($gallery_layout === '') $gallery_layout = 'grid2';
     $gallery_bg_color = preg_match('/^#[0-9a-fA-F]{6}$/', $_POST['gallery_bg_color'] ?? '') ? $_POST['gallery_bg_color'] : '#0a0f1e';
-    $allowed_fonts = ['Inter', 'Playfair Display', 'Georgia', 'Poppins', 'Montserrat', 'Merriweather', 'Roboto'];
-    $gallery_font = in_array($_POST['gallery_font'] ?? '', $allowed_fonts) ? $_POST['gallery_font'] : 'Inter';
+    $gallery_font = isValidGalleryFont($_POST['gallery_font'] ?? '') ? $_POST['gallery_font'] : 'Inter';
 
     $stmt = $pdo->prepare("
         INSERT INTO hotel_galleries (hotel_id, layout, bg_color, font_family)
@@ -66,12 +67,12 @@ try {
         }
     }
 
-    // ---- Upload any newly added photos ----
+    // ---- Upload any newly added photos -- automatically resized/
+    // compressed by image_helper.php so page speed stays good no
+    // matter how large the agent's original photos are. ----
     $uploaded_count = 0;
     if (!empty($_FILES['gallery_images']) && is_array($_FILES['gallery_images']['name'])) {
-        $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
         $upload_dir = __DIR__ . '/uploads/gallery_images/';
-        if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
 
         $stmt = $pdo->prepare("SELECT COALESCE(MAX(sort_order), 0) FROM hotel_gallery_images WHERE hotel_id = ?");
         $stmt->execute([$hotel_id]);
@@ -82,15 +83,13 @@ try {
         $count = count($_FILES['gallery_images']['name']);
         for ($i = 0; $i < $count; $i++) {
             if ($_FILES['gallery_images']['error'][$i] !== UPLOAD_ERR_OK) continue;
-            $tmp_name = $_FILES['gallery_images']['tmp_name'][$i];
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mime = finfo_file($finfo, $tmp_name);
-            finfo_close($finfo);
-            if (!isset($allowed[$mime])) continue;
-            if ($_FILES['gallery_images']['size'][$i] > 5 * 1024 * 1024) continue;
-
-            $filename = 'gallery-' . $hotel_id . '-' . time() . '-' . $i . '.' . $allowed[$mime];
-            if (move_uploaded_file($tmp_name, $upload_dir . $filename)) {
+            $single_file = [
+                'tmp_name' => $_FILES['gallery_images']['tmp_name'][$i],
+                'error' => $_FILES['gallery_images']['error'][$i],
+                'size' => $_FILES['gallery_images']['size'][$i],
+            ];
+            $filename = handleImageUpload($single_file, $upload_dir, 'gallery-' . $hotel_id);
+            if ($filename) {
                 $insert_stmt->execute([$hotel_id, 'uploads/gallery_images/' . $filename, $next_sort]);
                 $next_sort++;
                 $uploaded_count++;
