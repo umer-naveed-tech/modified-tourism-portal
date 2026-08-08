@@ -19,17 +19,23 @@ if (!$hotel) {
     exit();
 }
 
-$stmt = $pdo->prepare("SELECT layout, bg_color, font_family FROM hotel_galleries WHERE hotel_id = ?");
+$stmt = $pdo->prepare("SELECT layout, bg_color, theme, font_family FROM hotel_galleries WHERE hotel_id = ?");
 $stmt->execute([$hotel_id]);
-$settings = $stmt->fetch(PDO::FETCH_ASSOC) ?: ['layout' => 'grid2', 'bg_color' => '#0a0f1e', 'font_family' => 'Inter'];
+$settings = $stmt->fetch(PDO::FETCH_ASSOC) ?: ['layout' => 'grid2', 'bg_color' => '#0a0f1e', 'theme' => 'custom', 'font_family' => 'Inter'];
 
 $stmt = $pdo->prepare("SELECT image_path, caption FROM hotel_gallery_images WHERE hotel_id = ? ORDER BY sort_order, id");
 $stmt->execute([$hotel_id]);
 $images = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$layout = $settings['layout'];
 $font_choices = galleryFontChoices();
 $font_url = $font_choices[$settings['font_family']] ?? $font_choices['Inter'];
+
+$theme_presets = galleryThemePresets();
+$theme_key = $settings['theme'] ?: 'custom';
+$page_bg = $theme_presets[$theme_key] ?? null;
+if ($page_bg === null) $page_bg = $settings['bg_color'] ?: '#0a0f1e'; // 'custom' theme -> use the color wheel value
+$text_color = ($theme_key === 'pure_white') ? '#0a0f1e' : 'white';
+$muted_color = ($theme_key === 'pure_white') ? 'rgba(10,15,30,0.55)' : 'rgba(255,255,255,0.5)';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -44,16 +50,19 @@ $font_url = $font_choices[$settings['font_family']] ?? $font_choices['Inter'];
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: '<?php echo htmlspecialchars($settings['font_family']); ?>', Georgia, sans-serif;
-            background: <?php echo htmlspecialchars($settings['bg_color']); ?>;
-            color: white;
+            background: <?php echo htmlspecialchars($page_bg); ?>;
+            color: <?php echo $text_color; ?>;
             min-height: 100vh;
-            padding: 40px 24px 80px;
+            padding: 48px 28px 90px;
+            animation: hgalPageIn 0.5s ease forwards;
         }
-        .wrap { max-width: 1100px; margin: 0 auto; }
-        .back-link { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 20px; }
-        h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
-        .sub { color: rgba(255,255,255,0.5); font-size: 14px; margin-bottom: 32px; }
-        .empty { text-align: center; padding: 80px 20px; color: rgba(255,255,255,0.4); }
+        @keyframes hgalPageIn { from { opacity: 0; } to { opacity: 1; } }
+        .wrap { max-width: 1200px; margin: 0 auto; }
+        .back-link { color: <?php echo $muted_color; ?>; text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 24px; transition: color 0.2s ease; }
+        .back-link:hover { color: #d4af37; }
+        h1 { font-size: 32px; font-weight: 700; margin-bottom: 6px; }
+        .sub { color: <?php echo $muted_color; ?>; font-size: 14px; margin-bottom: 40px; }
+        .empty { text-align: center; padding: 100px 20px; color: <?php echo $muted_color; ?>; }
     </style>
     <?php renderHotelGalleryCSS(); ?>
 </head>
@@ -66,7 +75,7 @@ $font_url = $font_choices[$settings['font_family']] ?? $font_choices['Inter'];
     <?php if (empty($images)): ?>
         <div class="empty">No photos have been added to this gallery yet.</div>
     <?php else: ?>
-        <?php renderHotelGalleryHTML($pdo, $hotel_id, false); ?>
+        <?php renderHotelGalleryHTML($pdo, $hotel_id); ?>
     <?php endif; ?>
 </div>
 </body>

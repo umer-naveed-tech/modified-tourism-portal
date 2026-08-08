@@ -19,6 +19,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'agent') {
 }
 require_once 'config.php';
 require_once 'gallery_fonts.php';
+require_once 'gallery_renderer.php';
 
 $hotel_id = (int)($_GET['id'] ?? 0);
 $hotel = null;
@@ -129,10 +130,10 @@ if ($hotel_id) {
 $is_edit = $hotel_id > 0;
 
 // ---- Gallery (images + layout/theme settings, if any exist yet) ----
-$gallery_settings = ['layout' => 'grid2', 'bg_color' => '#0a0f1e', 'font_family' => 'Inter'];
+$gallery_settings = ['layout' => 'grid2', 'bg_color' => '#0a0f1e', 'theme' => 'custom', 'font_family' => 'Inter'];
 $gallery_images = [];
 if ($hotel_id) {
-    $stmt = $pdo->prepare("SELECT layout, bg_color, font_family FROM hotel_galleries WHERE hotel_id = ?");
+    $stmt = $pdo->prepare("SELECT layout, bg_color, theme, font_family FROM hotel_galleries WHERE hotel_id = ?");
     $stmt->execute([$hotel_id]);
     $g = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($g) $gallery_settings = $g;
@@ -146,7 +147,10 @@ $gallery_layouts = [
     'grid2' => '2-Column Grid', 'grid3' => '3-Column Grid', 'grid4' => '4-Column Grid',
     'masonry' => 'Masonry', 'carousel' => 'Scrolling Carousel', 'hero' => 'Hero + Thumbnails',
     'mosaic' => 'Mosaic', 'stack' => 'Full-Width Stack', 'polaroid' => 'Polaroid Style', 'split' => 'Split Rows',
+    'signature5' => '5-Photo Showcase', 'cascade' => 'Cascade',
 ];
+$theme_presets = galleryThemePresets();
+$theme_labels = galleryThemeLabels();
 $font_choices = array_keys(galleryFontChoices());
 ?>
 <!DOCTYPE html>
@@ -203,6 +207,10 @@ $font_choices = array_keys(galleryFontChoices());
         .layout-preview-polaroid { grid-template-columns: 1fr 1fr 1fr; }
         .layout-preview-polaroid span { transform: rotate(-3deg); }
         .layout-preview-split { grid-template-columns: 1fr 1fr; }
+        .layout-preview-signature5 { grid-template-rows: 2fr 1fr; }
+        .layout-preview-signature5 span:first-child { grid-column: span 3; }
+        .layout-preview-cascade { grid-template-columns: 1fr 1fr; }
+        .layout-preview-cascade span:nth-child(2) { margin-top: 8px; margin-left: 8px; }
         .layout-name { font-size: 10.5px; color: rgba(255,255,255,0.5); }
         .gallery-existing { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
         .gallery-existing-item { display: block; text-align: center; }
@@ -223,6 +231,13 @@ $font_choices = array_keys(galleryFontChoices());
         .color-field { display: flex; align-items: center; gap: 10px; }
         .color-field input[type="color"] { width: 44px; height: 44px; padding: 3px; border-radius: 8px; cursor: pointer; border: 1px solid rgba(255,255,255,0.08); background: transparent; }
         .color-field span { font-size: 12.5px; color: rgba(255,255,255,0.5); font-family: monospace; }
+        .theme-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 6px; }
+        .theme-option { border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px; cursor: pointer; text-align: center; transition: all 0.2s ease; }
+        .theme-option:hover { border-color: rgba(212,175,55,0.25); }
+        .theme-option.selected { border-color: #d4af37; background: rgba(212,175,55,0.06); }
+        .theme-option input { display: none; }
+        .theme-swatch { height: 40px; border-radius: 8px; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.1); }
+        @media (max-width: 700px) { .theme-grid { grid-template-columns: repeat(3, 1fr); } }
         .gallery-flash { padding: 12px 16px; border-radius: 10px; font-size: 13px; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
         .gallery-flash-success { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: #34d399; }
         .gallery-flash-error { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #f87171; }
@@ -392,11 +407,24 @@ $font_choices = array_keys(galleryFontChoices());
                 </div>
             </div>
 
+            <div class="field">
+                <label>Background Theme</label>
+                <div class="theme-grid">
+                    <?php foreach ($theme_labels as $tkey => $tlabel): ?>
+                    <label class="theme-option <?php echo $gallery_settings['theme'] === $tkey ? 'selected' : ''; ?>">
+                        <input type="radio" name="gallery_theme" value="<?php echo $tkey; ?>" <?php echo $gallery_settings['theme'] === $tkey ? 'checked' : ''; ?> onchange="selectTheme(this)">
+                        <div class="theme-swatch" style="background:<?php echo $tkey === 'custom' ? htmlspecialchars($gallery_settings['bg_color']) : htmlspecialchars($theme_presets[$tkey]); ?>;"></div>
+                        <div class="layout-name"><?php echo $tlabel; ?></div>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
             <div class="row">
-                <div class="field">
-                    <label>Background Color</label>
+                <div class="field" id="customColorField" style="<?php echo $gallery_settings['theme'] !== 'custom' ? 'display:none;' : ''; ?>">
+                    <label>Custom Color <span style="color:rgba(255,255,255,0.35); font-weight:400;">(used when "Custom Color" theme is selected)</span></label>
                     <div class="color-field">
-                        <input type="color" name="gallery_bg_color" id="galleryBgColor" value="<?php echo htmlspecialchars($gallery_settings['bg_color']); ?>" onchange="document.getElementById('galleryBgSwatch').textContent = this.value;">
+                        <input type="color" name="gallery_bg_color" id="galleryBgColor" value="<?php echo htmlspecialchars($gallery_settings['bg_color']); ?>" onchange="document.getElementById('galleryBgSwatch').textContent = this.value; document.querySelector('.theme-option input[value=custom]').closest('.theme-option').querySelector('.theme-swatch').style.background = this.value;">
                         <span id="galleryBgSwatch"><?php echo htmlspecialchars($gallery_settings['bg_color']); ?></span>
                     </div>
                 </div>
@@ -450,6 +478,12 @@ document.getElementById('galleryFileInput')?.addEventListener('change', function
 function selectLayout(input) {
     document.querySelectorAll('.layout-option').forEach(el => el.classList.remove('selected'));
     input.closest('.layout-option').classList.add('selected');
+}
+
+function selectTheme(input) {
+    document.querySelectorAll('.theme-option').forEach(el => el.classList.remove('selected'));
+    input.closest('.theme-option').classList.add('selected');
+    document.getElementById('customColorField').style.display = (input.value === 'custom') ? '' : 'none';
 }
 
 function deleteEntireGallery() {

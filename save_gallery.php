@@ -14,6 +14,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'agent') {
 require_once 'config.php';
 require_once 'image_helper.php';
 require_once 'gallery_fonts.php';
+require_once 'gallery_renderer.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: agent_manage_hotels.php');
@@ -41,14 +42,15 @@ try {
     $gallery_layout = preg_replace('/[^a-z0-9]/', '', strtolower($_POST['gallery_layout'] ?? 'grid2'));
     if ($gallery_layout === '') $gallery_layout = 'grid2';
     $gallery_bg_color = preg_match('/^#[0-9a-fA-F]{6}$/', $_POST['gallery_bg_color'] ?? '') ? $_POST['gallery_bg_color'] : '#0a0f1e';
+    $gallery_theme = array_key_exists($_POST['gallery_theme'] ?? '', galleryThemePresets()) ? $_POST['gallery_theme'] : 'custom';
     $gallery_font = isValidGalleryFont($_POST['gallery_font'] ?? '') ? $_POST['gallery_font'] : 'Inter';
 
     $stmt = $pdo->prepare("
-        INSERT INTO hotel_galleries (hotel_id, layout, bg_color, font_family)
-        VALUES (?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE layout = VALUES(layout), bg_color = VALUES(bg_color), font_family = VALUES(font_family)
+        INSERT INTO hotel_galleries (hotel_id, layout, bg_color, theme, font_family)
+        VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE layout = VALUES(layout), bg_color = VALUES(bg_color), theme = VALUES(theme), font_family = VALUES(font_family)
     ");
-    $stmt->execute([$hotel_id, $gallery_layout, $gallery_bg_color, $gallery_font]);
+    $stmt->execute([$hotel_id, $gallery_layout, $gallery_bg_color, $gallery_theme, $gallery_font]);
 
     // ---- Remove any images the agent checked "Remove" ----
     if (!empty($_POST['remove_gallery_images']) && is_array($_POST['remove_gallery_images'])) {

@@ -145,7 +145,27 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
             padding: 40px 0 20px;
             text-align: center;
             animation: fadeDown 0.8s ease forwards;
+            position: relative;
         }
+        .gallery-corner-btn {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(212,175,55,0.1);
+            border: 1px solid rgba(212,175,55,0.25);
+            color: #d4af37;
+            padding: 10px 18px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        .gallery-corner-btn:hover { background: #d4af37; color: #0a0f1e; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212,175,55,0.25); }
+        @media (max-width: 600px) { .gallery-corner-btn { position: static; display: inline-flex; margin-top: 14px; } }
         @keyframes fadeDown {
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -716,6 +736,13 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
 
     <div class="hotel-header">
         <div class="container">
+            <?php
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM hotel_gallery_images WHERE hotel_id = ?");
+                $stmt->execute([$hotel_id]);
+                if ($stmt->fetchColumn() > 0):
+            ?>
+            <a href="hotel_gallery.php?hotel_id=<?php echo $hotel_id; ?>" class="gallery-corner-btn"><i class="fas fa-images" aria-hidden="true"></i> Photo Gallery</a>
+            <?php endif; ?>
             <div class="gold-line"></div>
             <div class="stars"><?php echo str_repeat('★', (int)$hotel['rating']); ?></div>
             <h2><?php echo htmlspecialchars($hotel['hotel_name']); ?></h2>
@@ -726,23 +753,6 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
     <?php if (!empty($hotel['rooms_image_url'])): ?>
     <div class="container" style="padding-top:20px;">
         <img src="<?php echo htmlspecialchars($hotel['rooms_image_url']); ?>" alt="Rooms" style="width:100%; max-height:320px; object-fit:cover; border-radius:16px; border:1px solid rgba(255,255,255,0.05);">
-    </div>
-    <?php endif; ?>
-
-    <?php
-        // NEW: the gallery is embedded directly on the hotel page (not
-        // just linked to) -- this is shown to every customer browsing
-        // this hotel, right where they're already looking, instead of
-        // requiring an extra click to a separate page.
-        renderHotelGalleryCSS();
-        ob_start();
-        $has_gallery = renderHotelGalleryHTML($pdo, $hotel_id);
-        $gallery_html = ob_get_clean();
-        if ($has_gallery):
-    ?>
-    <div class="container" style="padding-top:24px;">
-        <div class="section-title-sm" style="color:rgba(255,255,255,0.5); font-size:12px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px;">Photo Gallery</div>
-        <?php echo $gallery_html; ?>
     </div>
     <?php endif; ?>
 
