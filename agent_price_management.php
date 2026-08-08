@@ -28,11 +28,34 @@ $stmt = $pdo->query("SELECT DISTINCT city FROM hotels_saudi WHERE city IS NOT NU
 $cities = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
 // Get hotels by city
+// 🔴 FIX: only hotels with their own hand-written pricing code
+// (Makkah Hotel, Makkah Towers, Movenpick, the "single room + supplement"
+// hotels like Conrad/Al Safwah, and Le Meridien) are editable here now.
+// Every other hotel ("simple hidden markup" ones -- the vast majority,
+// including everything created through the new Manage Hotels screen)
+// is edited exclusively through agent_hotel_form.php going forward.
+//
+// This removes the overlap that used to exist between the two tools:
+// agent_hotel_form.php rebuilds a hotel's ENTIRE pricing table on every
+// save, so a quick edit made here to a hotel that ALSO has a Manage
+// Hotels page could silently get wiped out the next time someone saved
+// that hotel there. Splitting hotels so each one only has ONE tool
+// that can touch its pricing makes that impossible -- no logic was
+// changed for the hotels that still belong here (43/44/63/LeMeridien/
+// single-room-supplement hotels all work exactly as before).
 $hotels = [];
 if($city) {
     $stmt = $pdo->prepare("SELECT id, hotel_name, rating FROM hotels_saudi WHERE city = ? ORDER BY hotel_name");
     $stmt->execute([$city]);
-    $hotels = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $all_hotels_in_city = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($all_hotels_in_city as $h) {
+        $hid = (int)$h['id'];
+        $has_custom_code = ($hid == 43 || $hid == 44 || $hid == 63 || $hid == LEMERIDIEN_HOTEL_ID || HotelHandlerFactory::isSingleRoomSupplementHotel($hid));
+        if ($has_custom_code) {
+            $hotels[] = $h;
+        }
+    }
 }
 
 // Get rooms for a specific hotel - 🔴 HANDLER SE
@@ -789,6 +812,9 @@ if($car_id) {
 
                     <?php elseif($city && !empty($hotels)): ?>
                         <!-- SHOW HOTELS -->
+                        <div style="margin-bottom:14px; color:rgba(212,175,55,0.7); font-size:12px; text-align:center; background:rgba(212,175,55,0.05); padding:10px 14px; border-radius:8px; border:1px solid rgba(212,175,55,0.1);">
+                            💡 Only hotels with their own custom pricing code are managed here. For any other hotel, use <a href="agent_manage_hotels.php" style="color:#d4af37;">Manage Hotels</a> instead.
+                        </div>
                         <div class="room-grid">
                             <?php foreach($hotels as $h): 
                                 $hasCustomHandler = HotelHandlerFactory::hasCustomHandler($h['id']);
@@ -804,7 +830,10 @@ if($car_id) {
                         </div>
 
                     <?php elseif($city && empty($hotels)): ?>
-                        <div class="empty-state"><p>No hotels found in <strong style="color:rgba(255,255,255,0.5);"><?php echo htmlspecialchars($city); ?></strong>.</p></div>
+                        <div class="empty-state">
+                            <p>No hotels in <strong style="color:rgba(255,255,255,0.5);"><?php echo htmlspecialchars($city); ?></strong> use custom pricing code.</p>
+                            <p style="margin-top:8px; font-size:12.5px;">All <?php echo htmlspecialchars($city); ?> hotels are managed through <a href="agent_manage_hotels.php" style="color:#d4af37;">Manage Hotels</a> instead.</p>
+                        </div>
                     <?php else: ?>
                         <div class="empty-state"><p>Select a city from the sidebar to view hotels.</p></div>
                     <?php endif; ?>

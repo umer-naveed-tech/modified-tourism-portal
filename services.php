@@ -76,6 +76,15 @@ if(empty($cities)) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
     <style>
+        /* 🔴 FIX: native <select> dropdown options were showing white
+           background with unreadable text -- browsers render the
+           OPEN dropdown list of an <option> separately from the closed
+           select box, and mostly ignore the select's own background/
+           color for it unless the <option> elements are styled
+           directly. This fixes it everywhere on this page. */
+        select { background-color: rgba(255,255,255,0.03); color: white; }
+        select option { background-color: #10182c; color: white; }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; }
         body { 

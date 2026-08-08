@@ -6,6 +6,19 @@ if(!isset($_SESSION['user_id']) || $_SESSION['user_role'] != 'agent') {
 }
 require_once 'config.php';
 
+// 🔴 NEW: opportunistically cancel truly-abandoned bookings (pending,
+// no payment ever submitted, older than 48 hours) -- runs at most once
+// every 6 hours via a small marker file, so this never adds real cost
+// to normal page loads. Safe even without true cron access on shared
+// hosting; if cron IS available, cleanup_abandoned_bookings.php can
+// also be pointed at directly for more precise timing.
+require_once 'cleanup_abandoned_bookings.php';
+$marker_file = __DIR__ . '/uploads/.last_abandoned_cleanup';
+if (!file_exists($marker_file) || (time() - filemtime($marker_file)) > 6 * 3600) {
+    cleanupAbandonedBookings($pdo);
+    @touch($marker_file);
+}
+
 // ==================== FILTERS FROM QUERY STRING ====================
 $status = $_GET['status'] ?? 'pending';   // pending | confirmed | completed | cancelled | all
 $search = trim($_GET['search'] ?? '');
@@ -117,6 +130,15 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
     <style>
+        /* 🔴 FIX: native <select> dropdown options were showing white
+           background with unreadable text -- browsers render the
+           OPEN dropdown list of an <option> separately from the closed
+           select box, and mostly ignore the select's own background/
+           color for it unless the <option> elements are styled
+           directly. This fixes it everywhere on this page. */
+        select { background-color: rgba(255,255,255,0.03); color: white; }
+        select option { background-color: #10182c; color: white; }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; }
         body { font-family: 'Inter', sans-serif; background: #0a0f1e; min-height: 100vh; overflow-x: hidden; }
@@ -252,8 +274,8 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
 
         .table-container { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); border-radius: 16px; overflow-x: auto; }
 
-        /* NEW: sticky Action column -- Details/WhatsApp buttons are the
-           most-used part of each row, so they stay visible on the right
+        /* NEW: sticky Action column -- the Details button is the
+           most-used part of each row, so it stays visible on the right
            edge even when the table needs to scroll horizontally on
            narrower screens, instead of getting cut off out of view. */
         table th:last-child, table td:last-child {
@@ -558,7 +580,6 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                         </td>
                         <td>
                             <button type="button" class="btn-details" data-id="<?php echo (int)$b['id']; ?>">Details</button>
-                            <a href="https://wa.me/<?php echo preg_replace('/^0/', '92', $b['user_phone']); ?>" class="btn-wa" target="_blank">WhatsApp</a>
                         </td>
                     </tr>
                     <?php endforeach; endif; ?>
