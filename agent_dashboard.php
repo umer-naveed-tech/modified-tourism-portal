@@ -468,6 +468,7 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
             <a href="agent_price_management.php" class="side-link"><i class="fas fa-tags" aria-hidden="true"></i>Manage Prices</a>
             <a href="agent_payments.php" class="side-link"><i class="fas fa-credit-card" aria-hidden="true"></i>Payments</a>
             <a href="agent_revenue.php" class="side-link"><i class="fas fa-chart-line" aria-hidden="true"></i>Revenue</a>
+            <a href="agent_theme_settings.php" class="side-link"><i class="fas fa-image" aria-hidden="true"></i>Theme Images</a>
             <div class="side-div"></div>
             <a href="services.php" class="side-link"><i class="fas fa-globe" aria-hidden="true"></i>View Site</a>
             <a href="logout.php" class="side-link side-logout" onclick="return confirm('Are you sure you want to log out?');"><i class="fas fa-right-from-bracket" aria-hidden="true"></i>Logout</a>

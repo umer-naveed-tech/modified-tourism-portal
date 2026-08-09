@@ -22,5 +22,5 @@ if (!isset($active_page)) $active_page = '';
     <div class="div"></div>
     <a href="edit_profile.php" class="<?php echo $active_page === 'profile' ? 'on' : ''; ?>"><i class="fas fa-user" aria-hidden="true"></i>Profile</a>
     <a href="https://wa.me/923001234567" target="_blank"><i class="fas fa-headset" aria-hidden="true"></i>Support</a>
-    <a href="logout.php"><i class="fas fa-right-from-bracket" aria-hidden="true"></i>Logout</a>
+    <a href="logout.php" onclick="return confirm('Are you sure you want to log out?');"><i class="fas fa-right-from-bracket" aria-hidden="true"></i>Logout</a>
 </div>

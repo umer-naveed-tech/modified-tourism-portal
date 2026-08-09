@@ -63,6 +63,16 @@ $upcoming = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $name_parts = preg_split('/\s+/', trim($_SESSION['user_name']));
 $initials = strtoupper(substr($name_parts[0], 0, 1) . (count($name_parts) > 1 ? substr(end($name_parts), 0, 1) : ''));
 
+// ---- Theme images (agent-uploaded via agent_theme_settings.php) --
+// falls back to an elegant gradient (no broken/missing-image look) if
+// the agent hasn't uploaded photos yet. ----
+$stmt = $pdo->query("SELECT setting_key, image_path FROM site_theme_images");
+$theme_images = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+$fallback_gradient = 'linear-gradient(135deg, #2b2416 0%, #4a3d22 45%, #7a6530 100%)';
+function heroBg($path, $fallback) {
+    return $path ? "background-image: url('" . htmlspecialchars($path) . "');" : "background: $fallback;";
+}
+
 $active_page = 'dashboard';
 ?>
 <!DOCTYPE html>
@@ -72,6 +82,7 @@ $active_page = 'dashboard';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | Ahmed Travels</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="dashboard_shell.css">
 </head>
 <body>
@@ -82,14 +93,34 @@ $active_page = 'dashboard';
         <?php include 'dashboard_sidebar.php'; ?>
 
         <div class="content">
-            <div class="headrow">
-                <div>
-                    <h1>Welcome back, <?php echo htmlspecialchars(explode(' ', $_SESSION['user_name'])[0]); ?></h1>
-                    <div class="meta"><?php echo date('l, F j'); ?></div>
+            <div class="dash-hero" style="<?php echo heroBg($theme_images['dashboard_hero'] ?? null, $fallback_gradient); ?>">
+                <div class="eyebrow">Ahmed Travels</div>
+                <h1>Welcome back, <?php echo htmlspecialchars(explode(' ', $_SESSION['user_name'])[0]); ?></h1>
+                <div class="sub"><?php echo date('l, F j'); ?> — where would you like to go next?</div>
+                <div class="hero-cta-row">
+                    <button type="button" class="btn-book-hero" id="btnRevealServices"><i class="fas fa-plus" aria-hidden="true"></i>Book a Service</button>
+                    <a href="my_bookings.php" class="hero-secondary-link">View My Bookings</a>
+                    <div class="avatar" style="margin-left:auto;"><?php echo htmlspecialchars($initials); ?></div>
                 </div>
-                <div class="headrow-right">
-                    <a href="services.php" class="btn-book-service"><i class="fas fa-plus" aria-hidden="true"></i>Book a Service</a>
-                    <div class="avatar"><?php echo htmlspecialchars($initials); ?></div>
+            </div>
+
+            <div class="service-reveal" id="serviceRevealSection">
+                <div class="service-reveal-grid">
+                    <a href="services.php?type=hotels" class="service-card" style="<?php echo heroBg($theme_images['service_hotel'] ?? null, 'linear-gradient(135deg,#2b2416,#5c4a24)'); ?>">
+                        <div class="sc-label">Stay</div>
+                        <h3>Hotels</h3>
+                        <p>Mecca & Madinah, every star rating, seasonal pricing.</p>
+                    </a>
+                    <a href="services.php?type=taxi" class="service-card" style="<?php echo heroBg($theme_images['service_taxi'] ?? null, 'linear-gradient(135deg,#1e2a3d,#3a5170)'); ?>">
+                        <div class="sc-label">Move</div>
+                        <h3>Taxi & Transfers</h3>
+                        <p>City-to-city routes with fixed, transparent fares.</p>
+                    </a>
+                    <a href="services.php?type=visa" class="service-card" style="<?php echo heroBg($theme_images['service_visa'] ?? null, 'linear-gradient(135deg,#3d2416,#6b4526)'); ?>">
+                        <div class="sc-label">Explore</div>
+                        <h3>Visa & Tours</h3>
+                        <p>Guided trips and visa services, handled end to end.</p>
+                    </a>
                 </div>
             </div>
 
@@ -141,5 +172,17 @@ $active_page = 'dashboard';
         </div>
     </div>
 </div>
+<script>
+document.getElementById('btnRevealServices').addEventListener('click', function() {
+    const section = document.getElementById('serviceRevealSection');
+    const isOpen = section.classList.contains('open');
+    if (isOpen) {
+        section.classList.remove('open');
+    } else {
+        section.classList.add('open');
+        section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+});
+</script>
 </body>
 </html>
