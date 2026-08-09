@@ -18,6 +18,22 @@ require_once 'dashboard_helpers.php';
 date_default_timezone_set('Asia/Riyadh');
 
 $user_id = $_SESSION['user_id'];
+
+// Quick summary stats, moved here from the dashboard so the dashboard
+// stays focused on booking a new service.
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = ? AND hidden_by_user = 0");
+$stmt->execute([$user_id]);
+$total_bookings = $stmt->fetchColumn();
+
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = ? AND hidden_by_user = 0 AND status != 'cancelled' AND travel_date >= CURDATE() AND travel_date > '1970-01-02'");
+$stmt->execute([$user_id]);
+$upcoming_count = $stmt->fetchColumn();
+
+$stmt = $pdo->prepare("SELECT travel_date FROM bookings WHERE user_id = ? AND hidden_by_user = 0 AND status != 'cancelled' AND travel_date >= CURDATE() AND travel_date > '1970-01-02' ORDER BY travel_date ASC LIMIT 1");
+$stmt->execute([$user_id]);
+$next_trip_date = $stmt->fetchColumn();
+$next_trip_label = $next_trip_date ? date('M j', strtotime($next_trip_date)) : '--';
+
 $tab = $_GET['tab'] ?? 'completed';
 if (!in_array($tab, ['completed', 'upcoming', 'cancelled'])) $tab = 'completed';
 $page = max(1, (int)($_GET['page'] ?? 1));
@@ -59,7 +75,7 @@ $active_page = 'bookings';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Bookings | Ahmed Travels</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="dashboard_shell.css">
+    <link rel="stylesheet" href="dashboard_shell.css?v=2">
 </head>
 <body>
 <div class="bg-ambient" aria-hidden="true"></div>
@@ -74,6 +90,12 @@ $active_page = 'bookings';
                     <div class="meta">Your completed and upcoming bookings</div>
                 </div>
                 <a href="services.php" class="btn-book-service"><i class="fas fa-plus" aria-hidden="true"></i>Book a Service</a>
+            </div>
+
+            <div class="stat-strip">
+                <div class="cell"><div class="lbl">Total Bookings</div><div class="val"><?php echo $total_bookings; ?></div></div>
+                <div class="cell"><div class="lbl">Upcoming</div><div class="val gold"><?php echo $upcoming_count; ?></div></div>
+                <div class="cell"><div class="lbl">Next Trip</div><div class="val"><?php echo htmlspecialchars($next_trip_label); ?></div></div>
             </div>
 
             <?php if (isset($_GET['removed'])): ?>

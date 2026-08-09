@@ -62,7 +62,7 @@ $active_page = 'payments';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Payments | Ahmed Travels</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="dashboard_shell.css">
+    <link rel="stylesheet" href="dashboard_shell.css?v=2">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>

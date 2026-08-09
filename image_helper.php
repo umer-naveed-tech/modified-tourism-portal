@@ -77,8 +77,13 @@ function compressAndSaveImage($tmp_path, $target_path, $mime, $max_width = 1600,
  * Full helper: validates an uploaded file, compresses it, and returns
  * the relative path to store in the database -- or null if the upload
  * was invalid/empty. $upload_dir must end with a slash.
+ *
+ * $max_width / $quality let a caller ask for higher fidelity for
+ * large hero/background photos (theme images) than the default used
+ * for smaller UI elements like gallery thumbnails -- still always
+ * compressed, just with a higher ceiling.
  */
-function handleImageUpload($file, $upload_dir, $filename_prefix) {
+function handleImageUpload($file, $upload_dir, $filename_prefix, $max_width = 1600, $quality = 80) {
     if (empty($file) || $file['error'] !== UPLOAD_ERR_OK) return null;
 
     $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'];
@@ -86,7 +91,7 @@ function handleImageUpload($file, $upload_dir, $filename_prefix) {
     $mime = finfo_file($finfo, $file['tmp_name']);
     finfo_close($finfo);
 
-    if (!isset($allowed[$mime]) || $file['size'] > 5 * 1024 * 1024) return null;
+    if (!isset($allowed[$mime]) || $file['size'] > 8 * 1024 * 1024) return null;
 
     if (!is_dir($upload_dir)) mkdir($upload_dir, 0755, true);
 
@@ -95,7 +100,7 @@ function handleImageUpload($file, $upload_dir, $filename_prefix) {
     $filename = $filename_prefix . '-' . time() . '-' . mt_rand(1000, 9999) . '.jpg';
     $target_path = $upload_dir . $filename;
 
-    if (!compressAndSaveImage($file['tmp_name'], $target_path, $mime)) {
+    if (!compressAndSaveImage($file['tmp_name'], $target_path, $mime, $max_width, $quality)) {
         // GD unavailable or compression failed for some reason -- fall
         // back to saving the original file as-is rather than losing
         // the photo entirely.

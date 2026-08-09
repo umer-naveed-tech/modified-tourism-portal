@@ -44,7 +44,7 @@ $active_page = 'bookings';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($b['booking_no']); ?> | Ahmed Travels</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="dashboard_shell.css">
+    <link rel="stylesheet" href="dashboard_shell.css?v=2">
     <style>
         .detail-row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 4px; border-bottom: 1px solid #141a2b; font-family: 'Helvetica Neue', sans-serif; font-size: 13px; }
         .detail-row:last-child { border-bottom: none; }

@@ -19,12 +19,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
     $slots = ['dashboard_hero', 'service_hotel', 'service_taxi', 'service_visa'];
     $upload_dir = __DIR__ . '/uploads/theme_images/';
-    $stmt = $pdo->prepare("UPDATE site_theme_images SET image_path = ? WHERE setting_key = ?");
+    // 🔴 FIX: was a plain UPDATE, which silently does nothing if the
+    // seed rows from the schema SQL never actually got inserted (e.g.
+    // only part of that script ran) -- no error, just nothing saved.
+    // INSERT ... ON DUPLICATE KEY UPDATE creates the row if it's
+    // missing, or updates it if it's there -- works either way.
+    $stmt = $pdo->prepare("
+        INSERT INTO site_theme_images (setting_key, image_path) VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE image_path = VALUES(image_path)
+    ");
     foreach ($slots as $slot) {
         if (!empty($_FILES[$slot]) && $_FILES[$slot]['error'] === UPLOAD_ERR_OK) {
-            $filename = handleImageUpload($_FILES[$slot], $upload_dir, $slot);
+            // Higher quality/resolution than the default (these are
+            // large full-bleed hero photos, not small thumbnails) --
+            // still automatically compressed, just with a higher
+            // ceiling so they stay sharp at full width.
+            $filename = handleImageUpload($_FILES[$slot], $upload_dir, $slot, 2400, 88);
             if ($filename) {
-                $stmt->execute(['uploads/theme_images/' . $filename, $slot]);
+                $stmt->execute([$slot, 'uploads/theme_images/' . $filename]);
             }
         }
     }
@@ -88,18 +100,38 @@ $slots_info = [
             <h3><?php echo htmlspecialchars($info['label']); ?></h3>
             <div class="hint"><?php echo htmlspecialchars($info['hint']); ?></div>
             <?php if (!empty($images[$key])): ?>
-                <img class="slot-preview" src="<?php echo htmlspecialchars($images[$key]); ?>" alt="">
+                <img class="slot-preview" src="<?php echo htmlspecialchars($images[$key]); ?>" alt="" id="preview_<?php echo $key; ?>">
             <?php else: ?>
-                <div class="slot-empty">No image uploaded yet -- a default look is used until you add one</div>
+                <img class="slot-preview" src="" alt="" id="preview_<?php echo $key; ?>" style="display:none;">
+                <div class="slot-empty" id="empty_<?php echo $key; ?>">No image uploaded yet -- a default look is used until you add one</div>
             <?php endif; ?>
             <label class="file-drop">
-                <input type="file" name="<?php echo $key; ?>" accept="image/jpeg,image/png,image/webp">
-                <div class="file-drop-text"><i class="fas fa-cloud-arrow-up"></i> Click to choose a photo</div>
+                <input type="file" name="<?php echo $key; ?>" accept="image/jpeg,image/png,image/webp" onchange="previewImage(this, '<?php echo $key; ?>')">
+                <div class="file-drop-text" id="filetext_<?php echo $key; ?>"><i class="fas fa-cloud-arrow-up"></i> Click to choose a photo</div>
             </label>
         </div>
         <?php endforeach; ?>
         <button type="submit" class="btn-save">Save Theme Images</button>
     </form>
 </div>
+<script>
+// NEW: shows the chosen photo immediately (before Save is even
+// clicked), so the agent can see and compare all 4 photos are right
+// before saving them all together at the end -- no waiting for a page
+// reload just to check what was picked.
+function previewImage(input, key) {
+    if (!input.files || !input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = document.getElementById('preview_' + key);
+        const emptyBox = document.getElementById('empty_' + key);
+        img.src = e.target.result;
+        img.style.display = 'block';
+        if (emptyBox) emptyBox.style.display = 'none';
+    };
+    reader.readAsDataURL(input.files[0]);
+    document.getElementById('filetext_' + key).innerHTML = '<i class="fas fa-check" style="color:#34d399;"></i> ' + input.files[0].name;
+}
+</script>
 </body>
 </html>
