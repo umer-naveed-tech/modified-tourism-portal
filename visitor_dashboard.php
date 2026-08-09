@@ -30,7 +30,7 @@ $stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = ? AND hidde
 $stmt->execute([$user_id]);
 $total_bookings = (int)$stmt->fetchColumn();
 
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = ? AND hidden_by_user = 0 AND status != 'cancelled' AND travel_date >= CURDATE()");
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = ? AND hidden_by_user = 0 AND status != 'cancelled' AND travel_date >= CURDATE() AND travel_date > '1970-01-02'");
 $stmt->execute([$user_id]);
 $upcoming_count = (int)$stmt->fetchColumn();
 
@@ -38,7 +38,7 @@ $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_amount), 0) FROM bookings WHERE
 $stmt->execute([$user_id]);
 $total_spent = (float)$stmt->fetchColumn();
 
-$stmt = $pdo->prepare("SELECT MIN(travel_date) FROM bookings WHERE user_id = ? AND hidden_by_user = 0 AND status != 'cancelled' AND travel_date >= CURDATE()");
+$stmt = $pdo->prepare("SELECT MIN(travel_date) FROM bookings WHERE user_id = ? AND hidden_by_user = 0 AND status != 'cancelled' AND travel_date >= CURDATE() AND travel_date > '1970-01-02'");
 $stmt->execute([$user_id]);
 $next_trip_date = $stmt->fetchColumn();
 $next_trip_label = '--';
@@ -53,7 +53,7 @@ if ($next_trip_date) {
 $stmt = $pdo->prepare("
     SELECT id, booking_no, service_type, service_id, status, total_amount, travel_date, from_location, to_location, price_breakdown
     FROM bookings
-    WHERE user_id = ? AND hidden_by_user = 0 AND status != 'cancelled' AND travel_date >= CURDATE()
+    WHERE user_id = ? AND hidden_by_user = 0 AND status != 'cancelled' AND travel_date >= CURDATE() AND travel_date > '1970-01-02'
     ORDER BY travel_date ASC
     LIMIT 3
 ");
@@ -96,7 +96,7 @@ $active_page = 'dashboard';
             <div class="stat-strip">
                 <div class="cell"><div class="lbl">Total Bookings</div><div class="val"><?php echo $total_bookings; ?></div></div>
                 <div class="cell"><div class="lbl">Upcoming</div><div class="val gold"><?php echo $upcoming_count; ?></div></div>
-                <div class="cell"><div class="lbl">Total Spent</div><div class="val">SAR <?php echo number_format($total_spent); ?></div></div>
+                <a href="payments_history.php" class="cell" style="text-decoration:none; cursor:pointer;"><div class="lbl">My Spending</div><div class="val gold">View →</div></a>
                 <div class="cell"><div class="lbl">Next Trip</div><div class="val"><?php echo htmlspecialchars($next_trip_label); ?></div></div>
             </div>
 

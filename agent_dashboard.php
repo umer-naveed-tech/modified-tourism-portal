@@ -116,9 +116,6 @@ $today_bookings = $stmt->fetchColumn();
 $stmt = $pdo->query("SELECT COUNT(*) FROM users WHERE role = 'visitor'");
 $total_visitors = $stmt->fetchColumn();
 
-$stmt = $pdo->query("SELECT SUM(total_amount) FROM bookings WHERE payment_status = 'paid'");
-$total_revenue = $stmt->fetchColumn() ?? 0;
-
 function qs($overrides = []) {
     $current = $_GET;
     foreach ($overrides as $k => $v) {
@@ -470,6 +467,7 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
             <a href="agent_panel.php" class="side-link"><i class="fas fa-passport" aria-hidden="true"></i>Manage Visas</a>
             <a href="agent_price_management.php" class="side-link"><i class="fas fa-tags" aria-hidden="true"></i>Manage Prices</a>
             <a href="agent_payments.php" class="side-link"><i class="fas fa-credit-card" aria-hidden="true"></i>Payments</a>
+            <a href="agent_revenue.php" class="side-link"><i class="fas fa-chart-line" aria-hidden="true"></i>Revenue</a>
             <div class="side-div"></div>
             <a href="services.php" class="side-link"><i class="fas fa-globe" aria-hidden="true"></i>View Site</a>
             <a href="logout.php" class="side-link side-logout" onclick="return confirm('Are you sure you want to log out?');"><i class="fas fa-right-from-bracket" aria-hidden="true"></i>Logout</a>
@@ -500,11 +498,6 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                 <div class="stat-icon"><i class="fas fa-users"></i></div>
                 <div class="stat-number"><?php echo $total_visitors; ?></div>
                 <div class="stat-label">Total Customers</div>
-            </div>
-            <div class="stat-card reveal">
-                <div class="stat-icon" style="background:rgba(52,211,153,0.1); border-color:rgba(52,211,153,0.2); color:#34d399;"><i class="fas fa-sack-dollar"></i></div>
-                <div class="stat-number" style="color:#34d399;">SAR <?php echo number_format($total_revenue); ?></div>
-                <div class="stat-label">Total Revenue</div>
             </div>
         </div>
 

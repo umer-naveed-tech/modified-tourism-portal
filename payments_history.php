@@ -40,6 +40,19 @@ $stmt = $pdo->prepare("SELECT COALESCE(SUM(b.total_amount), 0) FROM payments p J
 $stmt->execute([$user_id]);
 $verified_total = (float)$stmt->fetchColumn();
 
+// Monthly spending (last 12 months, verified only) for the chart.
+$stmt = $pdo->prepare("
+    SELECT DATE_FORMAT(p.verified_at, '%Y-%m') AS label, SUM(b.total_amount) AS spent
+    FROM payments p JOIN bookings b ON p.booking_id = b.id
+    WHERE b.user_id = ? AND p.status = 'verified' AND p.verified_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+    GROUP BY DATE_FORMAT(p.verified_at, '%Y-%m')
+    ORDER BY label
+");
+$stmt->execute([$user_id]);
+$chart_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$chart_labels = array_map(fn($r) => date('M Y', strtotime($r['label'] . '-01')), $chart_rows);
+$chart_values = array_map(fn($r) => (float)$r['spent'], $chart_rows);
+
 $active_page = 'payments';
 ?>
 <!DOCTYPE html>
@@ -50,6 +63,7 @@ $active_page = 'payments';
     <title>Payments | Ahmed Travels</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="dashboard_shell.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="bg-ambient" aria-hidden="true"></div>
@@ -70,6 +84,13 @@ $active_page = 'payments';
                 <div class="cell"><div class="lbl">Total Submissions</div><div class="val"><?php echo $total_rows; ?></div></div>
                 <div class="cell"><div class="lbl">Verified Total</div><div class="val gold">SAR <?php echo number_format($verified_total); ?></div></div>
             </div>
+
+            <?php if (!empty($chart_values)): ?>
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 22px; margin-bottom: 24px;">
+                <div style="font-size:13px; color:rgba(255,255,255,0.5); margin-bottom:14px; font-weight:600;">Spending, Last 12 Months</div>
+                <div style="position:relative; height:220px;"><canvas id="spendingChart"></canvas></div>
+            </div>
+            <?php endif; ?>
 
             <?php if (count($payments) > 0): ?>
             <table>
@@ -123,5 +144,35 @@ $active_page = 'payments';
         </div>
     </div>
 </div>
+<?php if (!empty($chart_values)): ?>
+<script>
+Chart.defaults.color = 'rgba(255,255,255,0.5)';
+Chart.defaults.font.family = 'Inter, sans-serif';
+new Chart(document.getElementById('spendingChart'), {
+    type: 'line',
+    data: {
+        labels: <?php echo json_encode($chart_labels); ?>,
+        datasets: [{
+            label: 'Spent (SAR)',
+            data: <?php echo json_encode($chart_values); ?>,
+            borderColor: '#d4af37',
+            backgroundColor: 'rgba(212,175,55,0.12)',
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: '#d4af37',
+            pointRadius: 3,
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { callback: v => 'SAR ' + v.toLocaleString() } }
+        }
+    }
+});
+</script>
+<?php endif; ?>
 </body>
 </html>
