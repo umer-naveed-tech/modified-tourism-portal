@@ -9,6 +9,13 @@ if($type == 'ziyarat' || $type == 'groups') {
 }
 $city = $_GET['city'] ?? 'Mecca';
 
+// Reuse the SAME theme photos already uploaded in agent_theme_settings.php
+// (used on book_service.php's cards) as a themed banner behind this
+// page's heading -- one upload, shown in both places, no duplicate work.
+$stmt = $pdo->prepare("SELECT image_path FROM site_theme_images WHERE setting_key = ?");
+$stmt->execute(['service_' . ($type === 'taxi' ? 'taxi' : ($type === 'visa' ? 'visa' : 'hotel'))]);
+$page_hero_image = $stmt->fetchColumn();
+
 // NEW: pagination for the hotels list only -- this is the one list on
 // the site most likely to keep growing (new hotels get added
 // regularly), so it's the one that benefits from not rendering
@@ -82,25 +89,25 @@ if(empty($cities)) {
            select box, and mostly ignore the select's own background/
            color for it unless the <option> elements are styled
            directly. This fixes it everywhere on this page. */
-        select { background-color: rgba(255,255,255,0.03); color: white; }
-        select option { background-color: #10182c; color: white; }
+        select { background-color: rgba(43,38,32,0.03); color: #2b2620; }
+        select option { background-color: #fffdfa; color: #2b2620; }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; }
         body { 
             font-family: 'Inter', sans-serif; 
-            background: #0a0f1e; 
+            background: #faf7f1; 
             min-height: 100vh;
             overflow-x: hidden;
         }
 
         /* ===== Shared site theme ===== */
         ::-webkit-scrollbar { width: 10px; }
-        ::-webkit-scrollbar-track { background: #0a0f1e; }
+        ::-webkit-scrollbar-track { background: #faf7f1; }
         ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #d4af37, #8a6d1f); border-radius: 6px; }
-        html { scrollbar-color: #8a6d1f #0a0f1e; scrollbar-width: thin; }
+        html { scrollbar-color: #8a6d1f #faf7f1; scrollbar-width: thin; }
 
-        .bg-ambient { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: #0a0f1e; }
+        .bg-ambient { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: #faf7f1; }
         .bg-ambient::before {
             content: '';
             position: absolute; inset: -20%;
@@ -150,7 +157,7 @@ if(empty($cities)) {
            hotel city) loads. */
         .page-transition {
             position: fixed; inset: 0; z-index: 99999;
-            background: #0a0f1e;
+            background: #faf7f1;
             display: flex; align-items: center; justify-content: center;
             opacity: 0; visibility: hidden;
             transition: opacity 0.25s ease, visibility 0.25s ease;
@@ -191,37 +198,85 @@ if(empty($cities)) {
 
         input:focus, select:focus { border-color: #d4af37; box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.08); outline: none; }
 
-        .navbar { background: rgba(10, 15, 30, 0.9); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(212, 175, 55, 0.08); padding: 14px 0; position: sticky; top: 0; z-index: 100; }
+        .navbar { background: rgba(255, 253, 250, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(212, 175, 55, 0.08); padding: 14px 0; position: sticky; top: 0; z-index: 100; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
         .navbar .container { display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-family: 'Playfair Display', serif; color: white; font-size: 23px; font-weight: 800; text-decoration: none; letter-spacing: -0.5px; }
+        .logo { font-family: 'Playfair Display', serif; color: #2b2620; font-size: 23px; font-weight: 800; text-decoration: none; letter-spacing: -0.5px; }
         .logo span { color: #d4af37; }
-        .nav-links a { position: relative; color: rgba(255,255,255,0.7); text-decoration: none; margin-left: 24px; font-size: 14px; transition: all 0.3s ease; }
+        .nav-links a { position: relative; color: rgba(43,38,32,0.78); text-decoration: none; margin-left: 24px; font-size: 14px; transition: all 0.3s ease; }
         .nav-links a:not(.btn-logout):not(.btn-login)::after { content: ''; position: absolute; left: 0; right: 0; bottom: -4px; height: 1px; background: #d4af37; transform: scaleX(0); transition: transform 0.25s ease; }
         .nav-links a:not(.btn-logout):not(.btn-login):hover::after { transform: scaleX(1); }
         .nav-links a:hover { color: #d4af37; }
         .nav-links .btn-logout { background: rgba(239,68,68,0.1); color: #f87171; padding: 8px 20px; border-radius: 8px; margin-left: 24px; transition: all 0.3s ease; }
         .nav-links .btn-logout:hover { background: #dc2626; color: white; transform: translateY(-2px); }
         .nav-links .btn-login { background: rgba(212,175,55,0.1); color: #d4af37; padding: 8px 20px; border-radius: 8px; margin-left: 24px; transition: all 0.3s ease; }
-        .nav-links .btn-login:hover { background: #d4af37; color: #0a0f1e; transform: translateY(-2px); }
+        .nav-links .btn-login:hover { background: #d4af37; color: #faf7f1; transform: translateY(-2px); }
 
         /* ===== Page heading (new, purely additive block above tabs) ===== */
         .page-heading { text-align: center; padding: 44px 0 8px; }
         .page-heading .gold-line { width: 50px; height: 3px; background: #d4af37; margin: 0 auto 14px; border-radius: 2px; }
-        .page-heading h1 { font-family: 'Playfair Display', serif; font-size: 30px; color: white; font-weight: 800; }
-        .page-heading p { color: rgba(255,255,255,0.4); font-size: 14px; margin-top: 8px; }
+        .page-heading h1 { font-family: 'Playfair Display', serif; font-size: 30px; color: #2b2620; font-weight: 800; }
+        .page-heading p { color: rgba(43,38,32,0.72); font-size: 14px; margin-top: 8px; }
 
-        .tabs { display: flex; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.04); margin: 32px 0 32px; flex-wrap: wrap; justify-content: center; }
+        /* NEW: the photo now covers the ENTIRE page (fixed, behind
+           everything, scroll-independent) instead of just a top
+           banner -- per Umer's clarification that "poori screen"
+           meant the whole page, not a hero strip. A page-wide dark
+           overlay keeps text readable everywhere, not just near the
+           top. Actual content (cards, dropdowns, tabs) gets an opaque
+           "frame" background (see .container-framed / card rules
+           below) so it stays crisp and prominent against the photo
+           showing through everywhere else. */
+        .page-photo-bg {
+            position: fixed; inset: 0; z-index: 0; background-size: cover; background-position: center;
+        }
+        .page-photo-overlay {
+            position: fixed; inset: 0; z-index: 0;
+            background: linear-gradient(180deg, rgba(10,8,4,0.35) 0%, rgba(10,8,4,0.55) 500px, rgba(250,247,241,0.94) 900px, rgba(250,247,241,0.97) 100%);
+        }
+        .page-hero-header { position: relative; z-index: 1; text-align: center; padding: 70px 24px 50px; opacity: 0; animation: heroFadeUp 0.8s ease 0.1s forwards; }
+        @keyframes heroFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+        .page-hero-header .gold-line { width: 50px; height: 3px; background: #d4af37; margin: 0 auto 16px; border-radius: 2px; }
+        .page-hero-header h1 { font-family: 'Playfair Display', serif; font-size: 42px; font-weight: 800; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,0.4); }
+        .page-hero-header p { color: rgba(255,255,255,0.92); font-size: 15px; margin-top: 10px; text-shadow: 0 2px 12px rgba(0,0,0,0.35); }
+
+        .page-hero-tabs { display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
+        .hero-tab-btn {
+            padding: 15px 30px; font-size: 14.5px; font-weight: 700; text-decoration: none; border-radius: 12px;
+            color: #fff; background: rgba(0,0,0,0.35); border: 2px solid rgba(255,255,255,0.35);
+            backdrop-filter: blur(4px); transition: all 0.25s ease;
+        }
+        .hero-tab-btn:hover { background: rgba(0,0,0,0.5); border-color: #fff; transform: translateY(-2px); }
+        .hero-tab-btn.active {
+            background: linear-gradient(135deg, #e2bd63, #c9a24b); color: #201a0d; border-color: rgba(255,255,255,0.5);
+            box-shadow: 0 10px 28px rgba(0,0,0,0.35);
+        }
+        /* Content sits in an opaque "frame" so it stays crisp over the
+           photo, wherever the page has scrolled to. */
+        .container-framed { position: relative; z-index: 1; }
+        .container-framed .city-tabs, .container-framed .service-card,
+        .container-framed .car-details-card, .container-framed .empty-state,
+        .container-framed .hotels-pagination, .container-framed .car-dropdown-container select {
+            background: rgba(255,253,250,0.97) !important;
+            box-shadow: 0 10px 30px rgba(60,45,20,0.12);
+        }
+        @media (max-width: 700px) {
+            .page-hero-header { padding: 50px 20px 34px; }
+            .page-hero-header h1 { font-size: 30px; }
+            .hero-tab-btn { padding: 12px 20px; font-size: 13px; }
+        }
+
+        .tabs { display: flex; gap: 8px; border-bottom: 1px solid rgba(43,38,32,0.04); margin: 32px 0 32px; flex-wrap: wrap; justify-content: center; }
         .tab-link { 
             position: relative;
             padding: 12px 28px; 
             font-size: 15px; 
             font-weight: 500; 
-            color: rgba(255,255,255,0.4); 
+            color: rgba(43,38,32,0.72); 
             text-decoration: none; 
             border-radius: 8px 8px 0 0;
         }
-        .tab-link:hover { color: #d4af37; background: rgba(255,255,255,0.02); }
+        .tab-link:hover { color: #d4af37; background: rgba(43,38,32,0.02); }
         .tab-link.active { 
             color: #d4af37; 
             background: rgba(212,175,55,0.04);
@@ -239,51 +294,61 @@ if(empty($cities)) {
             padding: 10px 28px; 
             font-size: 14px; 
             font-weight: 500; 
-            color: rgba(255,255,255,0.4); 
+            color: rgba(43,38,32,0.72); 
             text-decoration: none; 
             border-radius: 30px; 
-            background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(255,255,255,0.04);
+            background: rgba(43,38,32,0.02);
+            border: 1px solid rgba(43,38,32,0.04);
             transition: all 0.3s ease; 
         }
         .city-tab:hover { border-color: rgba(212, 175, 55, 0.2); color: #d4af37; transform: translateY(-2px); }
         .city-tab.active { 
             background: #d4af37; 
-            color: #0a0f1e; 
+            color: #faf7f1; 
             border-color: #d4af37; 
             box-shadow: 0 6px 20px rgba(212,175,55,0.2);
         }
         
         .services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 30px; margin-top: 20px; }
         .service-card { 
-            background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(255,255,255,0.04);
+            background: rgba(43,38,32,0.02);
+            border: 1px solid rgba(43,38,32,0.04);
             border-radius: 16px; 
             overflow: hidden; 
             cursor: pointer; 
         }
         .service-card:hover { border-color: rgba(212, 175, 55, 0.2); }
         .service-card-img-wrap { position: relative; overflow: hidden; }
-        .service-card-img { width: 100%; height: 200px; object-fit: cover; background: rgba(255,255,255,0.02); display: block; transition: transform 0.5s ease; }
+        .service-card-img { width: 100%; height: 200px; object-fit: cover; background: rgba(43,38,32,0.02); display: block; transition: transform 0.5s ease; }
         .service-card:hover .service-card-img { transform: scale(1.07); }
-        .service-card-img-wrap::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(10,15,30,0.75) 100%); opacity: 0; transition: opacity 0.35s ease; }
+        .service-card-img-wrap::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(20,16,8,0.6) 100%); opacity: 0; transition: opacity 0.35s ease; }
         .service-card:hover .service-card-img-wrap::after { opacity: 1; }
+
+        /* NEW: designed "poster" header for Visa Service cards -- no
+           photo needed, built entirely from CSS (gradient + subtle
+           dot pattern + icon), so it always looks intentional instead
+           of a broken/placeholder image. */
+        .visa-poster { position: relative; height: 200px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: transform 0.5s ease; }
+        .service-card:hover .visa-poster { transform: scale(1.04); }
+        .visa-poster-pattern { position: absolute; inset: 0; opacity: 0.15; background-image: radial-gradient(rgba(255,255,255,0.8) 1.5px, transparent 1.5px); background-size: 22px 22px; }
+        .visa-poster-icon { position: relative; z-index: 1; font-size: 40px; color: rgba(255,255,255,0.9); margin-bottom: 10px; text-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+        .visa-poster-label { position: relative; z-index: 1; font-size: 10.5px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.7); font-weight: 600; }
         .service-card-body { padding: 20px; }
-        .service-card-title { font-size: 18px; font-weight: 700; color: white; margin-bottom: 8px; }
-        .service-card-location { color: rgba(255,255,255,0.4); font-size: 13px; margin-bottom: 8px; }
+        .service-card-title { font-size: 18px; font-weight: 700; color: #2b2620; margin-bottom: 8px; }
+        .service-card-location { color: rgba(43,38,32,0.72); font-size: 13px; margin-bottom: 8px; }
         .service-card-stars { color: #d4af37; font-size: 13px; margin-bottom: 12px; }
         .service-card-price { font-size: 20px; font-weight: 700; color: #d4af37; margin: 10px 0; }
         .service-card-duration { 
             display: inline-block; 
-            background: rgba(255,255,255,0.02);
+            background: rgba(43,38,32,0.02);
             padding: 4px 12px; 
             border-radius: 20px; 
             font-size: 12px; 
-            color: rgba(255,255,255,0.3); 
+            color: rgba(43,38,32,0.55); 
         }
         
         .hotel-details { 
-            background: rgba(255,255,255,0.02);
+            background: rgba(43,38,32,0.02);
             padding: 12px; 
             border-radius: 12px; 
             margin: 12px 0; 
@@ -293,39 +358,40 @@ if(empty($cities)) {
             align-items: baseline; 
             gap: 8px; 
             font-size: 12px; 
-            color: rgba(255,255,255,0.5); 
+            color: rgba(43,38,32,0.68); 
             margin-bottom: 6px; 
         }
-        .detail-label { font-weight: 500; color: rgba(255,255,255,0.7); min-width: 70px; }
+        .detail-label { font-weight: 500; color: rgba(43,38,32,0.78); min-width: 70px; }
         .service-value { color: #34d399; font-weight: 500; }
         
         .service-card-btn { 
-            background: rgba(212, 175, 55, 0.1);
-            color: #d4af37; 
-            border: 1px solid rgba(212, 175, 55, 0.1);
-            padding: 10px 20px; 
+            background: linear-gradient(135deg, #d9b45a, #c9a24b);
+            color: #201a0d; 
+            border: none;
+            padding: 13px 20px; 
             border-radius: 10px; 
-            font-weight: 500; 
+            font-weight: 700; 
             width: 100%; 
             font-size: 14px; 
             cursor: pointer; 
             transition: all 0.3s ease;
+            box-shadow: 0 6px 18px rgba(201,162,75,0.25);
         }
-        .service-card-btn:hover { background: #d4af37; color: #0a0f1e; box-shadow: 0 8px 22px rgba(212,175,55,0.2); }
+        .service-card-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(201,162,75,0.35); }
         
         .car-dropdown-container { max-width: 500px; margin: 0 auto 40px auto; }
         .car-select { 
             width: 100%; 
             padding: 15px 20px; 
             font-size: 15px; 
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(43,38,32,0.08);
             border-radius: 12px; 
-            background: rgba(255,255,255,0.03);
-            color: white;
+            background: rgba(43,38,32,0.03);
+            color: #2b2620;
             cursor: pointer; 
             transition: all 0.3s ease;
         }
-        .car-select option { background: #0a0f1e; color: white; }
+        .car-select option { background: #faf7f1; color: #2b2620; }
         .car-select:focus {
             outline: none;
             border-color: #d4af37;
@@ -334,8 +400,8 @@ if(empty($cities)) {
         .car-select:hover { border-color: rgba(212, 175, 55, 0.2); }
         
         .car-details-card { 
-            background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(255,255,255,0.05);
+            background: rgba(43,38,32,0.02);
+            border: 1px solid rgba(43,38,32,0.05);
             border-radius: 16px; 
             overflow: hidden; 
             margin-top: 20px; 
@@ -345,11 +411,11 @@ if(empty($cities)) {
         }
         @keyframes cardIn { to { opacity: 1; transform: translateY(0); } }
         .car-header { 
-            background: rgba(255,255,255,0.02);
-            color: white; 
+            background: rgba(43,38,32,0.02);
+            color: #2b2620; 
             padding: 25px; 
             text-align: center;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid rgba(43,38,32,0.04);
         }
         .car-header h2 { font-family: 'Playfair Display', serif; }
         .car-category { 
@@ -361,24 +427,24 @@ if(empty($cities)) {
         }
         .car-category.luxury { background: rgba(212, 175, 55, 0.1); color: #d4af37; }
         .car-category.premium { background: rgba(8, 145, 178, 0.1); color: #22d3ee; }
-        .car-category.standard { background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.5); }
+        .car-category.standard { background: rgba(43,38,32,0.03); color: rgba(43,38,32,0.68); }
         .car-category.economy { background: rgba(16,185,129,0.1); color: #34d399; }
-        .car-image-wrap { width: 100%; height: 250px; background: rgba(255,255,255,0.015); border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .car-image-wrap { width: 100%; height: 250px; background: rgba(43,38,32,0.015); border-radius: 12px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         .car-image { width: 100%; height: 100%; object-fit: contain; transition: transform 0.5s ease; }
         .car-image-wrap:hover .car-image { transform: scale(1.04); }
         .fare-table { width: 100%; border-collapse: collapse; margin: 15px 0; border-radius: 10px; overflow: hidden; }
-        .fare-table th, .fare-table td { padding: 11px; text-align: center; border: 1px solid rgba(255,255,255,0.04); }
-        .fare-table th { background: rgba(212,175,55,0.05); font-weight: 600; color: rgba(255,255,255,0.75); }
-        .fare-table td { color: rgba(255,255,255,0.5); }
-        .fare-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .fare-table th, .fare-table td { padding: 11px; text-align: center; border: 1px solid rgba(43,38,32,0.04); }
+        .fare-table th { background: rgba(212,175,55,0.05); font-weight: 600; color: rgba(43,38,32,0.85); }
+        .fare-table td { color: rgba(43,38,32,0.68); }
+        .fare-table tr:hover td { background: rgba(43,38,32,0.02); }
         .city-select { 
             width: 100%; 
             padding: 13px; 
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid rgba(43,38,32,0.08);
             border-radius: 12px; 
             margin-bottom: 15px;
-            background: rgba(255,255,255,0.03);
-            color: white;
+            background: rgba(43,38,32,0.03);
+            color: #2b2620;
             transition: all 0.3s ease;
         }
         .city-select:focus {
@@ -386,7 +452,7 @@ if(empty($cities)) {
             border-color: #d4af37;
             box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.08);
         }
-        .city-select option { background: #0a0f1e; color: white; }
+        .city-select option { background: #faf7f1; color: #2b2620; }
         .city-select:hover { border-color: rgba(212, 175, 55, 0.2); }
         .fare-display { 
             background: rgba(16,185,129,0.06);
@@ -403,18 +469,18 @@ if(empty($cities)) {
         .empty-state { 
             text-align: center; 
             padding: 60px; 
-            background: rgba(255,255,255,0.02);
+            background: rgba(43,38,32,0.02);
             border-radius: 16px; 
-            border: 1px solid rgba(255,255,255,0.03);
+            border: 1px solid rgba(43,38,32,0.03);
         }
-        .empty-state h3 { color: white; margin-bottom: 8px; font-family: 'Playfair Display', serif; }
-        .empty-state p { color: rgba(255,255,255,0.3); }
+        .empty-state h3 { color: #2b2620; margin-bottom: 8px; font-family: 'Playfair Display', serif; }
+        .empty-state p { color: rgba(43,38,32,0.55); }
 
         /* NEW: hotel-list pagination */
         .hotels-pagination { display: flex; gap: 6px; justify-content: center; align-items: center; padding: 30px 0 10px; flex-wrap: wrap; }
-        .hotels-pagination a, .hotels-pagination span { padding: 8px 13px; border-radius: 6px; font-size: 13px; text-decoration: none; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.06); }
-        .hotels-pagination a:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.9); }
-        .hotels-pagination .current { background: #d4af37; color: #0a0f1e; border-color: #d4af37; font-weight: 600; }
+        .hotels-pagination a, .hotels-pagination span { padding: 8px 13px; border-radius: 6px; font-size: 13px; text-decoration: none; color: rgba(43,38,32,0.68); border: 1px solid rgba(43,38,32,0.06); }
+        .hotels-pagination a:hover { background: rgba(43,38,32,0.05); color: rgba(43,38,32,0.9); }
+        .hotels-pagination .current { background: #d4af37; color: #faf7f1; border-color: #d4af37; font-weight: 600; }
         .hotels-pagination .disabled { opacity: 0.3; pointer-events: none; }
         
         @media (max-width: 768px) { 
@@ -458,6 +524,21 @@ if(empty($cities)) {
         </div>
     </nav>
 
+    <?php if ($page_hero_image): ?>
+    <div class="page-photo-bg" style="background-image: url('<?php echo htmlspecialchars($page_hero_image); ?>');"></div>
+    <div class="page-photo-overlay"></div>
+    <div class="page-hero-header">
+        <div class="gold-line"></div>
+        <h1><?php echo $type == 'hotels' ? 'Find Your Stay' : ($type == 'taxi' ? 'Book a Taxi' : 'Visa Services'); ?></h1>
+        <p><?php echo $type == 'hotels' ? 'Handpicked hotels near the Haram' : ($type == 'taxi' ? 'Comfortable rides, transparent fares' : 'Fast, guided visa processing'); ?></p>
+        <div class="page-hero-tabs">
+            <a href="?type=hotels&city=Mecca" class="hero-tab-btn <?php echo $type == 'hotels' ? 'active' : ''; ?>">Hotels</a>
+            <a href="?type=taxi" class="hero-tab-btn <?php echo $type == 'taxi' ? 'active' : ''; ?>">Airport Taxi</a>
+            <a href="?type=visa" class="hero-tab-btn <?php echo $type == 'visa' ? 'active' : ''; ?>">Visa Services</a>
+        </div>
+    </div>
+    <div class="container container-framed">
+    <?php else: ?>
     <div class="container">
         <div class="page-heading reveal">
             <div class="gold-line"></div>
@@ -470,6 +551,7 @@ if(empty($cities)) {
             <a href="?type=taxi" class="tab-link <?php echo $type == 'taxi' ? 'active' : ''; ?>">Airport Taxi</a>
             <a href="?type=visa" class="tab-link <?php echo $type == 'visa' ? 'active' : ''; ?>">Visa Services</a>
         </div>
+    <?php endif; ?>
         
         <?php if($type == 'hotels'): ?>
             <div class="city-tabs">
@@ -601,18 +683,18 @@ if(empty($cities)) {
                 let html = `
                     <div class="car-details-card">
                         <div class="car-header">
-                            <h2 style="color:white;">${escHtml(car.name)} ${escHtml(car.model)}</h2>
+                            <h2 style="color:#2b2620;">${escHtml(car.name)} ${escHtml(car.model)}</h2>
                             <span class="car-category ${categoryClass}">${categoryName} Class</span>
                         </div>
                         <div class="car-image-wrap">
-                            <img class="car-image" src="${escHtml(car.image_url)}" onerror="this.src='https://placehold.co/600x300/1a1a2e/333?text=${encodeURIComponent(car.name)}'">
+                            <img class="car-image" src="${escHtml(car.image_url)}" onerror="this.src='https://placehold.co/600x300/faf7f1/999?text=${encodeURIComponent(car.name)}'">
                         </div>
                         <div style="padding: 25px;">
-                            <p style="margin-bottom: 15px; color:rgba(255,255,255,0.5);"><strong style="color:rgba(255,255,255,0.7);">Capacity:</strong> ${Number(car.capacity)} persons &nbsp;|&nbsp; <strong style="color:rgba(255,255,255,0.7);">Air Conditioning:</strong> Yes</p>
+                            <p style="margin-bottom: 15px; color:rgba(43,38,32,0.72);"><strong style="color:rgba(43,38,32,0.85);">Capacity:</strong> ${Number(car.capacity)} persons &nbsp;|&nbsp; <strong style="color:rgba(43,38,32,0.85);">Air Conditioning:</strong> Yes</p>
                             ${faresHtml}
-                            <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 16px; margin-top: 20px; border: 1px solid rgba(255,255,255,0.04);">
-                                <select id="fromCity" class="city-select"><option value="" style="color:rgba(255,255,255,0.3);">Select Pickup City</option>${cities.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}</select>
-                                <select id="toCity" class="city-select"><option value="" style="color:rgba(255,255,255,0.3);">Select Drop City</option>${cities.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}</select>
+                            <div style="background: rgba(43,38,32,0.02); padding: 20px; border-radius: 16px; margin-top: 20px; border: 1px solid rgba(43,38,32,0.05);">
+                                <select id="fromCity" class="city-select"><option value="">Select Pickup City</option>${cities.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}</select>
+                                <select id="toCity" class="city-select"><option value="">Select Drop City</option>${cities.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}</select>
                                 <div id="fareDisplay" class="fare-display">Select cities to see fare</div>
                                 <button id="bookNowBtn" class="service-card-btn" disabled>Book Now</button>
                             </div>
@@ -724,10 +806,27 @@ if(empty($cities)) {
         
         <?php elseif($type == 'visa' && isset($services)): ?>
             <div class="services-grid">
-                <?php foreach($services as $service): ?>
+                <?php
+                    // NEW: no real photo exists for these -- instead of a
+                    // broken/generic gray placeholder, each card gets its
+                    // own designed "poster" (gradient + pattern + large
+                    // serif initial), built entirely in CSS. Looks
+                    // intentional and professional with zero image
+                    // dependency, and each one is visually distinct.
+                    $poster_palettes = [
+                        ['from' => '#1e2a3d', 'to' => '#3a5170', 'icon' => 'fa-passport'],
+                        ['from' => '#2b2416', 'to' => '#5c4a24', 'icon' => 'fa-globe'],
+                        ['from' => '#3d2416', 'to' => '#6b4526', 'icon' => 'fa-plane-departure'],
+                        ['from' => '#241a30', 'to' => '#4a3560', 'icon' => 'fa-stamp'],
+                    ];
+                    $i = 0;
+                ?>
+                <?php foreach($services as $service): $pal = $poster_palettes[$i % count($poster_palettes)]; $i++; ?>
                     <div class="service-card reveal" onclick="goTo('booking.php?type=<?php echo $type; ?>&id=<?php echo $service['id']; ?>')">
-                        <div class="service-card-img-wrap">
-                            <img class="service-card-img" src="https://placehold.co/400x200/1a1a2e/333?text=<?php echo urlencode($service['title'] ?? 'Service'); ?>" alt="<?php echo htmlspecialchars($service['title'] ?? 'Service'); ?>">
+                        <div class="visa-poster" style="background: linear-gradient(150deg, <?php echo $pal['from']; ?>, <?php echo $pal['to']; ?>);">
+                            <div class="visa-poster-pattern"></div>
+                            <i class="fas <?php echo $pal['icon']; ?> visa-poster-icon" aria-hidden="true"></i>
+                            <div class="visa-poster-label">Visa Service</div>
                         </div>
                         <div class="service-card-body">
                             <h3 class="service-card-title"><?php echo htmlspecialchars($service['title'] ?? 'Service Name'); ?></h3>

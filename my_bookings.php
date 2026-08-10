@@ -19,6 +19,9 @@ date_default_timezone_set('Asia/Riyadh');
 
 $user_id = $_SESSION['user_id'];
 
+// Agent-uploaded photo banner for this page (agent_theme_settings.php)
+// -- falls back to the plain title-only header if none uploaded yet.
+
 // Quick summary stats, moved here from the dashboard so the dashboard
 // stays focused on booking a new service.
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE user_id = ? AND hidden_by_user = 0");
@@ -76,6 +79,7 @@ $active_page = 'bookings';
     <title>My Bookings | Ahmed Travels</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="dashboard_shell.css?v=2">
+    <?php include 'dynamic_theme.php'; ?>
 </head>
 <body>
 <div class="bg-ambient" aria-hidden="true"></div>
@@ -89,7 +93,6 @@ $active_page = 'bookings';
                     <h1>My Bookings</h1>
                     <div class="meta">Your completed and upcoming bookings</div>
                 </div>
-                <a href="services.php" class="btn-book-service"><i class="fas fa-plus" aria-hidden="true"></i>Book a Service</a>
             </div>
 
             <div class="stat-strip">

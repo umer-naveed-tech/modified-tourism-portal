@@ -112,9 +112,9 @@ if (empty($details) && $booking['service_type'] === 'hotel') {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: #0a0f1e; min-height: 100vh; color: white; }
+        body { font-family: 'Inter', sans-serif; background: #faf7f1; min-height: 100vh; color: #2b2620; }
         ::-webkit-scrollbar { width: 10px; }
-        ::-webkit-scrollbar-track { background: #0a0f1e; }
+        ::-webkit-scrollbar-track { background: #faf7f1; }
         ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #d4af37, #8a6d1f); border-radius: 6px; }
 
         .wrap { max-width: 640px; margin: 0 auto; padding: 40px 20px 80px; }
@@ -122,30 +122,30 @@ if (empty($details) && $booking['service_type'] === 'hotel') {
         .logo span { color: #d4af37; }
 
         .steps { display: flex; justify-content: center; gap: 10px; margin: 24px 0 36px; }
-        .step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: rgba(255,255,255,0.3); }
-        .step .num { width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+        .step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: rgba(43,38,32,0.5); }
+        .step .num { width: 24px; height: 24px; border-radius: 50%; background: rgba(43,38,32,0.05); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
         .step.active { color: #d4af37; }
-        .step.active .num { background: #d4af37; color: #0a0f1e; }
+        .step.active .num { background: #d4af37; color: #201a0d; font-weight: 700; }
         .step.done .num { background: rgba(212,175,55,0.2); color: #d4af37; }
-        .step-sep { width: 24px; height: 1px; background: rgba(255,255,255,0.08); align-self: center; }
+        .step-sep { width: 24px; height: 1px; background: rgba(43,38,32,0.08); align-self: center; }
 
-        .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 32px; }
+        .card { background: rgba(43,38,32,0.03); border: 1px solid rgba(43,38,32,0.06); border-radius: 18px; padding: 32px; }
         .card h2 { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 6px; }
-        .card .sub { color: rgba(255,255,255,0.4); font-size: 13px; margin-bottom: 26px; }
+        .card .sub { color: rgba(43,38,32,0.6); font-size: 13px; margin-bottom: 26px; }
 
-        .summary-box { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 14px; padding: 6px 20px; margin-bottom: 24px; }
-        .row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13.5px; }
+        .summary-box { background: rgba(43,38,32,0.02); border: 1px solid rgba(43,38,32,0.05); border-radius: 14px; padding: 6px 20px; margin-bottom: 24px; }
+        .row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid rgba(43,38,32,0.04); font-size: 13.5px; }
         .row:last-child { border-bottom: none; }
-        .row span:first-child { color: rgba(255,255,255,0.4); }
-        .row span:last-child { color: white; font-weight: 500; text-align: right; }
+        .row span:first-child { color: rgba(43,38,32,0.6); }
+        .row span:last-child { color: #2b2620; font-weight: 500; text-align: right; }
         .row .amt { color: #d4af37; font-weight: 700; font-size: 16px; }
 
-        .confirm-note { background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.15); border-radius: 12px; padding: 16px 18px; margin-bottom: 22px; font-size: 13.5px; color: rgba(255,255,255,0.7); line-height: 1.6; }
+        .confirm-note { background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.15); border-radius: 12px; padding: 16px 18px; margin-bottom: 22px; font-size: 13.5px; color: rgba(43,38,32,0.9); line-height: 1.6; }
 
-        .btn-confirm { width: 100%; padding: 15px; background: #d4af37; color: #0a0f1e; border: none; border-radius: 12px;
-            font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.25s ease; }
+        .btn-confirm { width: 100%; padding: 15px; background: #d4af37; color: #201a0d; font-weight: 700; border: none; border-radius: 12px;
+            font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.25s ease;  box-shadow: 0 10px 28px rgba(212,175,55,0.3);}
         .btn-confirm:hover { background: #b8922e; }
-        .btn-back { display: block; text-align: center; margin-top: 14px; color: rgba(255,255,255,0.35); font-size: 12.5px; text-decoration: none; }
+        .btn-back { display: block; text-align: center; margin-top: 14px; color: rgba(43,38,32,0.55); font-size: 12.5px; text-decoration: none; }
         .btn-back:hover { color: #d4af37; }
     </style>
 </head>

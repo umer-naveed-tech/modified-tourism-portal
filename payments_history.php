@@ -14,6 +14,7 @@ require_once 'config.php';
 date_default_timezone_set('Asia/Riyadh');
 
 $user_id = $_SESSION['user_id'];
+
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 10;
 $offset = ($page - 1) * $per_page;
@@ -63,6 +64,7 @@ $active_page = 'payments';
     <title>Payments | Ahmed Travels</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="dashboard_shell.css?v=2">
+    <?php include 'dynamic_theme.php'; ?>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -77,7 +79,6 @@ $active_page = 'payments';
                     <h1>Payments</h1>
                     <div class="meta">Every payment proof you've submitted, and its verification status</div>
                 </div>
-                <a href="services.php" class="btn-book-service"><i class="fas fa-plus" aria-hidden="true"></i>Book a Service</a>
             </div>
 
             <div class="stat-strip">

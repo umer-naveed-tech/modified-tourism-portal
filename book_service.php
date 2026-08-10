@@ -29,16 +29,16 @@ function svcBg($path, $fallback) {
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: #faf7f1; color: #2b2620; min-height: 100vh; }
+        body { font-family: var(--font-body, 'Inter', sans-serif); background: var(--c-bg); color: var(--c-text); min-height: 100vh; }
         .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 24px 40px; }
-        .brand { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: #2b2620; text-decoration: none; }
+        .brand { font-family: var(--font-heading); font-size: 18px; font-weight: 700; color: var(--c-text); text-decoration: none; }
         .brand span { color: #b8912f; }
-        .back-link { color: #8a7f6a; text-decoration: none; font-size: 13px; }
-        .back-link:hover { color: #2b2620; }
+        .back-link { color: var(--c-muted-2); text-decoration: none; font-size: 13px; }
+        .back-link:hover { color: var(--c-text); }
 
         .intro { text-align: center; padding: 20px 24px 44px; }
-        .intro h1 { font-family: 'Playfair Display', serif; font-size: 34px; margin-bottom: 10px; opacity: 0; animation: fadeUp 0.7s ease 0.1s forwards; }
-        .intro p { color: #9b8f78; font-size: 14px; opacity: 0; animation: fadeUp 0.7s ease 0.25s forwards; }
+        .intro h1 { font-family: var(--font-heading); font-size: 34px; margin-bottom: 10px; opacity: 0; animation: fadeUp 0.7s ease 0.1s forwards; }
+        .intro p { color: var(--c-muted); font-size: 14px; opacity: 0; animation: fadeUp 0.7s ease 0.25s forwards; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 
         .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; max-width: 1280px; margin: 0 auto; padding: 0 40px 60px; }
@@ -58,7 +58,7 @@ function svcBg($path, $fallback) {
         .svc-card:hover::before { background: linear-gradient(180deg, rgba(20,16,8,0.15) 15%, rgba(15,12,6,0.92) 100%); }
         .svc-card > * { position: relative; z-index: 1; }
         .svc-eyebrow { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #e8d9a8; margin-bottom: 8px; }
-        .svc-card h2 { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; margin-bottom: 10px; }
+        .svc-card h2 { font-family: var(--font-heading); font-size: 30px; font-weight: 700; margin-bottom: 10px; }
         .svc-card p { font-size: 13.5px; color: rgba(255,255,255,0.8); line-height: 1.6; margin-bottom: 18px; }
         .svc-cta { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; color: #241f14; background: #e2bd63; padding: 11px 20px; border-radius: 10px; width: fit-content; }
         .svc-card:hover .svc-cta { background: #fff; }
@@ -69,6 +69,7 @@ function svcBg($path, $fallback) {
             .intro h1 { font-size: 26px; }
         }
     </style>
+    <?php include 'dynamic_theme.php'; ?>
 </head>
 <body>
     <div class="top-bar">

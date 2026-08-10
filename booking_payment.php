@@ -128,9 +128,9 @@ $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: #0a0f1e; min-height: 100vh; color: white; }
+        body { font-family: 'Inter', sans-serif; background: #faf7f1; min-height: 100vh; color: #2b2620; }
         ::-webkit-scrollbar { width: 10px; }
-        ::-webkit-scrollbar-track { background: #0a0f1e; }
+        ::-webkit-scrollbar-track { background: #faf7f1; }
         ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #d4af37, #8a6d1f); border-radius: 6px; }
 
         .wrap { max-width: 640px; margin: 0 auto; padding: 40px 20px 80px; }
@@ -138,52 +138,52 @@ $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
         .logo span { color: #d4af37; }
 
         .steps { display: flex; justify-content: center; gap: 10px; margin: 24px 0 36px; }
-        .step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: rgba(255,255,255,0.3); }
-        .step .num { width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+        .step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: rgba(43,38,32,0.5); }
+        .step .num { width: 24px; height: 24px; border-radius: 50%; background: rgba(43,38,32,0.05); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
         .step.active { color: #d4af37; }
-        .step.active .num { background: #d4af37; color: #0a0f1e; }
+        .step.active .num { background: #d4af37; color: #201a0d; font-weight: 700; }
         .step.done .num { background: rgba(212,175,55,0.2); color: #d4af37; }
-        .step-sep { width: 24px; height: 1px; background: rgba(255,255,255,0.08); align-self: center; }
+        .step-sep { width: 24px; height: 1px; background: rgba(43,38,32,0.08); align-self: center; }
 
-        .card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 32px; }
+        .card { background: rgba(43,38,32,0.03); border: 1px solid rgba(43,38,32,0.06); border-radius: 18px; padding: 32px; }
         .card h2 { font-family: 'Playfair Display', serif; font-size: 22px; margin-bottom: 6px; }
-        .card .sub { color: rgba(255,255,255,0.4); font-size: 13px; margin-bottom: 26px; }
+        .card .sub { color: rgba(43,38,32,0.6); font-size: 13px; margin-bottom: 26px; }
 
         .bank-box { background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.15); border-radius: 14px; padding: 22px 24px; margin-bottom: 26px; }
         .bank-box h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #d4af37; margin-bottom: 14px; }
         .bank-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid rgba(212,175,55,0.08); }
         .bank-row:last-child { border-bottom: none; }
-        .bank-row span:first-child { color: rgba(255,255,255,0.5); }
-        .bank-row span:last-child { color: white; font-weight: 700; }
-        .bank-note { margin-top: 14px; font-size: 12.5px; color: rgba(255,255,255,0.45); line-height: 1.6; }
+        .bank-row span:first-child { color: rgba(43,38,32,0.7); }
+        .bank-row span:last-child { color: #2b2620; font-weight: 700; }
+        .bank-note { margin-top: 14px; font-size: 12.5px; color: rgba(43,38,32,0.65); line-height: 1.6; }
 
         .field { margin-bottom: 18px; }
-        .field label { display: block; font-size: 12.5px; color: rgba(255,255,255,0.5); margin-bottom: 7px; font-weight: 500; }
+        .field label { display: block; font-size: 12.5px; color: rgba(43,38,32,0.7); margin-bottom: 7px; font-weight: 500; }
         .field input[type="text"] {
-            width: 100%; padding: 13px 15px; font-size: 14px; border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(255,255,255,0.03); border-radius: 10px; color: white; font-family: inherit;
+            width: 100%; padding: 13px 15px; font-size: 14px; border: 1px solid rgba(43,38,32,0.08);
+            background: rgba(43,38,32,0.03); border-radius: 10px; color: #2b2620; font-family: inherit;
         }
         .field input:focus { outline: none; border-color: #d4af37; box-shadow: 0 0 0 3px rgba(212,175,55,0.08); }
 
-        .file-drop { border: 1px dashed rgba(255,255,255,0.15); border-radius: 12px; padding: 26px; text-align: center; cursor: pointer; transition: all 0.25s ease; }
+        .file-drop { border: 1px dashed rgba(43,38,32,0.15); border-radius: 12px; padding: 26px; text-align: center; cursor: pointer; transition: all 0.25s ease; }
         .file-drop:hover { border-color: rgba(212,175,55,0.4); background: rgba(212,175,55,0.03); }
         .file-drop input { display: none; }
         .file-drop .icon { font-size: 26px; color: #d4af37; margin-bottom: 8px; }
-        .file-drop .txt { font-size: 13px; color: rgba(255,255,255,0.5); }
+        .file-drop .txt { font-size: 13px; color: rgba(43,38,32,0.7); }
         .file-drop .fname { font-size: 13px; color: #34d399; margin-top: 8px; font-weight: 600; }
 
         .error-message { background: rgba(239,68,68,0.07); color: #f87171; padding: 13px 16px; border-radius: 12px; font-size: 13px; margin-bottom: 20px; border: 1px solid rgba(239,68,68,0.1); }
         .error-message ul { margin: 0; padding-left: 18px; }
 
-        .btn-submit { width: 100%; padding: 15px; background: #d4af37; color: #0a0f1e; border: none; border-radius: 12px;
-            font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 8px; transition: all 0.25s ease; }
+        .btn-submit { width: 100%; padding: 15px; background: #d4af37; color: #201a0d; font-weight: 700; border: none; border-radius: 12px;
+            font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 8px; transition: all 0.25s ease;  box-shadow: 0 10px 28px rgba(212,175,55,0.3);}
         .btn-submit:hover { background: #b8922e; }
 
         .status-box { text-align: center; padding: 30px 10px; }
         .status-box .check-wrap { width: 70px; height: 70px; margin: 0 auto 18px; border-radius: 50%; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); display: flex; align-items: center; justify-content: center; }
         .status-box .check-wrap i { font-size: 28px; color: #34d399; }
         .status-box h3 { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 10px; }
-        .status-box p { color: rgba(255,255,255,0.5); font-size: 13.5px; line-height: 1.7; max-width: 420px; margin: 0 auto 20px; }
+        .status-box p { color: rgba(43,38,32,0.7); font-size: 13.5px; line-height: 1.7; max-width: 420px; margin: 0 auto 20px; }
         .status-box a { color: #d4af37; text-decoration: none; font-weight: 600; font-size: 13.5px; }
     </style>
 </head>

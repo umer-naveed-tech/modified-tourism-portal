@@ -16,6 +16,7 @@ require_once 'dashboard_helpers.php';
 date_default_timezone_set('Asia/Riyadh');
 
 $user_id = $_SESSION['user_id'];
+
 $range = $_GET['range'] ?? 'all';
 $allowed_ranges = ['all', 'yesterday', '7days', 'month', 'older'];
 if (!in_array($range, $allowed_ranges)) $range = 'all';
@@ -63,6 +64,7 @@ $active_page = 'history';
     <title>History | Ahmed Travels</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="dashboard_shell.css?v=2">
+    <?php include 'dynamic_theme.php'; ?>
 </head>
 <body>
 <div class="bg-ambient" aria-hidden="true"></div>
@@ -76,7 +78,6 @@ $active_page = 'history';
                     <h1>History</h1>
                     <div class="meta">All times shown in Asia/Riyadh (Saudi Arabia time)</div>
                 </div>
-                <a href="services.php" class="btn-book-service"><i class="fas fa-plus" aria-hidden="true"></i>Book a Service</a>
             </div>
 
             <div class="tab-row">

@@ -64,7 +64,7 @@ $active_page = 'dashboard';
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: #faf7f1; color: #2b2620; }
+        body { font-family: var(--font-body, 'Inter', sans-serif); background: var(--c-bg); color: var(--c-text); }
 
         /* ============ TRUE full-viewport hero ============ */
         .hero-full {
@@ -86,7 +86,7 @@ $active_page = 'dashboard';
             position: relative; z-index: 2; width: 250px; flex-shrink: 0;
             padding: 28px 0; display: flex; flex-direction: column;
         }
-        .hero-nav .brand { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: #fff; padding: 0 28px 36px; text-decoration: none; }
+        .hero-nav .brand { font-family: var(--font-heading); font-size: 18px; font-weight: 700; color: #fff; padding: 0 28px 36px; text-decoration: none; }
         .hero-nav .brand span { color: #ecc873; }
         .hero-nav a.link { display: flex; align-items: center; gap: 12px; padding: 11px 28px; color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 500; text-decoration: none; transition: all 0.2s ease; position: relative; }
         .hero-nav a.link:hover { color: #fff; }
@@ -100,15 +100,15 @@ $active_page = 'dashboard';
         /* Main hero text/CTA content, bottom-left of the photo area */
         .hero-main { position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 50px 60px; }
         .hero-eyebrow { font-size: 11.5px; letter-spacing: 2px; text-transform: uppercase; color: #ecc873; margin-bottom: 12px; opacity: 0; animation: heroUp 0.8s ease 0.1s forwards; }
-        .hero-main h1 { font-family: 'Playfair Display', serif; font-size: 48px; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 10px; opacity: 0; animation: heroUp 0.8s ease 0.25s forwards; text-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+        .hero-main h1 { font-family: var(--font-heading); font-size: 48px; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 10px; opacity: 0; animation: heroUp 0.8s ease 0.25s forwards; text-shadow: 0 4px 24px rgba(0,0,0,0.3); }
         .hero-main .sub { font-size: 14.5px; color: rgba(255,255,255,0.85); margin-bottom: 28px; opacity: 0; animation: heroUp 0.8s ease 0.4s forwards; }
         .hero-cta-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; opacity: 0; animation: heroUp 0.8s ease 0.55s forwards; }
         @keyframes heroUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
         .btn-book-hero {
             display: inline-flex; align-items: center; gap: 11px;
-            background: linear-gradient(135deg, #ecc873, #c9a24b);
-            color: #201a0d; font-weight: 800; font-size: 15.5px;
+            background: linear-gradient(135deg, var(--c-accent-grad-1), var(--c-accent-2));
+            color: var(--c-accent-ink); font-weight: 800; font-size: 15.5px;
             padding: 18px 34px; border-radius: 12px; text-decoration: none; border: 2px solid rgba(255,255,255,0.25); cursor: pointer;
             box-shadow: 0 12px 34px rgba(0,0,0,0.35);
             transition: all 0.25s ease;
@@ -125,26 +125,26 @@ $active_page = 'dashboard';
         /* ============ Below-the-fold content, normal bright page ============ */
         .below-hero { max-width: 1200px; margin: 0 auto; padding: 44px 40px 70px; }
         .row-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .row-head .t { font-family: 'Playfair Display', serif; color: #2b2620; font-size: 19px; font-weight: 700; }
-        .row-head .a { color: #b8912f; font-size: 12.5px; text-decoration: none; font-weight: 600; }
+        .row-head .t { font-family: 'Playfair Display', serif; color: var(--c-text); font-size: 19px; font-weight: 700; }
+        .row-head .a { color: var(--c-accent); font-size: 12.5px; text-decoration: none; font-weight: 600; }
         .row-head .a:hover { text-decoration: underline; }
 
-        table { width: 100%; border-collapse: collapse; background: #fffdfa; border: 1px solid #ece4d4; border-radius: 14px; overflow: hidden; }
-        th { text-align: left; color: #9b8f78; font-size: 10.5px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; padding: 14px 16px; border-bottom: 1px solid #ece4d4; background: #f8f4ec; }
+        table { width: 100%; border-collapse: collapse; background: var(--c-card-bg); border: 1px solid var(--c-border); border-radius: 14px; overflow: hidden; }
+        th { text-align: left; color: var(--c-muted); font-size: 10.5px; letter-spacing: 0.5px; text-transform: uppercase; font-weight: 600; padding: 14px 16px; border-bottom: 1px solid var(--c-border); background: #f8f4ec; }
         td { padding: 15px 16px; border-bottom: 1px solid #f2ece0; font-size: 12.5px; color: #4a4335; vertical-align: middle; }
         tr:last-child td { border-bottom: none; }
         .svc { display: flex; align-items: center; gap: 10px; }
-        .svc-icon { width: 30px; height: 30px; border-radius: 8px; background: #f6f0e3; display: flex; align-items: center; justify-content: center; color: #b8912f; font-size: 12px; flex-shrink: 0; }
-        .svc-name { color: #2b2620; font-size: 12.5px; font-weight: 600; }
-        .svc-sub { color: #9b8f78; font-size: 11px; margin-top: 1px; }
+        .svc-icon { width: 30px; height: 30px; border-radius: 8px; background: #f6f0e3; display: flex; align-items: center; justify-content: center; color: var(--c-accent); font-size: 12px; flex-shrink: 0; }
+        .svc-name { color: var(--c-text); font-size: 12.5px; font-weight: 600; }
+        .svc-sub { color: var(--c-muted); font-size: 11px; margin-top: 1px; }
         .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 6px; }
         .dot.g { background: #2e9e6a; } .dot.y { background: #c9a24b; } .dot.b { background: #5b8fd6; }
-        .amt { color: #2b2620; font-weight: 700; }
-        .action { color: #9b8f78; text-decoration: none; font-weight: 600; }
-        .action:hover { color: #b8912f; }
-        .empty-state { text-align: center; padding: 60px 20px; color: #9b8f78; font-size: 13px; background: #fffdfa; border: 1px solid #ece4d4; border-radius: 14px; }
+        .amt { color: var(--c-text); font-weight: 700; }
+        .action { color: var(--c-muted); text-decoration: none; font-weight: 600; }
+        .action:hover { color: var(--c-accent); }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--c-muted); font-size: 13px; background: var(--c-card-bg); border: 1px solid var(--c-border); border-radius: 14px; }
         .empty-state i { font-size: 30px; color: #d9cdb8; margin-bottom: 14px; display: block; }
-        .empty-state a { color: #b8912f; text-decoration: none; font-weight: 600; }
+        .empty-state a { color: var(--c-accent); text-decoration: none; font-weight: 600; }
 
         @media (max-width: 900px) {
             .hero-full { flex-direction: column; }
@@ -158,6 +158,7 @@ $active_page = 'dashboard';
             table { display: block; overflow-x: auto; white-space: nowrap; }
         }
     </style>
+    <?php include 'dynamic_theme.php'; ?>
 </head>
 <body>
 
