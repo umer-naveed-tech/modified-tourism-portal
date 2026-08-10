@@ -50,7 +50,11 @@ $initials = strtoupper(substr($name_parts[0], 0, 1) . (count($name_parts) > 1 ? 
 // the agent hasn't uploaded a photo yet. ----
 $stmt = $pdo->query("SELECT image_path FROM site_theme_images WHERE setting_key = 'dashboard_hero'");
 $hero_image = $stmt->fetchColumn();
-$hero_style = $hero_image ? "background-image: url('" . htmlspecialchars($hero_image) . "');" : "background: linear-gradient(135deg, #2b2416 0%, #4a3d22 45%, #7a6530 100%);";
+$stmt = $pdo->query("SELECT bg_color FROM site_theme_slot_colors WHERE setting_key = 'dashboard_hero'");
+$hero_color = $stmt->fetchColumn();
+$hero_style = $hero_image
+    ? "background-image: url('" . htmlspecialchars($hero_image) . "');"
+    : ($hero_color ? "background:" . htmlspecialchars($hero_color) . ";" : "background: linear-gradient(135deg, #2b2416 0%, #4a3d22 45%, #7a6530 100%);");
 
 $active_page = 'dashboard';
 ?>
@@ -200,7 +204,7 @@ $active_page = 'dashboard';
         </thead>
         <tbody>
             <?php foreach ($upcoming as $b):
-                $dotClass = $b['status'] === 'confirmed' ? 'g' : ($b['status'] === 'pending' ? 'y' : 'b');
+                $ds = display_status($b['status'], $b['travel_date']); $dotClass = $ds['dot'];
             ?>
             <tr>
                 <td>
@@ -213,7 +217,7 @@ $active_page = 'dashboard';
                     </div>
                 </td>
                 <td><?php echo safe_date($b['travel_date']); ?></td>
-                <td><span class="dot <?php echo $dotClass; ?>"></span><?php echo htmlspecialchars(ucfirst($b['status'])); ?></td>
+                <td><span class="dot <?php echo $dotClass; ?>"></span><?php echo htmlspecialchars($ds['label']); ?></td>
                 <td style="text-align:right;" class="amt">SAR <?php echo number_format($b['total_amount']); ?></td>
                 <td><a href="booking_detail_view.php?id=<?php echo (int)$b['id']; ?>" class="action">Details →</a></td>
             </tr>

@@ -1,6 +1,10 @@
 <?php
 session_start();
 require_once 'config.php';
+require_once 'card_frames.php';
+$stmt = $pdo->query("SELECT setting_value FROM site_theme_settings WHERE setting_key = 'card_frame_style'");
+$card_frame_style = $stmt->fetchColumn() ?: 'none';
+$card_frame_class = $card_frame_style !== 'none' ? ' card-frame-' . $card_frame_style : '';
 
 $type = $_GET['type'] ?? 'hotels';
 if($type == 'ziyarat' || $type == 'groups') {
@@ -15,6 +19,13 @@ $city = $_GET['city'] ?? 'Mecca';
 $stmt = $pdo->prepare("SELECT image_path FROM site_theme_images WHERE setting_key = ?");
 $stmt->execute(['page_' . ($type === 'taxi' ? 'taxi' : ($type === 'visa' ? 'visa' : 'hotel'))]);
 $page_hero_image = $stmt->fetchColumn();
+$page_hero_slotkey = 'page_' . ($type === 'taxi' ? 'taxi' : ($type === 'visa' ? 'visa' : 'hotel'));
+$page_hero_color = null;
+if (!$page_hero_image) {
+    $cstmt = $pdo->prepare("SELECT bg_color FROM site_theme_slot_colors WHERE setting_key = ?");
+    $cstmt->execute([$page_hero_slotkey]);
+    $page_hero_color = $cstmt->fetchColumn() ?: null;
+}
 
 // NEW: pagination for the hotels list only -- this is the one list on
 // the site most likely to keep growing (new hotels get added
@@ -487,6 +498,7 @@ if(empty($cities)) {
             .services-grid { grid-template-columns: 1fr; }
         }
     </style>
+    <?php cardFrameCSS(); ?>
 </head>
 <body>
 
@@ -524,8 +536,8 @@ if(empty($cities)) {
         </div>
     </nav>
 
-    <?php if ($page_hero_image): ?>
-    <div class="page-photo-bg" style="background-image: url('<?php echo htmlspecialchars($page_hero_image); ?>');"></div>
+    <?php if ($page_hero_image || $page_hero_color): ?>
+    <div class="page-photo-bg" style="<?php echo $page_hero_image ? "background-image: url('" . htmlspecialchars($page_hero_image) . "');" : 'background:' . htmlspecialchars($page_hero_color) . ';'; ?>"></div>
     <div class="page-photo-overlay"></div>
     <div class="page-hero-header">
         <div class="gold-line"></div>
@@ -561,7 +573,7 @@ if(empty($cities)) {
             <div class="services-grid">
                 <?php if(count($services) > 0): ?>
                     <?php foreach($services as $hotel): ?>
-                        <div class="service-card reveal" onclick="goTo('hotel_rooms.php?hotel_id=<?php echo $hotel['id']; ?>')">
+                        <div class="service-card reveal<?php echo $card_frame_class; ?>" onclick="goTo('hotel_rooms.php?hotel_id=<?php echo $hotel['id']; ?>')">
                             <div class="service-card-img-wrap">
                                 <img class="service-card-img" src="<?php echo htmlspecialchars(!empty($hotel['image_url']) ? $hotel['image_url'] : 'https://placehold.co/400x250/1a1a2e/333?text=Hotel'); ?>" alt="<?php echo htmlspecialchars($hotel['hotel_name'] ?? 'Hotel'); ?>" onerror="this.onerror=null;this.src='https://placehold.co/400x250/1a1a2e/333?text=Hotel';">
                             </div>
@@ -647,6 +659,7 @@ if(empty($cities)) {
             ?>;
             
             const cities = <?php echo json_encode($cities); ?>;
+            const cardFrameClass = <?php echo json_encode($card_frame_class); ?>;
 
             // 🔴 FIX: every value below that comes from car/route data
             // (car name, model, image URL, city names) used to go
@@ -681,7 +694,7 @@ if(empty($cities)) {
                 faresHtml += '</tbody></table>';
                 
                 let html = `
-                    <div class="car-details-card">
+                    <div class="car-details-card${cardFrameClass}">
                         <div class="car-header">
                             <h2 style="color:#2b2620;">${escHtml(car.name)} ${escHtml(car.model)}</h2>
                             <span class="car-category ${categoryClass}">${categoryName} Class</span>
@@ -822,7 +835,7 @@ if(empty($cities)) {
                     $i = 0;
                 ?>
                 <?php foreach($services as $service): $pal = $poster_palettes[$i % count($poster_palettes)]; $i++; ?>
-                    <div class="service-card reveal" onclick="goTo('booking.php?type=<?php echo $type; ?>&id=<?php echo $service['id']; ?>')">
+                    <div class="service-card reveal<?php echo $card_frame_class; ?>" onclick="goTo('booking.php?type=<?php echo $type; ?>&id=<?php echo $service['id']; ?>')">
                         <div class="visa-poster" style="background: linear-gradient(150deg, <?php echo $pal['from']; ?>, <?php echo $pal['to']; ?>);">
                             <div class="visa-poster-pattern"></div>
                             <i class="fas <?php echo $pal['icon']; ?> visa-poster-icon" aria-hidden="true"></i>

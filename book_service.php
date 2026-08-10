@@ -15,8 +15,12 @@ require_once 'config.php';
 
 $stmt = $pdo->query("SELECT setting_key, image_path FROM site_theme_images");
 $theme_images = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
-function svcBg($path, $fallback) {
-    return $path ? "background-image: url('" . htmlspecialchars($path) . "');" : "background: $fallback;";
+$stmt = $pdo->query("SELECT setting_key, bg_color FROM site_theme_slot_colors");
+$theme_slot_colors = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+function svcBg($path, $fallback, $key = null, $slotColors = []) {
+    if ($path) return "background-image: url('" . htmlspecialchars($path) . "');";
+    if ($key && !empty($slotColors[$key])) return "background:" . htmlspecialchars($slotColors[$key]) . ";";
+    return "background: $fallback;";
 }
 ?>
 <!DOCTYPE html>
@@ -90,19 +94,19 @@ function svcBg($path, $fallback) {
     </div>
 
     <div class="services-grid">
-        <a href="services.php?type=hotels" class="svc-card" style="<?php echo svcBg($theme_images['service_hotel'] ?? null, 'linear-gradient(135deg,#2b2416,#5c4a24)'); ?>">
+        <a href="services.php?type=hotels" class="svc-card" style="<?php echo svcBg($theme_images['service_hotel'] ?? null, 'linear-gradient(135deg,#2b2416,#5c4a24)', 'service_hotel', $theme_slot_colors); ?>">
             <div class="svc-eyebrow">Stay</div>
             <h2>Hotels</h2>
             <p>Mecca &amp; Madinah, every star rating, seasonal pricing built in.</p>
             <span class="svc-cta">Browse Hotels <i class="fas fa-arrow-right"></i></span>
         </a>
-        <a href="services.php?type=taxi" class="svc-card" style="<?php echo svcBg($theme_images['service_taxi'] ?? null, 'linear-gradient(135deg,#1e2a3d,#3a5170)'); ?>">
+        <a href="services.php?type=taxi" class="svc-card" style="<?php echo svcBg($theme_images['service_taxi'] ?? null, 'linear-gradient(135deg,#1e2a3d,#3a5170)', 'service_taxi', $theme_slot_colors); ?>">
             <div class="svc-eyebrow">Move</div>
             <h2>Taxi &amp; Transfers</h2>
             <p>City-to-city routes with fixed, transparent fares.</p>
             <span class="svc-cta">Browse Taxis <i class="fas fa-arrow-right"></i></span>
         </a>
-        <a href="services.php?type=visa" class="svc-card" style="<?php echo svcBg($theme_images['service_visa'] ?? null, 'linear-gradient(135deg,#3d2416,#6b4526)'); ?>">
+        <a href="services.php?type=visa" class="svc-card" style="<?php echo svcBg($theme_images['service_visa'] ?? null, 'linear-gradient(135deg,#3d2416,#6b4526)', 'service_visa', $theme_slot_colors); ?>">
             <div class="svc-eyebrow">Explore</div>
             <h2>Visa &amp; Tours</h2>
             <p>Guided trips and visa services, handled end to end.</p>

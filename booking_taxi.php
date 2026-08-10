@@ -14,6 +14,8 @@ $to_city = $_GET['to'] ?? '';
 
 $stmt = $pdo->query("SELECT image_path FROM site_theme_images WHERE setting_key = 'page_taxi_booking'");
 $page_hero_image = $stmt->fetchColumn();
+$stmt = $pdo->query("SELECT bg_color FROM site_theme_slot_colors WHERE setting_key = 'page_taxi_booking'");
+$page_hero_color = $stmt->fetchColumn();
 
 $stmt = $pdo->prepare("SELECT * FROM cars WHERE id = ?");
 $stmt->execute([$car_id]);
@@ -220,8 +222,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     </style>
 </head>
 <body>
-    <?php if ($page_hero_image): ?>
-    <div class="page-photo-bg" style="background-image: url('<?php echo htmlspecialchars($page_hero_image); ?>');"></div>
+    <?php if ($page_hero_image || $page_hero_color): ?>
+    <div class="page-photo-bg" style="<?php echo $page_hero_image ? "background-image: url('" . htmlspecialchars($page_hero_image) . "');" : 'background:' . htmlspecialchars($page_hero_color) . ';'; ?>"></div>
     <div class="page-photo-overlay"></div>
     <?php else: ?>
     <div class="bg-ambient" aria-hidden="true"></div>
