@@ -43,11 +43,18 @@ function svcBg($path, $fallback) {
 
         .services-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; max-width: 1280px; margin: 0 auto; padding: 0 40px 60px; }
         .svc-card {
-            position: relative; border-radius: 20px; overflow: hidden; min-height: 460px;
+            position: relative; border-radius: 22px; overflow: hidden; min-height: 460px;
             display: flex; flex-direction: column; justify-content: flex-end; padding: 32px;
             background-size: cover; background-position: center; text-decoration: none; color: #fff;
             box-shadow: 0 16px 40px rgba(120,95,40,0.15); transition: transform 0.35s ease, box-shadow 0.35s ease;
             opacity: 0; transform: translateY(30px); animation: cardIn 0.7s ease forwards;
+            /* NEW: elegant "picture frame" border -- a solid cream mat
+               around the photo (background-origin keeps the photo
+               confined to the inner area, not stretched under it),
+               so each card reads as a framed print rather than a
+               full-bleed tile. */
+            border: 10px solid #fffdfa;
+            background-origin: content-box; background-clip: content-box, border-box;
         }
         .svc-card:nth-child(1) { animation-delay: 0.15s; }
         .svc-card:nth-child(2) { animation-delay: 0.3s; }

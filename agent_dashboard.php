@@ -54,6 +54,15 @@ $where[] = "b.hidden_by_agent = 0";
 if ($status !== 'all') {
     $where[] = "b.status = ?";
     $params[] = $status;
+    // A "pending" booking must be one the customer actually confirmed
+    // (see customer_confirmed_at) -- an abandoned draft never reached
+    // that point and isn't a real booking yet, so it shouldn't show
+    // up in the agent's Pending list either.
+    if ($status === 'pending') {
+        $where[] = "b.customer_confirmed_at IS NOT NULL";
+    }
+} else {
+    $where[] = "(b.status != 'pending' OR b.customer_confirmed_at IS NOT NULL)";
 }
 if ($search !== '') {
     $where[] = "(u.name LIKE ? OR u.email LIKE ? OR b.booking_no LIKE ?)";
@@ -77,8 +86,16 @@ if ($date_to !== '') {
 $whereSql = count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
 
 // ==================== STATUS TAB COUNTS ====================
-$countStmt = $pdo->query("SELECT status, COUNT(*) as cnt FROM bookings GROUP BY status");
-$statusCounts = ['pending' => 0, 'confirmed' => 0, 'completed' => 0, 'cancelled' => 0];
+// Pending only counts bookings the customer actually confirmed (see
+// customer_confirmed_at) -- an abandoned draft from before they
+// reached the Review step was never a real booking, so it shouldn't
+// inflate this count.
+$countStmt = $pdo->query("
+    SELECT status, COUNT(*) as cnt FROM bookings
+    WHERE status != 'pending' OR customer_confirmed_at IS NOT NULL
+    GROUP BY status
+");
+$statusCounts = ['pending' => 0, 'completed' => 0, 'cancelled' => 0];
 foreach ($countStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
     if (isset($statusCounts[$row['status']])) $statusCounts[$row['status']] = (int)$row['cnt'];
 }
@@ -468,7 +485,7 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
             <a href="agent_price_management.php" class="side-link"><i class="fas fa-tags" aria-hidden="true"></i>Manage Prices</a>
             <a href="agent_payments.php" class="side-link"><i class="fas fa-credit-card" aria-hidden="true"></i>Payments</a>
             <a href="agent_revenue.php" class="side-link"><i class="fas fa-chart-line" aria-hidden="true"></i>Revenue</a>
-            <a href="agent_theme_settings.php" class="side-link"><i class="fas fa-image" aria-hidden="true"></i>Theme Images</a>
+            <a href="agent_theme_settings.php" class="side-link"><i class="fas fa-image" aria-hidden="true"></i>User Panel View</a>
             <div class="side-div"></div>
             <a href="services.php" class="side-link"><i class="fas fa-globe" aria-hidden="true"></i>View Site</a>
             <a href="logout.php" class="side-link side-logout" onclick="return confirm('Are you sure you want to log out?');"><i class="fas fa-right-from-bracket" aria-hidden="true"></i>Logout</a>
@@ -513,9 +530,6 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
             <a href="<?php echo qs(['status' => 'pending', 'page' => null]); ?>" class="status-tab <?php echo $status === 'pending' ? 'active' : ''; ?>">
                 Pending <span class="count"><?php echo $statusCounts['pending']; ?></span>
             </a>
-            <a href="<?php echo qs(['status' => 'confirmed', 'page' => null]); ?>" class="status-tab <?php echo $status === 'confirmed' ? 'active' : ''; ?>">
-                Confirmed <span class="count"><?php echo $statusCounts['confirmed']; ?></span>
-            </a>
             <a href="<?php echo qs(['status' => 'completed', 'page' => null]); ?>" class="status-tab <?php echo $status === 'completed' ? 'active' : ''; ?>">
                 Completed <span class="count"><?php echo $statusCounts['completed']; ?></span>
             </a>
@@ -555,7 +569,7 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
         <!-- BULK ACTIONS BAR -->
         <div class="bulk-bar" id="bulkBar">
             <span id="bulkCount">0 selected</span>
-            <button type="button" id="bulkConfirmBtn" class="bulk-btn bulk-btn-confirm"><i class="fas fa-check"></i> Mark as Confirmed</button>
+            <button type="button" id="bulkConfirmBtn" class="bulk-btn bulk-btn-confirm"><i class="fas fa-check"></i> Mark as Completed</button>
             <button type="button" id="bulkReminderBtn" class="bulk-btn bulk-btn-reminder"><i class="fas fa-bell"></i> Send Check-in Reminder</button>
             <button type="button" id="bulkClearBtn" class="bulk-btn bulk-btn-clear">Clear</button>
         </div>
@@ -600,7 +614,6 @@ $typeLabels = ['hotel' => 'Hotel', 'taxi' => 'Taxi'];
                         <td>
                             <select class="status-select" data-id="<?php echo (int)$b['id']; ?>">
                                 <option value="pending" <?php echo $b['status'] == 'pending' ? 'selected' : ''; ?>>Pending</option>
-                                <option value="confirmed" <?php echo $b['status'] == 'confirmed' ? 'selected' : ''; ?>>Confirmed</option>
                                 <option value="completed" <?php echo $b['status'] == 'completed' ? 'selected' : ''; ?>>Completed</option>
                                 <option value="cancelled" <?php echo $b['status'] == 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
                             </select>
@@ -745,7 +758,7 @@ function bindBulkActions(root) {
         confirmBtn.addEventListener('click', function() {
             const ids = selectedIds();
             if (ids.length === 0) return;
-            if (!confirm('Mark ' + ids.length + ' booking(s) as Confirmed? Customers will be notified by email.')) return;
+            if (!confirm('Mark ' + ids.length + ' booking(s) as Completed? Customers will be notified by email.')) return;
 
             confirmBtn.disabled = true;
             confirmBtn.innerHTML = 'Processing...';
@@ -753,13 +766,13 @@ function bindBulkActions(root) {
             Promise.all(ids.map(id => fetch('update_booking_status.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'id=' + encodeURIComponent(id) + '&status=confirmed&csrf_token=' + encodeURIComponent(csrfToken)
+                body: 'id=' + encodeURIComponent(id) + '&status=completed&csrf_token=' + encodeURIComponent(csrfToken)
             }).then(r => r.json())))
             .then(results => {
                 const failedCount = results.filter(r => !r.success).length;
                 alert(failedCount > 0
                     ? (ids.length - failedCount) + ' updated, ' + failedCount + ' failed. Please review.'
-                    : ids.length + ' booking(s) marked as Confirmed.');
+                    : ids.length + ' booking(s) marked as Completed.');
                 refreshAjaxContent();
             })
             .catch(() => {

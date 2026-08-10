@@ -12,6 +12,9 @@ $car_name = $_GET['car_name'] ?? '';
 $from_city = $_GET['from'] ?? '';
 $to_city = $_GET['to'] ?? '';
 
+$stmt = $pdo->query("SELECT image_path FROM site_theme_images WHERE setting_key = 'page_taxi_booking'");
+$page_hero_image = $stmt->fetchColumn();
+
 $stmt = $pdo->prepare("SELECT * FROM cars WHERE id = ?");
 $stmt->execute([$car_id]);
 $car = $stmt->fetch();
@@ -136,8 +139,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         .page-content { position: relative; z-index: 1; }
 
-        .navbar { background: rgba(10, 15, 30, 0.9); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(212, 175, 55, 0.08); padding: 14px 0; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+        .navbar { background: rgba(255, 253, 250, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(212, 175, 55, 0.08); padding: 14px 0; position: relative; z-index: 2; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+        .page-photo-bg { position: fixed; inset: 0; z-index: 0; background-size: cover; background-position: center; }
+        .page-photo-overlay { position: fixed; inset: 0; z-index: 0; background: linear-gradient(180deg, rgba(10,8,4,0.3) 0%, rgba(10,8,4,0.45) 350px, rgba(250,247,241,0.94) 700px, rgba(250,247,241,0.97) 100%); }
         .navbar .container-inner { display: flex; justify-content: space-between; align-items: center; }
         .navbar-brand { font-family: 'Playfair Display', serif; color: #2b2620; font-size: 21px; font-weight: 800; text-decoration: none; }
         .btn-dashboard { background: rgba(212,175,55,0.1); color: #d4af37; border: 1px solid rgba(212,175,55,0.15); padding: 8px 18px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; transition: all 0.3s ease; }
@@ -215,7 +220,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     </style>
 </head>
 <body>
+    <?php if ($page_hero_image): ?>
+    <div class="page-photo-bg" style="background-image: url('<?php echo htmlspecialchars($page_hero_image); ?>');"></div>
+    <div class="page-photo-overlay"></div>
+    <?php else: ?>
     <div class="bg-ambient" aria-hidden="true"></div>
+    <?php endif; ?>
     <div class="grain-overlay" aria-hidden="true"></div>
 
 <div class="page-content">

@@ -6,6 +6,9 @@ require_once 'gallery_renderer.php';
 
 $hotel_id = $_GET['hotel_id'] ?? 0;
 
+$stmt = $pdo->query("SELECT image_path FROM site_theme_images WHERE setting_key = 'page_hotel_room'");
+$page_hero_image = $stmt->fetchColumn();
+
 // Get hotel details
 $stmt = $pdo->prepare("SELECT * FROM hotels_saudi WHERE id = ?");
 $stmt->execute([$hotel_id]);
@@ -713,6 +716,15 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
         .pt-ring { position: absolute; inset: 0; border: 2px solid rgba(212,175,55,0.15); border-top-color: #d4af37; border-radius: 50%; animation: ptSpin 0.9s linear infinite; }
         .pt-icon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #d4af37; font-size: 20px; animation: ptSpin 0.9s linear infinite reverse; }
         @keyframes ptSpin { to { transform: rotate(360deg); } }
+
+        /* NEW: optional full-page agent-uploaded background (falls
+           back to the existing bg-container orbs/grid if none
+           uploaded) -- .container already sits above it via z-index
+           below, so every existing card/panel inside it (whatever its
+           own background is) stays correctly layered and readable. */
+        .page-photo-bg { position: fixed; inset: 0; z-index: 0; background-size: cover; background-position: center; }
+        .page-photo-overlay { position: fixed; inset: 0; z-index: 0; background: linear-gradient(180deg, rgba(10,8,4,0.3) 0%, rgba(10,8,4,0.45) 400px, rgba(250,247,241,0.94) 800px, rgba(250,247,241,0.97) 100%); }
+        .container { position: relative; z-index: 1; }
     </style>
 </head>
 <body>
@@ -720,12 +732,17 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
 <div class="grain-overlay" aria-hidden="true"></div>
 <div class="page-transition" id="pageTransition"><div class="pt-spinner"><div class="pt-ring"></div><i class="fas fa-plane pt-icon" style="font-style:normal;">✈</i></div></div>
 
+<?php if ($page_hero_image): ?>
+<div class="page-photo-bg" style="background-image: url('<?php echo htmlspecialchars($page_hero_image); ?>');"></div>
+<div class="page-photo-overlay"></div>
+<?php else: ?>
 <div class="bg-container">
     <div class="grid-pattern"></div>
     <div class="orb orb-1"></div>
     <div class="orb orb-2"></div>
     <div class="orb orb-3"></div>
 </div>
+<?php endif; ?>
 
 <div class="content-wrapper">
     <nav class="navbar">

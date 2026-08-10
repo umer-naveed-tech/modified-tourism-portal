@@ -13,7 +13,7 @@ $city = $_GET['city'] ?? 'Mecca';
 // (used on book_service.php's cards) as a themed banner behind this
 // page's heading -- one upload, shown in both places, no duplicate work.
 $stmt = $pdo->prepare("SELECT image_path FROM site_theme_images WHERE setting_key = ?");
-$stmt->execute(['service_' . ($type === 'taxi' ? 'taxi' : ($type === 'visa' ? 'visa' : 'hotel'))]);
+$stmt->execute(['page_' . ($type === 'taxi' ? 'taxi' : ($type === 'visa' ? 'visa' : 'hotel'))]);
 $page_hero_image = $stmt->fetchColumn();
 
 // NEW: pagination for the hotels list only -- this is the one list on
