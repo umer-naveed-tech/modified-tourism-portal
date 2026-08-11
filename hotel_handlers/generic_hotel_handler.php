@@ -26,7 +26,7 @@ class GenericHotelHandler implements HotelHandlerInterface {
 
     public function getRooms($hotel_id) {
         global $pdo;
-        $stmt = $pdo->prepare("SELECT id, room_type, display_name, capacity, description FROM hotel_room_types WHERE hotel_id = ? ORDER BY id");
+        $stmt = $pdo->prepare("SELECT id, room_type, display_name, capacity, description, room_details, room_details_font FROM hotel_room_types WHERE hotel_id = ? ORDER BY id");
         $stmt->execute([$hotel_id]);
         $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

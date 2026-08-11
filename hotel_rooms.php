@@ -803,11 +803,15 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
                             <option value="<?php echo $i; ?>" 
                                     data-room-id="<?php echo $r['id']; ?>"
                                     data-room-type="<?php echo htmlspecialchars($r['room_type']); ?>"
+                                    data-has-details="<?php echo !empty($r['room_details']) ? 'true' : 'false'; ?>"
                                     data-has-seasonal="<?php echo isset($r['has_seasonal']) && $r['has_seasonal'] ? 'true' : 'false'; ?>">
                                 <?php echo htmlspecialchars($r['display_name'] ?? $r['room_type']); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <a href="#" id="roomDescriptionLink" target="_blank" style="display:none; margin-top:10px; font-size:12.5px; color:#d4af37; text-decoration:none; align-items:center; gap:6px;">
+                        <i class="fas fa-circle-info" aria-hidden="true"></i> What's in this room? →
+                    </a>
                 </div>
             </div>
 
@@ -1864,6 +1868,18 @@ function noImageMarkup(roomType) {
 const select = document.getElementById('roomTypeSelect');
 if(select) {
     select.addEventListener('change', function() {
+        // NEW: "What's in this room?" link -- shows only when the
+        // selected room actually has a description set, pointing to
+        // that room's own detail page.
+        const descLink = document.getElementById('roomDescriptionLink');
+        const opt = this.options[this.selectedIndex];
+        if (opt && opt.dataset.hasDetails === 'true') {
+            descLink.href = 'room_description.php?room_id=' + opt.dataset.roomId;
+            descLink.style.display = 'inline-flex';
+        } else {
+            descLink.style.display = 'none';
+        }
+
         if(this.value === '') {
             document.getElementById('roomDetail').classList.remove('active');
             document.getElementById('bookingSection').classList.remove('active');

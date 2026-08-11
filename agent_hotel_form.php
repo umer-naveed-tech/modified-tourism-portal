@@ -36,7 +36,7 @@ if ($hotel_id) {
         exit();
     }
 
-    $stmt = $pdo->prepare("SELECT room_type, display_name, capacity, description FROM hotel_room_types WHERE hotel_id = ? ORDER BY id");
+    $stmt = $pdo->prepare("SELECT room_type, display_name, capacity, description, room_details, room_details_font FROM hotel_room_types WHERE hotel_id = ? ORDER BY id");
     $stmt->execute([$hotel_id]);
     $room_types = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -181,7 +181,8 @@ $font_choices = array_keys(galleryFontChoices());
         .row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
         .field { flex: 1; min-width: 160px; }
         .field label { display: block; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 6px; }
-        .field input, .field select { width: 100%; padding: 11px 13px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: white; font-family: inherit; font-size: 13.5px; }
+        .field input, .field select, .field textarea { width: 100%; padding: 11px 13px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: white; font-family: inherit; font-size: 13.5px; }
+        .field textarea { resize: vertical; min-height: 80px; }
         .field input:focus, .field select:focus { outline: none; border-color: #d4af37; }
 
         .room-row, .period-block { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 10px; position: relative; overflow: hidden; }
@@ -550,8 +551,10 @@ let roomTypes = <?php echo json_encode(array_map(function($r) use ($pdo, $hotel_
             $bed_types[] = ['code' => $v, 'name' => $v];
         }
     }
-    return ['code' => $r['room_type'], 'display_name' => $r['display_name'], 'capacity' => (int)$r['capacity'], 'description' => $r['description'], 'bed_types' => $bed_types];
+    return ['code' => $r['room_type'], 'display_name' => $r['display_name'], 'capacity' => (int)$r['capacity'], 'description' => $r['description'], 'bed_types' => $bed_types, 'room_details' => $r['room_details'] ?? '', 'room_details_font' => $r['room_details_font'] ?? 'Inter'];
 }, $room_types)); ?>;
+
+const fontChoicesList = <?php echo json_encode(array_keys(galleryFontChoices())); ?>;
 
 let pricingPeriods = <?php echo json_encode($pricing_periods); ?>;
 // Existing (already-saved) periods start collapsed -- this is the main
@@ -612,6 +615,16 @@ function renderRoomTypes() {
                 <div class="field">
                     <label>Bed Type <span style="color:rgba(255,255,255,0.35); font-weight:400;">(optional -- only if this room comes in variants, e.g. "City View, Haram View". Leave empty if not.)</span></label>
                     <input type="text" value="${escAttr(bedTypesText)}" placeholder="e.g. City View, Haram View" oninput="updateBedTypes(${i}, this.value)">
+                </div>
+                <div class="field">
+                    <label>Room Description <span style="color:rgba(255,255,255,0.35); font-weight:400;">(optional -- what's actually in this room. Shown to the customer on its own page when they click "Room Description".)</span></label>
+                    <textarea rows="4" placeholder="e.g. 32 sqm room with a king bed, city-view window, private bathroom with rain shower, 55-inch TV, minibar, and complimentary WiFi." oninput="updateRoomType(${i}, 'room_details', this.value)">${escAttr(rt.room_details || '')}</textarea>
+                </div>
+                <div class="field">
+                    <label>Description Font</label>
+                    <select onchange="updateRoomType(${i}, 'room_details_font', this.value)">
+                        ${fontChoicesList.map(f => `<option value="${f}" ${(rt.room_details_font || 'Inter') === f ? 'selected' : ''}>${f}</option>`).join('')}
+                    </select>
                 </div>
             </div>
         `;

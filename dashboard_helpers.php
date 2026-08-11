@@ -42,3 +42,24 @@ function service_label($b) {
             return ($details['service_title'] ?? ucfirst($b['service_type']));
     }
 }
+
+// NEW: the database only ever stores 3 statuses now -- pending,
+// cancelled, completed (see simplify_booking_status_migration.sql).
+// "Completed" covers both "paid, trip is still upcoming" and "trip
+// already happened" -- this tells the two apart for DISPLAY only, so
+// a customer with a paid but upcoming trip sees "Confirmed" instead
+// of the confusing "Completed", without needing a 4th status in the
+// database itself. Everywhere that shows a booking's status to
+// someone should call this instead of using $status directly.
+function display_status($status, $travel_date) {
+    if ($status === 'completed') {
+        $ts = !empty($travel_date) ? strtotime($travel_date) : false;
+        if ($ts !== false && $ts >= strtotime(date('Y-m-d'))) {
+            return ['label' => 'Confirmed', 'dot' => 'g'];
+        }
+        return ['label' => 'Completed', 'dot' => 'b'];
+    }
+    if ($status === 'pending') return ['label' => 'Pending', 'dot' => 'y'];
+    if ($status === 'cancelled') return ['label' => 'Cancelled', 'dot' => 'r'];
+    return ['label' => ucfirst($status), 'dot' => 'y'];
+}

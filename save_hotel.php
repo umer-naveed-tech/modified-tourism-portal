@@ -80,11 +80,17 @@ try {
 
     // ---- Room types ----
     $room_type_ids = [];
-    $stmt = $pdo->prepare("INSERT INTO hotel_room_types (hotel_id, room_type, display_name, capacity, description) VALUES (?, ?, ?, ?, ?)");
+    $allowed_fonts = array_keys((function() {
+        require_once 'gallery_fonts.php';
+        return galleryFontChoices();
+    })());
+    $stmt = $pdo->prepare("INSERT INTO hotel_room_types (hotel_id, room_type, display_name, capacity, description, room_details, room_details_font) VALUES (?, ?, ?, ?, ?, ?, ?)");
     foreach ($room_types as $rt) {
         $code = preg_replace('/[^a-z0-9_]/', '', strtolower(trim($rt['code'] ?? '')));
         if ($code === '') continue;
-        $stmt->execute([$hotel_id, $code, trim($rt['display_name'] ?? ''), max(1, (int)($rt['capacity'] ?? 2)), trim($rt['description'] ?? '')]);
+        $room_details = trim($rt['room_details'] ?? '');
+        $room_details_font = in_array($rt['room_details_font'] ?? '', $allowed_fonts, true) ? $rt['room_details_font'] : 'Inter';
+        $stmt->execute([$hotel_id, $code, trim($rt['display_name'] ?? ''), max(1, (int)($rt['capacity'] ?? 2)), trim($rt['description'] ?? ''), $room_details ?: null, $room_details_font]);
     }
 
     // ---- Seasonal pricing (subtract the hidden margin before storing) ----
