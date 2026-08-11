@@ -15,10 +15,12 @@ if (!isset($_SESSION['user_id'])) {
 }
 require_once 'config.php';
 
-// ---- Agent bank details shown to every customer on this step ----
-define('AGENT_BANK_NAME', 'Muhammad Umer Naveed');
-define('AGENT_BANK_PROVIDER', 'Easypaisa');
-define('AGENT_BANK_ACCOUNT', '03706260350');
+// ---- Agent bank details -- customer picks PKR or SAR, sees whatever
+// accounts the agent added for that currency (agent_bank_details.php). ----
+$stmt = $pdo->query("SELECT * FROM agent_bank_accounts ORDER BY currency, sort_order, id");
+$all_bank_accounts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$pkr_bank_accounts = array_values(array_filter($all_bank_accounts, fn($a) => $a['currency'] === 'PKR'));
+$sar_bank_accounts = array_values(array_filter($all_bank_accounts, fn($a) => $a['currency'] === 'SAR'));
 
 $booking_id = (int)($_GET['booking_id'] ?? $_POST['booking_id'] ?? 0);
 if (!$booking_id) {
@@ -157,6 +159,15 @@ $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
         .bank-row span:last-child { color: #2b2620; font-weight: 700; }
         .bank-note { margin-top: 14px; font-size: 12.5px; color: rgba(43,38,32,0.65); line-height: 1.6; }
 
+        .currency-toggle { display: flex; gap: 8px; margin-bottom: 18px; }
+        .curr-btn { flex: 1; padding: 11px; border-radius: 10px; font-size: 13.5px; font-weight: 700; cursor: pointer; background: rgba(43,38,32,0.03); border: 1px solid rgba(43,38,32,0.1); color: rgba(43,38,32,0.6); font-family: inherit; transition: all 0.2s ease; }
+        .curr-btn.active { background: #d4af37; color: #201a0d; border-color: #d4af37; }
+        .curr-panel { display: none; }
+        .curr-panel.active { display: block; }
+        .bank-account-block { border: 1px solid rgba(212,175,55,0.1); border-radius: 10px; padding: 4px 14px; margin-bottom: 10px; }
+        .bank-account-block:last-of-type { margin-bottom: 0; }
+        .no-accounts { color: rgba(43,38,32,0.5); font-size: 13px; text-align: center; padding: 16px 0; }
+
         .field { margin-bottom: 18px; }
         .field label { display: block; font-size: 12.5px; color: rgba(43,38,32,0.7); margin-bottom: 7px; font-weight: 500; }
         .field input[type="text"] {
@@ -215,10 +226,40 @@ $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 <div class="bank-box">
                     <h3>Payment Details</h3>
-                    <div class="bank-row"><span>Account Name</span><span><?php echo htmlspecialchars(AGENT_BANK_NAME); ?></span></div>
-                    <div class="bank-row"><span>Provider</span><span><?php echo htmlspecialchars(AGENT_BANK_PROVIDER); ?></span></div>
-                    <div class="bank-row"><span>Account Number</span><span><?php echo htmlspecialchars(AGENT_BANK_ACCOUNT); ?></span></div>
-                    <div class="bank-row"><span>Amount</span><span>SAR <?php echo number_format($booking['total_amount']); ?></span></div>
+                    <div class="currency-toggle">
+                        <button type="button" class="curr-btn active" data-curr="PKR" onclick="switchCurrency('PKR')">Pay in PKR</button>
+                        <button type="button" class="curr-btn" data-curr="SAR" onclick="switchCurrency('SAR')">Pay in SAR</button>
+                    </div>
+
+                    <div class="curr-panel active" id="curr-PKR">
+                        <?php if (empty($pkr_bank_accounts)): ?>
+                            <div class="no-accounts">No PKR accounts have been added yet. Please pick SAR instead, or contact support.</div>
+                        <?php else: foreach ($pkr_bank_accounts as $acc): ?>
+                        <div class="bank-account-block">
+                            <div class="bank-row"><span>Bank / Provider</span><span><?php echo htmlspecialchars($acc['bank_name']); ?></span></div>
+                            <div class="bank-row"><span>Account Name</span><span><?php echo htmlspecialchars($acc['account_title']); ?></span></div>
+                            <div class="bank-row"><span>Account Number</span><span><?php echo htmlspecialchars($acc['account_number']); ?></span></div>
+                            <?php if ($acc['iban']): ?><div class="bank-row"><span>IBAN</span><span><?php echo htmlspecialchars($acc['iban']); ?></span></div><?php endif; ?>
+                            <?php if ($acc['notes']): ?><div class="bank-row"><span>Note</span><span><?php echo htmlspecialchars($acc['notes']); ?></span></div><?php endif; ?>
+                        </div>
+                        <?php endforeach; endif; ?>
+                    </div>
+
+                    <div class="curr-panel" id="curr-SAR">
+                        <?php if (empty($sar_bank_accounts)): ?>
+                            <div class="no-accounts">No SAR accounts have been added yet. Please pick PKR instead, or contact support.</div>
+                        <?php else: foreach ($sar_bank_accounts as $acc): ?>
+                        <div class="bank-account-block">
+                            <div class="bank-row"><span>Bank / Provider</span><span><?php echo htmlspecialchars($acc['bank_name']); ?></span></div>
+                            <div class="bank-row"><span>Account Name</span><span><?php echo htmlspecialchars($acc['account_title']); ?></span></div>
+                            <div class="bank-row"><span>Account Number</span><span><?php echo htmlspecialchars($acc['account_number']); ?></span></div>
+                            <?php if ($acc['iban']): ?><div class="bank-row"><span>IBAN</span><span><?php echo htmlspecialchars($acc['iban']); ?></span></div><?php endif; ?>
+                            <?php if ($acc['notes']): ?><div class="bank-row"><span>Note</span><span><?php echo htmlspecialchars($acc['notes']); ?></span></div><?php endif; ?>
+                        </div>
+                        <?php endforeach; endif; ?>
+                    </div>
+
+                    <div class="bank-row" style="border-top:1px solid rgba(212,175,55,0.15); margin-top:6px; padding-top:14px;"><span>Amount</span><span>SAR <?php echo number_format($booking['total_amount']); ?></span></div>
                     <div class="bank-note">Please make your transfer manually using the details above, then fill in the form below with your payment proof. Your booking will be confirmed by our team once payment is verified.</div>
                 </div>
 
@@ -261,6 +302,11 @@ $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
     </div>
 
 <script>
+function switchCurrency(cur) {
+    document.querySelectorAll('.curr-btn').forEach(b => b.classList.toggle('active', b.dataset.curr === cur));
+    document.querySelectorAll('.curr-panel').forEach(p => p.classList.toggle('active', p.id === 'curr-' + cur));
+}
+
 const screenshotInput = document.getElementById('screenshotInput');
 const fileName = document.getElementById('fileName');
 if (screenshotInput) {
