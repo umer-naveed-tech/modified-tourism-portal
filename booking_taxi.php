@@ -93,7 +93,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         );
         
         $wa_msg = "New Booking: $car_name from $from to $to on $date at $time. Booking ID: $booking_no. Total: SAR $fare_amount";
-        $wa_link = "https://wa.me/923001234567?text=" . urlencode($wa_msg);
+        $wa_link = "https://wa.me/923134830023?text=" . urlencode($wa_msg);
 
         // 🔴 NEW: send the customer into the new booking flow (personal
         // details -> confirm -> payment) instead of showing the inline
@@ -251,7 +251,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <div class="detail-row"><span>Route</span><span><?php echo htmlspecialchars($from_city); ?> &rarr; <?php echo htmlspecialchars($to_city); ?></span></div>
                         <div class="detail-row"><span>Total Fare</span><span style="color:#d4af37;">SAR <?php echo number_format($fare['price_sar'] ?? 0); ?></span></div>
                     </div>
-                    <a href="<?php echo htmlspecialchars($wa_link); ?>" class="btn-wa" target="_blank"><i class="fab fa-whatsapp"></i> Send WhatsApp</a>
                     <div class="btn-row">
                         <a href="dashboard.php" class="btn-primary2">View My Bookings</a>
                         <a href="services.php?type=taxi" class="btn-secondary2">Book Another</a>

@@ -13,25 +13,19 @@ require_once 'config.php';
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { scroll-behavior: smooth; } /* NEW: silky anchor-link scrolling */
+        html { scroll-behavior: smooth; }
         body { font-family: 'Inter', sans-serif; overflow-x: hidden; background: #0a0f1e; cursor: default; }
 
-        /* NEW: display serif for headings only -- the single biggest
-           "this looks expensive" lever. Body copy stays on Inter. */
         h1, h2, .navbar-brand, .slide-content h1, .section-title h2, .footer h4 {
             font-family: 'Playfair Display', serif;
         }
 
-        /* NEW: gold-themed scrollbar (WebKit + Firefox) */
         ::-webkit-scrollbar { width: 10px; }
         ::-webkit-scrollbar-track { background: #0a0f1e; }
         ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #d4af37, #8a6d1f); border-radius: 6px; }
         ::-webkit-scrollbar-thumb:hover { background: #d4af37; }
         html { scrollbar-color: #8a6d1f #0a0f1e; scrollbar-width: thin; }
 
-        /* ============================================================
-           Ambient animated background (from previous pass, kept)
-           ============================================================ */
         .bg-ambient { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: #0a0f1e; }
         .bg-ambient::before {
             content: '';
@@ -56,7 +50,6 @@ require_once 'config.php';
             100% { transform: translate(2%, -2%) scale(1.02); }
         }
 
-        /* NEW: slow-drifting geometric star accents (pure decoration) */
         .bg-shape {
             position: absolute;
             opacity: 0.05;
@@ -73,11 +66,6 @@ require_once 'config.php';
             50% { transform: translateY(-30px) rotate(12deg); }
         }
 
-        /* ============================================================
-           NEW: Preloader -- brief branded reveal before first paint.
-           Pure CSS/JS, doesn't gate or alter any page logic; just fades
-           itself out once the window has loaded.
-           ============================================================ */
         .preloader {
             position: fixed; inset: 0; z-index: 99999;
             background: #0a0f1e;
@@ -102,14 +90,6 @@ require_once 'config.php';
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ============================================================
-           NEW: Instant hero spotlight -- unlike a custom cursor, this
-           has NO smoothing/lerp at all. It's bound 1:1 to the mouse
-           position via a CSS custom property set directly on
-           mousemove, so it never lags behind the real cursor (the
-           native OS cursor stays visible throughout, exactly as
-           before -- nothing hijacks or replaces it).
-           ============================================================ */
         .hero-spotlight {
             position: absolute; inset: 0;
             z-index: 1;
@@ -121,9 +101,6 @@ require_once 'config.php';
         .hero-slider:hover .hero-spotlight { opacity: 1; }
         @media (pointer: coarse) { .hero-spotlight { display: none; } }
 
-        /* NEW: fine cinematic grain overlay for extra depth/texture --
-           static (no animation cost), sits above everything else at a
-           very low opacity so it reads as "film" rather than noise. */
         .grain-overlay {
             position: fixed; inset: 0;
             z-index: 9997;
@@ -185,9 +162,6 @@ require_once 'config.php';
         .slide::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(180deg, rgba(10,15,30,0.55) 0%, rgba(10,15,30,0.35) 45%, rgba(10,15,30,0.75) 100%); }
         .slide-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; width: 100%; padding: 0 20px; z-index: 2; }
 
-        /* NEW: character-cascade reveal for the hero heading. Each
-           .char span is animated with an incrementing --i custom
-           property used as the stagger delay multiplier. */
         .slide-content h1 { font-size: 56px; font-weight: 800; margin-bottom: 15px; letter-spacing: -0.5px; }
         .slide-content h1 .char {
             display: inline-block;
@@ -214,16 +188,12 @@ require_once 'config.php';
         .btn-book { background: #d4af37; color: #0a0f1e; border: none; padding: 12px 40px; font-size: 16px; font-weight: 600; border-radius: 50px; text-decoration: none; display: inline-block; position: relative; overflow: hidden; }
         .btn-book:hover { background: #b8922e; transform: translateY(-2px); box-shadow: 0 10px 30px rgba(212, 175, 55, 0.35); }
 
-        /* NEW: magnetic pull -- JS sets --mx/--my (offset within the
-           button) on mousemove; this just renders that offset. Resets
-           to 0,0 on mouseleave. */
         .magnetic { transform: translate(var(--mx, 0), var(--my, 0)); transition: transform 0.15s ease-out; }
 
         .slider-controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10; display: flex; gap: 15px; }
         .slider-controls button { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); padding: 8px 22px; cursor: pointer; border-radius: 50px; font-weight: 500; transition: all 0.3s ease; }
         .slider-controls button:hover { background: #d4af37; border-color: #d4af37; color: #0a0f1e; transform: translateY(-2px); }
 
-        /* NEW: subtle scroll-down cue in the corner of the hero */
         .scroll-cue {
             position: absolute;
             right: 34px; bottom: 34px;
@@ -242,36 +212,11 @@ require_once 'config.php';
 
         .services-section { padding: 90px 0; }
 
-        /* NEW: trust badges strip */
-        .trust-strip { padding: 10px 0 70px; }
-        .trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-        .trust-item {
-            display: flex; align-items: center; gap: 14px;
-            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 14px; padding: 18px 20px; transition: all 0.3s ease;
-        }
-        .trust-item:hover { border-color: rgba(212,175,55,0.2); transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
-        .trust-icon {
-            width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
-            background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.15);
-            display: flex; align-items: center; justify-content: center; color: #d4af37; font-size: 17px;
-        }
-        .trust-item h4 { font-size: 13.5px; color: white; font-weight: 600; margin-bottom: 2px; }
-        .trust-item p { font-size: 11.5px; color: rgba(255,255,255,0.4); }
-        @media (max-width: 992px) { .trust-grid { grid-template-columns: repeat(2, 1fr); } }
-
-        /* ============================================================
-           NEW: Hotels Gallery -- a carousel showcase of real, top-rated
-           hotels pulled from the database, matching the site's existing
-           dark/gold visual language.
-           ============================================================ */
         .section-title { text-align: center; margin-bottom: 50px; }
         .section-title .gold-line { width: 60px; height: 3px; background: #d4af37; margin: 0 auto 12px; border-radius: 2px; }
         .section-title h2 { font-size: 34px; font-weight: 800; color: white; margin-bottom: 10px; }
         .section-title p { color: rgba(255,255,255,0.5); font-size: 15px; }
 
-        /* NEW: 3D tilt wrapper -- JS updates --rx/--ry per card based on
-           cursor position; CSS just applies the perspective transform. */
         .service-card {
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.04);
@@ -284,7 +229,6 @@ require_once 'config.php';
             transition: transform 0.25s ease, border-color 0.3s ease, box-shadow 0.3s ease;
         }
         .service-card:hover { border-color: rgba(212, 175, 55, 0.25); box-shadow: 0 20px 45px rgba(0,0,0,0.4), 0 0 0 1px rgba(212,175,55,0.08); }
-        /* NEW: glare that follows the cursor across the card */
         .service-card .glare {
             position: absolute; inset: 0;
             background: radial-gradient(circle at var(--gx,50%) var(--gy,50%), rgba(212,175,55,0.14), transparent 55%);
@@ -471,30 +415,7 @@ require_once 'config.php';
         </div>
     </section>
 
-    <section class="trust-strip">
-        <div class="container">
-            <div class="trust-grid">
-                <div class="trust-item reveal">
-                    <div class="trust-icon"><i class="fas fa-shield-halved"></i></div>
-                    <div><h4>Secure Payment</h4><p>Your transactions are protected</p></div>
-                </div>
-                <div class="trust-item reveal reveal-delay-1">
-                    <div class="trust-icon"><i class="fas fa-headset"></i></div>
-                    <div><h4>24/7 Support</h4><p>We're always here to help</p></div>
-                </div>
-                <div class="trust-item reveal reveal-delay-2">
-                    <div class="trust-icon"><i class="fas fa-rotate-left"></i></div>
-                    <div><h4>Free Cancellation</h4><p>Cancel within 60 minutes</p></div>
-                </div>
-                <div class="trust-item reveal reveal-delay-3">
-                    <div class="trust-icon"><i class="fas fa-award"></i></div>
-                    <div><h4>Trusted Service</h4><p>Handpicked hotels &amp; rides</p></div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <a href="https://wa.me/923001234567?text=Hi! I need travel assistance" class="whatsapp-float" target="_blank">
+    <a href="https://wa.me/923134830023?text=Hi! I need travel assistance" class="whatsapp-float" target="_blank">
         <i class="fab fa-whatsapp"></i> Chat Now
     </a>
 
@@ -513,9 +434,9 @@ require_once 'config.php';
                 </div>
                 <div class="col-md-4">
                     <h5>Contact Us</h5>
-                    <p><i class="fas fa-phone"></i> +92 300 1234567</p>
-                    <p><i class="fab fa-whatsapp"></i> +92 321 7654321</p>
-                    <p><i class="fas fa-envelope"></i> info@ahmedtravels.com</p>
+                    <p><i class="fas fa-phone"></i> +966 51 036 1841</p>
+                    <p><i class="fab fa-whatsapp"></i> +92 313 4830023</p>
+                    <p><i class="fas fa-envelope"></i> ahmedtvl606@gmail.com</p>
                 </div>
             </div>
             <hr class="mt-4" style="border-color:rgba(255,255,255,0.03);">
@@ -525,7 +446,6 @@ require_once 'config.php';
 </div>
 
 <script>
-    /* ---------- Existing slider logic (unchanged behavior) ---------- */
     let slides = document.querySelectorAll('.slide');
     let dots = document.querySelectorAll('#sliderDots span');
     let currentSlide = 0;
@@ -542,7 +462,6 @@ require_once 'config.php';
     function toggleMenu() { document.getElementById('mobileMenu').classList.toggle('active'); document.getElementById('overlay').classList.toggle('active'); }
     window.addEventListener('scroll', function() { const navbar = document.getElementById('navbar'); if(window.scrollY > 50) { navbar.classList.add('scrolled'); } else { navbar.classList.remove('scrolled'); } });
 
-    /* ---------- Scroll-reveal (from previous pass) ---------- */
     if ('IntersectionObserver' in window) {
         const revealObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
@@ -554,15 +473,11 @@ require_once 'config.php';
         document.querySelectorAll('.reveal').forEach(el => el.classList.add('in-view'));
     }
 
-    /* ---------- NEW: preloader ---------- */
     window.addEventListener('load', function() {
         const pl = document.getElementById('preloader');
         setTimeout(() => pl.classList.add('done'), 250);
     });
 
-    /* ---------- NEW: split hero headings into per-letter spans with an
-       --i index, so the CSS char-cascade animation can stagger them.
-       Runs once on load; doesn't touch showSlide()'s own logic. ---------- */
     document.querySelectorAll('.split-text').forEach(h => {
         const text = h.textContent;
         h.innerHTML = '';
@@ -575,9 +490,6 @@ require_once 'config.php';
         });
     });
 
-    /* ---------- NEW: instant hero spotlight -- direct 1:1 bind to the
-       mouse position, no smoothing/interpolation, so there is zero lag.
-       The native cursor is untouched throughout. ---------- */
     const isFinePointer = window.matchMedia('(pointer: fine)').matches;
     const heroSlider = document.getElementById('heroSlider');
     const heroSpotlight = document.getElementById('heroSpotlight');
@@ -591,7 +503,6 @@ require_once 'config.php';
         });
     }
 
-    /* ---------- NEW: magnetic buttons (fine-pointer only) ---------- */
     if (isFinePointer) {
         document.querySelectorAll('.magnetic').forEach(btn => {
             btn.addEventListener('mousemove', (e) => {
@@ -608,15 +519,14 @@ require_once 'config.php';
         });
     }
 
-    /* ---------- NEW: 3D tilt + glare on service cards (fine-pointer only) ---------- */
     if (isFinePointer) {
         document.querySelectorAll('.service-card').forEach(card => {
             card.addEventListener('mousemove', (e) => {
                 const r = card.getBoundingClientRect();
-                const px = (e.clientX - r.left) / r.width;   // 0..1
-                const py = (e.clientY - r.top) / r.height;   // 0..1
-                const ry = (px - 0.5) * 10;   // rotateY range
-                const rx = (0.5 - py) * 10;   // rotateX range
+                const px = (e.clientX - r.left) / r.width;
+                const py = (e.clientY - r.top) / r.height;
+                const ry = (px - 0.5) * 10;
+                const rx = (0.5 - py) * 10;
                 card.style.setProperty('--rx', rx.toFixed(2) + 'deg');
                 card.style.setProperty('--ry', ry.toFixed(2) + 'deg');
                 card.style.setProperty('--ty', '-4px');

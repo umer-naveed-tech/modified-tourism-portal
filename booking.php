@@ -47,7 +47,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     if($stmt->execute([$booking_no, $_SESSION['user_id'], $service_type, $service_id, $travel_date, $from_location, $to_location, $guests, $total_amount, $price_breakdown])) {
         $success = true;
         $wa_msg = "Hi! I have booked {$service['title']} for $guests person(s) on $travel_date. Booking ID: $booking_no. Total: Rs. $total_amount";
-        $wa_link = "https://wa.me/923001234567?text=" . urlencode($wa_msg);
+        $wa_link = "https://wa.me/923134830023?text=" . urlencode($wa_msg);
 
         // 🔴 NEW: send the customer into the new booking flow (personal
         // details -> confirm -> payment) instead of showing the inline
@@ -199,7 +199,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <div class="detail-row"><span>Service</span><span><?php echo htmlspecialchars($service['title']); ?></span></div>
                         <div class="detail-row"><span>Total Amount</span><span style="color:#d4af37;">Rs. <?php echo number_format($service['price'] * ($_POST['guests'] ?? 1)); ?></span></div>
                     </div>
-                    <a href="<?php echo htmlspecialchars($wa_link); ?>" class="btn-wa" target="_blank"><i class="fab fa-whatsapp"></i> Send WhatsApp Confirmation</a>
                     <div class="btn-row">
                         <a href="dashboard.php" class="btn-primary2">View My Bookings</a>
                         <a href="services.php?type=<?php echo urlencode($service_type); ?>" class="btn-secondary2">Book More</a>

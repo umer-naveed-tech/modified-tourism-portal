@@ -787,9 +787,7 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
     <div class="container">
         <?php if(isset($_GET['error'])): ?>
             <div class="alert alert-danger" style="background:rgba(239,68,68,0.06); border-color:rgba(239,68,68,0.08); color:#f87171; border-radius:12px; padding:16px 20px; line-height:1.6;">
-                We were unable to complete this booking, most likely because the selected dates fall outside our currently confirmed availability for this hotel. Please try different dates, or
-                <a href="https://wa.me/923001234567?text=<?php echo urlencode('Hi! I tried to book ' . ($hotel['hotel_name'] ?? 'this hotel') . ' but the dates I wanted were unavailable. Could you please help me manually?'); ?>" target="_blank" style="color:#f87171; text-decoration:underline;">contact our customer service team</a>
-                and we will be happy to arrange it for you manually.
+                We were unable to complete this booking, most likely because the selected dates fall outside our currently confirmed availability for this hotel. Please try different dates, or reach out via the Support option in your dashboard and we will be happy to arrange it for you manually.
             </div>
         <?php endif; ?>
 
@@ -1012,8 +1010,7 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
                     <!-- NEW: professional "unavailable for these dates" panel -->
                     <div class="hotel-unavailable-panel" id="hotelUnavailablePanel">
                         <h6>This Hotel Is Currently Unavailable for These Dates</h6>
-                        <p>We do not have pricing available for the hotel and dates you have selected. This may be outside our currently confirmed availability window. If you would still like to book this hotel, please contact our customer service team and we will be happy to arrange it for you manually.</p>
-                        <a href="https://wa.me/923001234567?text=<?php echo urlencode('Hi! I would like to book ' . ($hotel['hotel_name'] ?? 'this hotel') . ' for dates outside the listed availability. Could you please help me manually?'); ?>" class="btn-contact-us" target="_blank">Contact Customer Service</a>
+                        <p>We do not have pricing available for the hotel and dates you have selected. This may be outside our currently confirmed availability window. If you would still like to book this hotel, please reach out via the Support option in your dashboard and we will be happy to arrange it for you manually.</p>
                     </div>
 
                     <div class="row mt-3">
@@ -1032,9 +1029,8 @@ if ($is_single_room_supplement || $is_simple_hidden_markup || $is_lemeridien) {
             <div class="panel empty-state" style="padding:60px 24px;">
                 <div style="font-size:48px; margin-bottom:16px;">🏨</div>
                 <h4 style="font-size:22px;">Coming Soon</h4>
-                <p style="max-width:380px; margin:0 auto; line-height:1.6;">Online booking for <strong style="color:rgba(255,255,255,0.6);"><?php echo htmlspecialchars($hotel['hotel_name']); ?></strong> is being set up. In the meantime, our team can help you book this hotel directly.</p>
+                <p style="max-width:380px; margin:0 auto; line-height:1.6;">Online booking for <strong style="color:rgba(255,255,255,0.6);"><?php echo htmlspecialchars($hotel['hotel_name']); ?></strong> is being set up. In the meantime, please reach out via the Support option in your dashboard and our team can help you book this hotel directly.</p>
                 <div style="display:flex; gap:12px; justify-content:center; margin-top:24px; flex-wrap:wrap;">
-                    <a href="https://wa.me/923001234567?text=<?php echo urlencode('Hi! I want to book ' . $hotel['hotel_name']); ?>" target="_blank" class="btn" style="background:#25D366; color:white; padding:10px 24px; border-radius:8px; text-decoration:none; font-weight:500;">📱 Chat on WhatsApp</a>
                     <a href="services.php?type=hotels&city=<?php echo urlencode($hotel['city']); ?>" class="btn btn-secondary" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.05); color:rgba(255,255,255,0.5); padding:10px 24px; border-radius:8px; text-decoration:none;">← Back to Hotels</a>
                 </div>
             </div>

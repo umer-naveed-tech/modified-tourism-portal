@@ -175,7 +175,7 @@ $active_page = 'dashboard';
         <a href="payments_history.php" class="link"><i class="fas fa-credit-card" aria-hidden="true"></i>Payments</a>
         <div class="div"></div>
         <a href="edit_profile.php" class="link"><i class="fas fa-user" aria-hidden="true"></i>Profile</a>
-        <a href="https://wa.me/923001234567" class="link" target="_blank"><i class="fas fa-headset" aria-hidden="true"></i>Support</a>
+        <a href="contact_us.php" class="link"><i class="fas fa-headset" aria-hidden="true"></i>Support</a>
         <a href="logout.php" class="link logout" onclick="return confirm('Are you sure you want to log out?');"><i class="fas fa-right-from-bracket" aria-hidden="true"></i>Logout</a>
     </nav>
 
