@@ -44,8 +44,8 @@ $font_url = $font_choices[$room['room_details_font']] ?? $font_choices['Inter'];
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', sans-serif;
-            background: #faf7f1;
-            color: #2b2620;
+            background: var(--c-bg);
+            color: var(--c-text);
             min-height: 100vh;
             position: relative;
         }
@@ -56,17 +56,17 @@ $font_url = $font_choices[$room['room_details_font']] ?? $font_choices['Inter'];
                         radial-gradient(circle at 90% 15%, rgba(212,175,55,0.05), transparent 35%);
         }
         .wrap { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; padding: 50px 24px 80px; }
-        .back-link { color: rgba(43,38,32,0.55); text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 28px; }
-        .back-link:hover { color: #b8912f; }
+        .back-link { color: var(--c-muted); text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 28px; }
+        .back-link:hover { color: var(--c-accent); }
 
         .header { text-align: center; margin-bottom: 36px; }
         .gold-line { width: 50px; height: 3px; background: #d4af37; margin: 0 auto 16px; border-radius: 2px; }
-        .header .hotel-name { font-size: 12.5px; text-transform: uppercase; letter-spacing: 1px; color: rgba(43,38,32,0.5); margin-bottom: 8px; }
-        .header h1 { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 800; }
-        .header .meta { font-size: 13px; color: rgba(43,38,32,0.5); margin-top: 8px; }
+        .header .hotel-name { font-size: 12.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--c-muted); margin-bottom: 8px; }
+        .header h1 { font-family: var(--font-heading); font-size: 30px; font-weight: 800; }
+        .header .meta { font-size: 13px; color: var(--c-muted); margin-top: 8px; }
 
         .details-card {
-            background: #fffdfa; border: 1px solid #ece4d4; border-radius: 20px; padding: 40px;
+            background: var(--c-card-bg); border: 1px solid var(--c-border); border-radius: 20px; padding: 40px;
             box-shadow: 0 20px 50px rgba(120,95,40,0.08);
             font-family: '<?php echo htmlspecialchars($room['room_details_font']); ?>', Georgia, sans-serif;
             font-size: 16px; line-height: 1.9; color: #3a3428;
@@ -78,6 +78,7 @@ $font_url = $font_choices[$room['room_details_font']] ?? $font_choices['Inter'];
             .details-card { padding: 26px; font-size: 15px; }
         }
     </style>
+    <?php include 'dynamic_theme.php'; ?>
 </head>
 <body>
     <div class="bg-ambient" aria-hidden="true"></div>

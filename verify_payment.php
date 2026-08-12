@@ -78,7 +78,7 @@ try {
     $stmt = $pdo->prepare("UPDATE payments SET status = 'verified', verified_at = NOW(), verified_by = ? WHERE id = ?");
     $stmt->execute([$_SESSION['user_id'], $payment['id']]);
 
-    $stmt = $pdo->prepare("UPDATE bookings SET status = 'confirmed', payment_status = 'verified' WHERE id = ?");
+    $stmt = $pdo->prepare("UPDATE bookings SET status = 'completed', payment_status = 'verified' WHERE id = ?");
     $stmt->execute([$booking_id]);
 
     $pdo->commit();

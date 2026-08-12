@@ -46,7 +46,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     if($stmt->execute([$booking_no, $_SESSION['user_id'], $service_type, $service_id, $travel_date, $from_location, $to_location, $guests, $total_amount, $price_breakdown])) {
         $success = true;
-        $wa_msg = "Hi! I have booked {$service['title']} for $guests person(s) on $travel_date. Booking ID: $booking_no. Total: Rs. $total_amount";
+        $wa_msg = "Hi! I have booked {$service['title']} for $guests person(s) on $travel_date. Booking ID: $booking_no. Total: SAR $total_amount";
         $wa_link = "https://wa.me/923134830023?text=" . urlencode($wa_msg);
 
         // 🔴 NEW: send the customer into the new booking flow (personal

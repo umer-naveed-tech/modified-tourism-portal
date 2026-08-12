@@ -90,7 +90,7 @@ try {
                 'error' => $_FILES['gallery_images']['error'][$i],
                 'size' => $_FILES['gallery_images']['size'][$i],
             ];
-            $filename = handleImageUpload($single_file, $upload_dir, 'gallery-' . $hotel_id);
+            $filename = handleImageUpload($single_file, $upload_dir, 'gallery-' . $hotel_id, 2400, 88);
             if ($filename) {
                 $insert_stmt->execute([$hotel_id, 'uploads/gallery_images/' . $filename, $next_sort]);
                 $next_sort++;

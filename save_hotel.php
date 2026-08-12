@@ -43,12 +43,12 @@ if ($hotel_name === '' || empty($room_types) || empty($pricing_periods)) {
 // given). Automatically resized/compressed by image_helper.php so
 // page speed stays good regardless of the original photo's size. ----
 $image_url = null;
-$uploaded_filename = handleImageUpload($_FILES['hotel_image'] ?? null, __DIR__ . '/uploads/hotel_images/', 'hotel-' . preg_replace('/[^a-z0-9]/i', '', strtolower($hotel_name)));
+$uploaded_filename = handleImageUpload($_FILES['hotel_image'] ?? null, __DIR__ . '/uploads/hotel_images/', 'hotel-' . preg_replace('/[^a-z0-9]/i', '', strtolower($hotel_name)), 2400, 88);
 if ($uploaded_filename) $image_url = 'uploads/hotel_images/' . $uploaded_filename;
 
 // ---- Room photo (ONE shared photo shown above the room list) ----
 $rooms_image_url = null;
-$uploaded_filename = handleImageUpload($_FILES['rooms_image'] ?? null, __DIR__ . '/uploads/hotel_images/', 'rooms-' . preg_replace('/[^a-z0-9]/i', '', strtolower($hotel_name)));
+$uploaded_filename = handleImageUpload($_FILES['rooms_image'] ?? null, __DIR__ . '/uploads/hotel_images/', 'rooms-' . preg_replace('/[^a-z0-9]/i', '', strtolower($hotel_name)), 2400, 88);
 if ($uploaded_filename) $rooms_image_url = 'uploads/hotel_images/' . $uploaded_filename;
 
 $pdo->beginTransaction();
