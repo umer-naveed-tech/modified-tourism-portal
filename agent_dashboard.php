@@ -22,7 +22,7 @@ if (!file_exists($marker_file) || (time() - filemtime($marker_file)) > 6 * 3600)
 }
 
 // ==================== FILTERS FROM QUERY STRING ====================
-$status = $_GET['status'] ?? 'pending';   // pending | confirmed | completed | cancelled | all
+$status = $_GET['status'] ?? 'pending';   // pending | completed | cancelled | all
 $search = trim($_GET['search'] ?? '');
 $type_filter = $_GET['type'] ?? '';
 $date_from = $_GET['date_from'] ?? '';

@@ -183,6 +183,19 @@ $font_choices = array_keys(galleryFontChoices());
         .field label { display: block; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 6px; }
         .field input, .field select, .field textarea { width: 100%; padding: 11px 13px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: white; font-family: inherit; font-size: 13.5px; }
         .field textarea { resize: vertical; min-height: 80px; }
+
+        /* NEW: bed-type tag list -- lets the agent add several bed
+           types one at a time (e.g. Double, Triple, Quad) instead of
+           typing a fragile comma-separated string. */
+        .bed-type-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        .bed-tag { display: inline-flex; align-items: center; gap: 8px; background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.25); color: #d4af37; padding: 6px 8px 6px 12px; border-radius: 20px; font-size: 12.5px; }
+        .bed-tag button { background: none; border: none; color: #d4af37; cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; }
+        .bed-tag button:hover { color: #f87171; }
+        .bed-tag-empty { color: rgba(255,255,255,0.3); font-size: 12.5px; font-style: italic; }
+        .bed-type-add-row { display: flex; gap: 8px; }
+        .bed-type-add-row input { flex: 1; }
+        .btn-add-bedtype { flex-shrink: 0; background: rgba(212,175,55,0.1); color: #d4af37; border: 1px solid rgba(212,175,55,0.2); padding: 0 16px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit; }
+        .btn-add-bedtype:hover { background: #d4af37; color: #0a0f1e; }
         .field input:focus, .field select:focus { outline: none; border-color: #d4af37; }
 
         .room-row, .period-block { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; margin-bottom: 10px; position: relative; overflow: hidden; }
@@ -207,6 +220,15 @@ $font_choices = array_keys(galleryFontChoices());
         .price-table input { width: 100px; padding: 7px 9px; font-size: 13px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; color: white; font-family: inherit; }
         .price-table input:focus { outline: none; border-color: #d4af37; }
         .period-block { padding: 0; }
+        /* NEW: brief highlight when a period is freshly added, so it's
+           obvious something happened even if it's off the visible
+           screen -- scrollIntoView() brings it into view, this makes
+           it visually unmistakable once there. */
+        .period-block.just-added { animation: periodFlash 1.5s ease; }
+        @keyframes periodFlash {
+            0%, 100% { box-shadow: none; border-color: rgba(255,255,255,0.06); }
+            20% { box-shadow: 0 0 0 3px rgba(212,175,55,0.35); border-color: #d4af37; }
+        }
         .room-row-header { display: flex; justify-content: space-between; align-items: center; padding: 13px 16px; cursor: pointer; transition: background 0.15s ease; }
         .room-row-header:hover { background: rgba(255,255,255,0.02); }
         .room-row-title { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: white; font-weight: 500; }
@@ -373,6 +395,7 @@ $font_choices = array_keys(galleryFontChoices());
             <h3>Seasonal Pricing</h3>
             <div id="pricingContainer"></div>
             <button type="button" class="btn-add-row" onclick="addPricingPeriod()"><i class="fas fa-plus"></i> Add Pricing Period</button>
+            <button type="button" class="btn-add-row" style="background:rgba(239,68,68,0.06); color:#f87171; border-color:rgba(239,68,68,0.15);" onclick="removeEmptyPeriods()"><i class="fas fa-broom"></i> Remove Empty Periods</button>
         </div>
 
         <button type="submit" class="btn-save"><?php echo $is_edit ? 'Save Changes' : 'Create Hotel'; ?></button>
@@ -577,7 +600,6 @@ function renderRoomTypes() {
     roomTypes.forEach((rt, i) => {
         const div = document.createElement('div');
         div.className = 'room-row' + (rt._expanded ? ' expanded' : '');
-        const bedTypesText = (rt.bed_types || []).map(b => b.name).join(', ');
         const summaryBits = [];
         if (rt.capacity) summaryBits.push(rt.capacity + ' guests');
         if (rt.bed_types && rt.bed_types.length) summaryBits.push(rt.bed_types.length + ' bed types');
@@ -613,8 +635,16 @@ function renderRoomTypes() {
                     <input type="text" value="${escAttr(rt.description)}" oninput="updateRoomType(${i}, 'description', this.value)">
                 </div>
                 <div class="field">
-                    <label>Bed Type <span style="color:rgba(255,255,255,0.35); font-weight:400;">(optional -- only if this room comes in variants, e.g. "City View, Haram View". Leave empty if not.)</span></label>
-                    <input type="text" value="${escAttr(bedTypesText)}" placeholder="e.g. City View, Haram View" oninput="updateBedTypes(${i}, this.value)">
+                    <label>Bed Types <span style="color:rgba(255,255,255,0.35); font-weight:400;">(optional -- add one or more if this room comes in variants, e.g. Double, Triple, Quad. Leave empty if this room has just one fixed setup.)</span></label>
+                    <div class="bed-type-tags">
+                        ${(rt.bed_types || []).map((bt, bi) => `
+                            <span class="bed-tag">${escAttr(bt.name)}<button type="button" onclick="removeBedType(${i}, ${bi})" title="Remove">&times;</button></span>
+                        `).join('') || '<span class="bed-tag-empty">No bed types added yet</span>'}
+                    </div>
+                    <div class="bed-type-add-row">
+                        <input type="text" id="bedTypeInput_${i}" placeholder="e.g. Double" onkeydown="if(event.key==='Enter'){event.preventDefault(); addBedType(${i});}">
+                        <button type="button" class="btn-add-bedtype" onclick="addBedType(${i})">+ Add</button>
+                    </div>
                 </div>
                 <div class="field">
                     <label>Room Description <span style="color:rgba(255,255,255,0.35); font-weight:400;">(optional -- what's actually in this room. Shown to the customer on its own page when they click "Room Description".)</span></label>
@@ -651,9 +681,28 @@ function updateRoomType(i, field, value) {
     renderPricingPeriods(); // room-type columns in pricing table need to stay in sync
 }
 
-function updateBedTypes(i, value) {
-    const names = value.split(',').map(s => s.trim()).filter(Boolean);
-    roomTypes[i].bed_types = names.map(n => ({ code: slugify(n), name: n }));
+function addBedType(i) {
+    const input = document.getElementById('bedTypeInput_' + i);
+    const name = input.value.trim();
+    if (!name) return;
+    if (!roomTypes[i].bed_types) roomTypes[i].bed_types = [];
+    // Avoid adding the exact same bed type twice by mistake.
+    if (roomTypes[i].bed_types.some(bt => bt.name.toLowerCase() === name.toLowerCase())) {
+        alert('"' + name + '" is already added for this room.');
+        return;
+    }
+    roomTypes[i].bed_types.push({ code: slugify(name), name: name });
+    renderRoomTypes();
+    renderPricingPeriods();
+    // Keep focus on the input so the agent can keep typing the next
+    // bed type without re-clicking -- renderRoomTypes() rebuilds the
+    // DOM, so this has to happen after that.
+    setTimeout(() => document.getElementById('bedTypeInput_' + i)?.focus(), 0);
+}
+
+function removeBedType(i, bedIndex) {
+    roomTypes[i].bed_types.splice(bedIndex, 1);
+    renderRoomTypes();
     renderPricingPeriods();
 }
 
@@ -782,8 +831,26 @@ function toggleWeekend(i, checked) {
 }
 
 function addPricingPeriod() {
+    // NEW: warn instead of silently creating an unusable period -- a
+    // period with no room types to price against is exactly the kind
+    // of "nothing visibly happened" situation that led to 8 blank
+    // periods getting created by repeated clicking.
+    if (roomTypes.length === 0) {
+        alert('Add at least one Room Type first -- a pricing period needs rooms to set prices for.');
+        return;
+    }
     pricingPeriods.push({ start_date: '', end_date: '', has_weekend_split: false, extra_bed: 0, prices: {}, _expanded: true });
     renderPricingPeriods();
+    // NEW: scroll the freshly-added period into view and flash it, so
+    // it's unmistakable that clicking Add actually did something --
+    // this is the fix for the "nothing happens" complaint.
+    const blocks = document.querySelectorAll('#pricingContainer .period-block');
+    const newBlock = blocks[blocks.length - 1];
+    if (newBlock) {
+        newBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        newBlock.classList.add('just-added');
+        setTimeout(() => newBlock.classList.remove('just-added'), 1500);
+    }
 }
 
 function removePeriod(i) {
@@ -811,12 +878,49 @@ document.getElementById('hotelForm').addEventListener('submit', function(e) {
         box.innerHTML = errors.map(e => '• ' + e).join('<br>');
         box.style.display = 'block';
         window.scrollTo(0, 0);
+
+        // NEW: jump straight to the first period that's actually
+        // missing dates, expanded and flashed, instead of leaving the
+        // agent to hunt through the list themselves.
+        const firstBadIndex = pricingPeriods.findIndex(p => !p.start_date || !p.end_date);
+        if (firstBadIndex !== -1) {
+            pricingPeriods[firstBadIndex]._expanded = true;
+            renderPricingPeriods();
+            const blocks = document.querySelectorAll('#pricingContainer .period-block');
+            const badBlock = blocks[firstBadIndex];
+            if (badBlock) {
+                setTimeout(() => {
+                    badBlock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    badBlock.classList.add('just-added');
+                    setTimeout(() => badBlock.classList.remove('just-added'), 1500);
+                }, 300);
+            }
+        }
         return;
     }
 
     document.getElementById('roomTypesJson').value = JSON.stringify(roomTypes);
     document.getElementById('pricingJson').value = JSON.stringify(pricingPeriods);
 });
+
+// NEW: one-click cleanup for any completely-empty pricing periods
+// (e.g. blank ones left over from repeated clicking before this fix)
+// -- only removes periods with no dates AND no prices entered, so it
+// never touches real data.
+function removeEmptyPeriods() {
+    const before = pricingPeriods.length;
+    pricingPeriods = pricingPeriods.filter(p => {
+        const hasDates = p.start_date || p.end_date;
+        const hasPrices = p.prices && Object.values(p.prices).some(room =>
+            Object.values(room).some(bt => (bt.weekday || 0) > 0 || (bt.weekend || 0) > 0)
+        );
+        return hasDates || hasPrices;
+    });
+    const removed = before - pricingPeriods.length;
+    renderPricingPeriods();
+    if (removed > 0) alert(removed + ' empty pricing period(s) removed.');
+    else alert('No empty pricing periods found.');
+}
 
 renderRoomTypes();
 renderPricingPeriods();

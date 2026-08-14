@@ -72,6 +72,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$existing_payment) {
     if ($payment_reference === '') $errors[] = 'Please enter the Payment ID / transaction reference.';
     if ($payer_name === '') $errors[] = 'Please enter the name the payment was sent from.';
 
+    // NEW: a real bank/wallet transaction reference is unique by
+    // definition -- if this exact reference has already been
+    // submitted for another booking, it's either a mistake (customer
+    // pasted the wrong one) or a reused/duplicate proof, so it's
+    // rejected here rather than silently accepted.
+    if ($payment_reference !== '') {
+        $stmt = $pdo->prepare("SELECT id FROM payments WHERE payment_reference = ? LIMIT 1");
+        $stmt->execute([$payment_reference]);
+        if ($stmt->fetch()) {
+            $errors[] = 'This transaction reference has already been used for another payment. Please double-check your reference number.';
+        }
+    }
+
     $screenshot_path = null;
     if (empty($_FILES['screenshot']) || $_FILES['screenshot']['error'] !== UPLOAD_ERR_OK) {
         $errors[] = 'Please upload a screenshot of your payment.';
@@ -107,7 +120,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$existing_payment) {
         ");
         $stmt->execute([$booking_id, $payment_reference, $payer_name, $screenshot_path]);
 
-        $stmt = $pdo->prepare("UPDATE bookings SET payment_status = 'submitted' WHERE id = ?");
+        // Safety net: customer_confirmed_at should already be set from
+        // the Review step, but backfill it here too (COALESCE keeps
+        // whatever earlier timestamp already exists, only fills it in
+        // if it's somehow still NULL) so a booking can never reach the
+        // payment step without being counted as a real "Pending"
+        // booking in the agent's dashboard.
+        $stmt = $pdo->prepare("UPDATE bookings SET payment_status = 'submitted', customer_confirmed_at = COALESCE(customer_confirmed_at, NOW()) WHERE id = ?");
         $stmt->execute([$booking_id]);
 
         header('Location: booking_payment.php?booking_id=' . $booking_id);
