@@ -836,11 +836,15 @@ if(empty($cities)) {
                 ?>
                 <?php foreach($services as $service): $pal = $poster_palettes[$i % count($poster_palettes)]; $i++; ?>
                     <div class="service-card reveal<?php echo $card_frame_class; ?>" onclick="goTo('booking.php?type=<?php echo $type; ?>&id=<?php echo $service['id']; ?>')">
+                        <?php if (!empty($service['image_url'])): ?>
+                            <div class="visa-poster" style="background-image: url('<?php echo htmlspecialchars($service['image_url']); ?>'); background-size: cover; background-position: center;"></div>
+                        <?php else: ?>
                         <div class="visa-poster" style="background: linear-gradient(150deg, <?php echo $pal['from']; ?>, <?php echo $pal['to']; ?>);">
                             <div class="visa-poster-pattern"></div>
                             <i class="fas <?php echo $pal['icon']; ?> visa-poster-icon" aria-hidden="true"></i>
                             <div class="visa-poster-label">Visa Service</div>
                         </div>
+                        <?php endif; ?>
                         <div class="service-card-body">
                             <h3 class="service-card-title"><?php echo htmlspecialchars($service['title'] ?? 'Service Name'); ?></h3>
                             <div class="service-card-location"><?php echo htmlspecialchars($service['description'] ?? 'No description available'); ?></div>
