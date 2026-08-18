@@ -111,6 +111,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         .booking-card h2 { font-family: 'Playfair Display', serif; color: white; text-align: center; margin-bottom: 28px; font-size: 24px; }
 
         .field-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 4px; }
+        .visa-desc-box { display: flex; align-items: flex-start; gap: 10px; background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.15); border-radius: 12px; padding: 14px 16px; margin-bottom: 20px; font-size: 13.5px; color: rgba(255,255,255,0.75); line-height: 1.6; }
+        .visa-desc-box i { color: #d4af37; margin-top: 2px; flex-shrink: 0; }
         .field-col { flex: 1; min-width: 200px; margin-bottom: 16px; }
         .field-col label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: rgba(255,255,255,0.5); margin-bottom: 7px; }
         .field-col label i { color: #d4af37; font-size: 11px; }
@@ -197,7 +199,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="detail-box">
                         <div class="detail-row"><span>Booking ID</span><span><?php echo htmlspecialchars($booking_no); ?></span></div>
                         <div class="detail-row"><span>Service</span><span><?php echo htmlspecialchars($service['title']); ?></span></div>
-                        <div class="detail-row"><span>Total Amount</span><span style="color:#d4af37;">Rs. <?php echo number_format($service['price'] * ($_POST['guests'] ?? 1)); ?></span></div>
+                        <div class="detail-row"><span>Total Amount</span><span style="color:#d4af37;">SAR <?php echo number_format($service['price'] * ($_POST['guests'] ?? 1)); ?></span></div>
                     </div>
                     <div class="btn-row">
                         <a href="dashboard.php" class="btn-primary2">View My Bookings</a>
@@ -211,6 +213,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 
                 <form method="POST">
                     <?php echo csrf_field(); ?>
+
+                    <?php if (!empty($service['description'])): ?>
+                    <div class="visa-desc-box">
+                        <i class="fas fa-circle-info" aria-hidden="true"></i>
+                        <?php echo htmlspecialchars($service['description']); ?>
+                    </div>
+                    <?php endif; ?>
+
                     <div class="field-row">
                         <div class="field-col">
                             <label><i class="fas fa-calendar"></i> Travel Date *</label>
@@ -221,30 +231,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                             <input type="number" name="guests" value="1" min="1" max="10">
                         </div>
                     </div>
-                    
-                    <?php if($service_type == 'taxi'): ?>
-                    <div class="field-row">
-                        <div class="field-col">
-                            <label><i class="fas fa-map-marker-alt"></i> Pickup Location *</label>
-                            <input type="text" name="from_location" placeholder="e.g., Lahore Airport" required>
-                        </div>
-                        <div class="field-col">
-                            <label><i class="fas fa-flag-checkered"></i> Drop Location *</label>
-                            <input type="text" name="to_location" placeholder="e.g., Islamabad" required>
-                        </div>
-                    </div>
-                    <?php else: ?>
-                    <div class="field-row">
-                        <div class="field-col" style="flex-basis:100%;">
-                            <label><i class="fas fa-map-marker-alt"></i> Location</label>
-                            <input type="text" name="from_location" value="<?php echo htmlspecialchars($service['location']); ?>" readonly>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                    
+
                     <div class="price-summary">
                         <h4>Total Amount</h4>
-                        <span class="price-large">Rs. <?php echo number_format($service['price']); ?></span>
+                        <span class="price-large">SAR <?php echo number_format($service['price']); ?></span>
                         <p>*Per <?php echo $service_type == 'hotel' ? 'night' : ($service_type == 'taxi' ? 'trip' : 'person'); ?></p>
                         <button type="submit" class="btn-confirm"><span class="btn-shine"></span>Confirm Booking</button>
                     </div>
