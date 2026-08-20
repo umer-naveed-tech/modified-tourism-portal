@@ -173,7 +173,7 @@ $font_choices = array_keys(galleryFontChoices());
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #0a0f1e; color: white; min-height: 100vh; padding-bottom: 60px; }
-        .container { max-width: 900px; margin: 0 auto; padding: 30px 24px; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 30px 24px; }
         .btn-back { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 13px; }
         h1 { font-family: 'Playfair Display', serif; font-size: 26px; margin: 14px 0 24px; }
         .card { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 26px; margin-bottom: 20px; }
@@ -782,6 +782,7 @@ function renderPricingPeriods() {
                         </label>
                     </div>
                 </div>
+                <div style="overflow-x: auto;">
                 <table class="price-table">
                     <thead>
                         <tr>
@@ -792,6 +793,7 @@ function renderPricingPeriods() {
                     </thead>
                     <tbody>${rowsHtml}</tbody>
                 </table>
+                </div>
                 <div class="row" style="margin-top:12px;">
                     <div class="field" style="max-width:220px;">
                         <label>Extra Bed (SAR/night) <span style="color:rgba(255,255,255,0.35); font-weight:400;">-- 0 if not offered</span></label>

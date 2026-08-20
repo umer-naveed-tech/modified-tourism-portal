@@ -13,6 +13,11 @@ function safe_date($date_str, $format = 'M j, Y') {
     if (empty($date_str)) return '—';
     $ts = strtotime($date_str);
     if ($ts === false) return '—';
+    // Bookings without a real travel date store '1970-01-01' as a
+    // placeholder (see the `travel_date > '1970-01-02'` filters used
+    // elsewhere) -- without this check, that placeholder would render
+    // as a real-looking (but meaningless) "Jan 1, 1970" date.
+    if ($ts < strtotime('1970-01-02')) return '—';
     return date($format, $ts);
 }
 

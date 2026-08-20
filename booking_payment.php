@@ -187,6 +187,19 @@ $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
         .bank-account-block:last-of-type { margin-bottom: 0; }
         .no-accounts { color: rgba(43,38,32,0.5); font-size: 13px; text-align: center; padding: 16px 0; }
 
+        /* NEW: Tamara online-payment option -- purely additive, sits
+           above the existing manual bank-transfer section. */
+        .btn-tamara {
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            background: linear-gradient(135deg, #d9b45a, #c9a24b); color: #201a0d;
+            font-weight: 700; font-size: 14.5px; padding: 15px; border-radius: 12px;
+            text-decoration: none; box-shadow: 0 10px 26px rgba(201,162,75,0.3); transition: all 0.25s ease;
+        }
+        .btn-tamara:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(201,162,75,0.4); }
+        .tamara-divider { text-align: center; color: rgba(43,38,32,0.4); font-size: 11.5px; margin: 16px 0; position: relative; }
+        .tamara-divider::before, .tamara-divider::after { content: ''; position: absolute; top: 50%; width: 35%; height: 1px; background: rgba(43,38,32,0.08); }
+        .tamara-divider::before { left: 0; } .tamara-divider::after { right: 0; }
+
         .field { margin-bottom: 18px; }
         .field label { display: block; font-size: 12.5px; color: rgba(43,38,32,0.7); margin-bottom: 7px; font-weight: 500; }
         .field input[type="text"] {
@@ -245,6 +258,10 @@ $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
 
                 <div class="bank-box">
                     <h3>Payment Details</h3>
+
+                    <?php if (empty($pkr_bank_accounts) && empty($sar_bank_accounts)): ?>
+                        <div class="no-accounts">No payment accounts have been set up yet. Please contact support before proceeding with payment.</div>
+                    <?php else: ?>
                     <div class="currency-toggle">
                         <button type="button" class="curr-btn active" data-curr="PKR" onclick="switchCurrency('PKR')">Pay in PKR</button>
                         <button type="button" class="curr-btn" data-curr="SAR" onclick="switchCurrency('SAR')">Pay in SAR</button>
@@ -265,6 +282,16 @@ $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
                     </div>
 
                     <div class="curr-panel" id="curr-SAR">
+                        <?php if (defined('TAMARA_API_TOKEN') && TAMARA_API_TOKEN !== 'YOUR_MERCHANT_API_TOKEN_HERE'): ?>
+                        <?php if (isset($_GET['tamara_error'])): ?>
+                            <div class="tamara-divider" style="color:#dc2626;">Couldn't start Tamara checkout -- please try again, or use bank transfer below.</div>
+                        <?php endif; ?>
+                        <a href="tamara_checkout.php?booking_id=<?php echo $booking_id; ?>" class="btn-tamara">
+                            <i class="fas fa-credit-card" aria-hidden="true"></i> Pay Online with Tamara
+                        </a>
+                        <div class="tamara-divider">or pay manually via bank transfer</div>
+                        <?php endif; ?>
+
                         <?php if (empty($sar_bank_accounts)): ?>
                             <div class="no-accounts">No SAR accounts have been added yet. Please pick PKR instead, or contact support.</div>
                         <?php else: foreach ($sar_bank_accounts as $acc): ?>
@@ -277,6 +304,7 @@ $existing_payment = $stmt->fetch(PDO::FETCH_ASSOC);
                         </div>
                         <?php endforeach; endif; ?>
                     </div>
+                    <?php endif; ?>
 
                     <div class="bank-row" style="border-top:1px solid rgba(212,175,55,0.15); margin-top:6px; padding-top:14px;"><span>Amount</span><span>SAR <?php echo number_format($booking['total_amount']); ?></span></div>
                     <div class="bank-note">Please make your transfer manually using the details above, then fill in the form below with your payment proof. Your booking will be confirmed by our team once payment is verified.</div>

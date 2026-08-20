@@ -5,7 +5,6 @@ if(!isset($_SESSION['user_id'])) {
     exit();
 }
 require_once 'config.php';
-require_once 'send_admin_email.php';  // Add this
 
 $car_id = $_GET['car_id'] ?? 0;
 $car_name = $_GET['car_name'] ?? '';
@@ -28,9 +27,6 @@ if(!$car) {
 
 $fare = null;
 if($from_city && $to_city) {
-    // FIX: case-insensitive AND bidirectional -- "makkah" matches
-    // "MAKKAH", and a route entered as "Jeddah -> Makkah" also matches
-    // a customer selecting "Makkah -> Jeddah".
     $stmt = $pdo->prepare("SELECT price_sar FROM car_fares WHERE car_id = ? AND ((UPPER(from_city) = UPPER(?) AND UPPER(to_city) = UPPER(?)) OR (UPPER(from_city) = UPPER(?) AND UPPER(to_city) = UPPER(?)))");
     $stmt->execute([$car_id, $from_city, $to_city, $to_city, $from_city]);
     $fare = $stmt->fetch();
@@ -47,9 +43,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $to = $_POST['to'];
     $date = $_POST['date'];
     $time = $_POST['time'];
-    // Note: fare is NOT trusted from the client anymore — it is looked up
-    // fresh from car_fares using the car/route, same as the page load above.
-    // Same case-insensitive + bidirectional fix as above.
     $fare_stmt = $pdo->prepare("SELECT price_sar FROM car_fares WHERE car_id = ? AND ((UPPER(from_city) = UPPER(?) AND UPPER(to_city) = UPPER(?)) OR (UPPER(from_city) = UPPER(?) AND UPPER(to_city) = UPPER(?)))");
     $fare_stmt->execute([$car_id, $from, $to, $to, $from]);
     $verified_fare = $fare_stmt->fetch();
@@ -62,8 +55,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $booking_no = 'TAXI-' . date('Ymd') . '-' . rand(1000, 9999);
     $travel_datetime = $date . ($time ? ' at ' . $time : '');
 
-    // 🔴 price_breakdown -- lets the agent panel show which car and
-    // route this actually was, instead of just "Taxi".
     $price_breakdown = json_encode([
         'car_name' => $car['car_name'],
         'car_model' => $car['car_model'],
@@ -79,26 +70,14 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     if($stmt->execute([$booking_no, $_SESSION['user_id'], $car_id, $travel_datetime, $from, $to, $car['capacity'], $fare_amount, $price_breakdown])) {
         $success = true;
-        
-        // Send email to admin
-        sendAdminEmail(
-            'booking',
-            $booking_no,
-            $_SESSION['user_name'],
-            $_SESSION['user_email'],
-            'Taxi - ' . $car['car_name'] . ' (' . $from . ' to ' . $to . ')',
-            $travel_datetime,
-            $fare_amount,
-            'pending'
-        );
-        
-        $wa_msg = "New Booking: $car_name from $from to $to on $date at $time. Booking ID: $booking_no. Total: SAR $fare_amount";
-        $wa_link = "https://wa.me/923134830023?text=" . urlencode($wa_msg);
 
-        // 🔴 NEW: send the customer into the new booking flow (personal
-        // details -> confirm -> payment) instead of showing the inline
-        // success block below. Everything above this line -- pricing,
-        // the INSERT, the admin email -- is completely unchanged.
+        // REMOVED: the admin-notification email used to fire right
+        // here, the moment a car/route was picked -- before the
+        // customer had confirmed anything. It now fires once, at the
+        // Confirm step (booking_review.php), for every service type
+        // (not just taxi), matching when the booking actually becomes
+        // "real" (see customer_confirmed_at).
+        
         header('Location: booking_details.php?booking_id=' . $pdo->lastInsertId());
         exit();
     } else {
@@ -215,13 +194,25 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         @keyframes btnSpin { to { transform: rotate(360deg); } }
     
-        /* NEW: compact trust badges strip */
         .mini-trust-strip { display: flex; justify-content: center; gap: 16px; margin-top: 18px; flex-wrap: wrap; }
         .mini-trust-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: rgba(43,38,32,0.6); }
         .mini-trust-item i { color: #d4af37; font-size: 12px; }
+
+        /* NEW: branded full-page loading overlay -- shown the instant
+           "Confirm Booking" is submitted, so the gap while the server
+           processes the booking and the next page loads has a nice
+           animation instead of a blank/frozen browser. */
+        .page-transition { position: fixed; inset: 0; z-index: 9998; background: #faf7f1; display: none; align-items: center; justify-content: center; }
+        .page-transition.active { display: flex; }
+        .pt-spinner { position: relative; width: 64px; height: 64px; }
+        .pt-ring { position: absolute; inset: 0; border: 2px solid rgba(212,175,55,0.15); border-top-color: #d4af37; border-radius: 50%; animation: ptSpin 0.9s linear infinite; }
+        .pt-icon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #d4af37; font-size: 20px; animation: ptSpin 0.9s linear infinite reverse; }
+        @keyframes ptSpin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div class="page-transition" id="pageTransition"><div class="pt-spinner"><div class="pt-ring"></div><i class="fas fa-plane pt-icon" style="font-style:normal;">✈</i></div></div>
+
     <?php if ($page_hero_image || $page_hero_color): ?>
     <div class="page-photo-bg" style="<?php echo $page_hero_image ? "background-image: url('" . htmlspecialchars($page_hero_image) . "');" : 'background:' . htmlspecialchars($page_hero_color) . ';'; ?>"></div>
     <div class="page-photo-overlay"></div>
@@ -266,7 +257,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <p>Capacity: <?php echo (int)$car['capacity']; ?> persons | Air Conditioning: Yes</p>
                 </div>
                 
-                <form method="POST">
+                <form method="POST" id="taxiConfirmForm">
                     <?php echo csrf_field(); ?>
                     <div class="field-row">
                         <div class="field-col">
@@ -310,11 +301,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 
 <script>
-    /* NEW: disable the submit button and show a spinner while the form
-       is submitting, so double-clicking never fires a second (duplicate)
-       booking request. Skips entirely if an earlier listener already
-       cancelled the submit (e.g. client-side validation failing) --
-       never leaves a valid form stuck showing "Processing...". */
     document.querySelectorAll('form').forEach(function(form) {
         form.addEventListener('submit', function(e) {
             if (e.defaultPrevented) return;
@@ -324,6 +310,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 btn.innerHTML = '<span class="btn-spinner"></span>Processing...';
                 btn.disabled = true;
             }
+            // NEW: show the branded full-page loading overlay too.
+            const pt = document.getElementById('pageTransition');
+            if (pt) pt.classList.add('active');
         });
     });
 </script>

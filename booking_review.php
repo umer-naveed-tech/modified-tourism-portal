@@ -41,43 +41,70 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_verify();
 
-    $stmt = $pdo->prepare("UPDATE bookings SET payment_status = 'awaiting_payment' WHERE id = ? AND user_id = ?");
+    // NEW: this is the moment the booking becomes "real" -- before this,
+    // the row exists (created when they picked a room/car/date) but
+    // isn't counted as a pending booking anywhere in the UI. Every
+    // "Pending" list/count now requires customer_confirmed_at to be
+    // set, so an abandoned draft never clutters anyone's view.
+    $stmt = $pdo->prepare("UPDATE bookings SET payment_status = 'awaiting_payment', customer_confirmed_at = NOW() WHERE id = ? AND user_id = ?");
     $stmt->execute([$booking_id, $_SESSION['user_id']]);
 
-    // New, additive confirmation email -- separate from whatever email
-    // was already sent at booking-creation time.
+    // 🔴 CHANGED: the "Booking Received" email now fires HERE (at
+    // Confirm -- one step before Payment) instead of at the very
+    // first step when the customer just picked a room/car/date.
+    // That first step was too early -- lots of casual clicks never
+    // turn into a real booking, so sending it there created noise for
+    // both the customer's inbox and (via customer_confirmed_at, which
+    // every "Pending" list already requires) the agent's dashboard.
+    // The ORIGINAL sendBookingEmail() call that used to fire at
+    // booking-creation time should be removed from wherever it
+    // currently lives (book_hotel_room.php / booking_taxi.php /
+    // booking.php) -- this is now the one and only place it's sent.
     if (!empty($booking['customer_email']) || !empty($booking['account_email'])) {
         $to_email = $booking['customer_email'] ?: $booking['account_email'];
         $to_name = $booking['customer_name'] ?: $booking['account_name'];
         try {
-            require_once 'PHPMailer/src/PHPMailer.php';
-            require_once 'PHPMailer/src/SMTP.php';
-            require_once 'PHPMailer/src/Exception.php';
-            $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-            $mail->isSMTP();
-            $mail->Host       = SMTP_HOST;
-            $mail->SMTPAuth   = true;
-            $mail->Username   = SMTP_USERNAME;
-            $mail->Password   = SMTP_APP_PASSWORD;
-            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port       = SMTP_PORT;
-            $mail->setFrom(SMTP_USERNAME, SMTP_FROM_NAME);
-            $mail->addAddress($to_email, $to_name);
-            $mail->isHTML(true);
-            $mail->Subject = 'Booking Confirmed - ' . $booking['booking_no'] . ' - Ahmed Travels';
-            $mail->Body = "<h2>Booking Confirmed</h2>"
-                . "<p>Dear " . htmlspecialchars($to_name) . ",</p>"
-                . "<p>Thank you for confirming your booking with Ahmed Travels.</p>"
-                . "<p><strong>Booking ID:</strong> " . htmlspecialchars($booking['booking_no']) . "<br>"
-                . "<strong>Total Amount:</strong> SAR " . number_format($booking['total_amount']) . "</p>"
-                . "<p>Please complete the payment step to finalize your booking. Our team will confirm your booking once payment is received.</p>"
-                . "<p>-- Ahmed Travels</p>";
-            $mail->send();
+            require_once 'send_booking_email.php';
+            sendBookingEmail(
+                $to_email,
+                $to_name,
+                $booking['booking_no'],
+                $booking['service_type'],
+                $booking['travel_date'],
+                $booking['travel_time'] ?? '',
+                $booking['from_location'] ?? '',
+                $booking['to_location'] ?? '',
+                $booking['guests'],
+                $booking['total_amount']
+            );
         } catch (Exception $e) {
             // Non-fatal -- the booking still proceeds to payment even
             // if the email couldn't be sent.
             error_log('booking_review.php mail error: ' . $e->getMessage());
         }
+    }
+
+    // 🔴 CHANGED: the admin-notification email (agent inbox alert) also
+    // now fires HERE instead of at booking-creation time -- previously
+    // this only existed for taxi bookings (in booking_taxi.php) and
+    // fired too early. Now it's one consistent call, for every service
+    // type, at the same moment the customer becomes a real "Pending"
+    // booking -- matching exactly what the agent dashboard already
+    // shows.
+    try {
+        require_once 'send_admin_email.php';
+        sendAdminEmail(
+            'booking',
+            $booking['booking_no'],
+            $to_name ?? ($booking['customer_name'] ?: $booking['account_name']),
+            $to_email ?? ($booking['customer_email'] ?: $booking['account_email']),
+            $booking['service_type'],
+            $booking['travel_date'],
+            $booking['total_amount'],
+            'pending'
+        );
+    } catch (Exception $e) {
+        error_log('booking_review.php admin mail error: ' . $e->getMessage());
     }
 
     header('Location: booking_payment.php?booking_id=' . $booking_id);
@@ -147,9 +174,20 @@ if (empty($details) && $booking['service_type'] === 'hotel') {
         .btn-confirm:hover { background: #b8922e; }
         .btn-back { display: block; text-align: center; margin-top: 14px; color: rgba(43,38,32,0.55); font-size: 12.5px; text-decoration: none; }
         .btn-back:hover { color: #d4af37; }
+
+        /* NEW: branded loading overlay -- shown the instant "Confirm
+           Booking" is clicked, so the browser's normal blank/frozen
+           gap while the next page loads has a nice animation instead. */
+        .page-transition { position: fixed; inset: 0; z-index: 9998; background: #faf7f1; display: none; align-items: center; justify-content: center; }
+        .page-transition.active { display: flex; }
+        .pt-spinner { position: relative; width: 64px; height: 64px; }
+        .pt-ring { position: absolute; inset: 0; border: 2px solid rgba(212,175,55,0.15); border-top-color: #d4af37; border-radius: 50%; animation: ptSpin 0.9s linear infinite; }
+        .pt-icon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #d4af37; font-size: 20px; animation: ptSpin 0.9s linear infinite reverse; }
+        @keyframes ptSpin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div class="page-transition" id="pageTransition"><div class="pt-spinner"><div class="pt-ring"></div><i class="fas fa-plane pt-icon" style="font-style:normal;">✈</i></div></div>
     <div class="wrap">
         <div class="logo">Ahmed<span>Travels</span></div>
 
@@ -179,7 +217,7 @@ if (empty($details) && $booking['service_type'] === 'hotel') {
                 <?php if (!empty($details['car_name'])): ?>
                     <div class="row"><span>Vehicle</span><span><?php echo htmlspecialchars($details['car_name']); ?></span></div>
                 <?php endif; ?>
-                <div class="row"><span>Travel Date</span><span><?php echo htmlspecialchars($booking['travel_date']); ?></span></div>
+                <div class="row"><span>Travel Date</span><span><?php echo (!empty($booking['travel_date']) && strtotime($booking['travel_date']) > strtotime('1970-01-02')) ? htmlspecialchars($booking['travel_date']) : 'To be confirmed'; ?></span></div>
                 <div class="row"><span>Guests</span><span><?php echo (int)$booking['guests']; ?></span></div>
                 <div class="row"><span>Traveler Name</span><span><?php echo htmlspecialchars($booking['customer_name']); ?></span></div>
                 <div class="row"><span>Phone</span><span><?php echo htmlspecialchars($booking['customer_phone']); ?></span></div>
@@ -190,7 +228,7 @@ if (empty($details) && $booking['service_type'] === 'hotel') {
 
             <div class="confirm-note">By confirming, you agree that the details above are correct. You will be taken to the payment step next, and this booking will remain pending until our team verifies your payment.</div>
 
-            <form method="POST">
+            <form method="POST" id="confirmForm">
                 <?php echo csrf_field(); ?>
                 <input type="hidden" name="booking_id" value="<?php echo $booking_id; ?>">
                 <button type="submit" class="btn-confirm">Yes, Confirm Booking</button>
@@ -198,5 +236,13 @@ if (empty($details) && $booking['service_type'] === 'hotel') {
             <a href="booking_details.php?booking_id=<?php echo $booking_id; ?>" class="btn-back">Go back and edit details</a>
         </div>
     </div>
+    <script>
+        // Show the branded loading overlay the instant the form is
+        // submitted -- covers the natural gap while the server
+        // processes the confirmation and the next page loads.
+        document.getElementById('confirmForm').addEventListener('submit', function() {
+            document.getElementById('pageTransition').classList.add('active');
+        });
+    </script>
 </body>
 </html>

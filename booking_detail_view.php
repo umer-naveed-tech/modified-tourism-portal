@@ -46,14 +46,15 @@ $active_page = 'bookings';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="dashboard_shell.css?v=2">
     <style>
-        .detail-row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 4px; border-bottom: 1px solid #141a2b; font-family: 'Helvetica Neue', sans-serif; font-size: 13px; }
+        .detail-row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 4px; border-bottom: 1px solid var(--c-border); font-family: 'Helvetica Neue', sans-serif; font-size: 13px; }
         .detail-row:last-child { border-bottom: none; }
-        .detail-row span:first-child { color: #5c6684; }
-        .detail-row span:last-child { color: #f4f4f2; font-weight: 500; text-align: right; }
-        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #c9a24b; font-weight: 700; margin: 22px 0 6px; font-family: 'Helvetica Neue', sans-serif; }
+        .detail-row span:first-child { color: var(--c-muted); }
+        .detail-row span:last-child { color: var(--c-text); font-weight: 500; text-align: right; }
+        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--c-accent); font-weight: 700; margin: 22px 0 6px; font-family: 'Helvetica Neue', sans-serif; }
         .section-title:first-of-type { margin-top: 0; }
-        .box { background: #0d1220; border: 1px solid #1c2436; border-radius: 12px; padding: 4px 18px; margin-bottom: 6px; }
+        .box { background: var(--c-card-bg); border: 1px solid var(--c-border); border-radius: 12px; padding: 4px 18px; margin-bottom: 6px; }
     </style>
+    <?php include 'dynamic_theme.php'; ?>
 </head>
 <body>
 <div class="bg-ambient" aria-hidden="true"></div>
@@ -67,16 +68,17 @@ $active_page = 'bookings';
                     <h1><?php echo htmlspecialchars($b['booking_no']); ?></h1>
                     <div class="meta"><?php echo htmlspecialchars(ucfirst($b['service_type'])); ?> booking</div>
                 </div>
-                <a href="my_bookings.php" class="a" style="font-family:'Helvetica Neue',sans-serif; color:#5c6684; font-size:12.5px; text-decoration:none;">← Back to My Bookings</a>
+                <a href="my_bookings.php" class="a" style="font-family:'Helvetica Neue',sans-serif; color:var(--c-muted); font-size:12.5px; text-decoration:none;">← Back to My Bookings</a>
             </div>
 
             <div class="section-title">Booking Info</div>
             <div class="box">
-                <div class="detail-row"><span>Status</span><span><span class="dot <?php echo $b['status']==='confirmed'?'g':($b['status']==='pending'?'y':($b['status']==='cancelled'?'r':'b')); ?>"></span><?php echo htmlspecialchars(ucfirst($b['status'])); ?></span></div>
+                <?php $ds = display_status($b['status'], $b['travel_date']); ?>
+                <div class="detail-row"><span>Status</span><span><span class="dot <?php echo $ds['dot']; ?>"></span><?php echo htmlspecialchars($ds['label']); ?></span></div>
                 <div class="detail-row"><span>Travel Date</span><span><?php echo safe_date($b['travel_date']); ?></span></div>
                 <div class="detail-row"><span>Guests</span><span><?php echo (int)$b['guests']; ?></span></div>
                 <div class="detail-row"><span>Booked On</span><span><?php echo date('M j, Y g:i A', strtotime($b['created_at'])); ?></span></div>
-                <div class="detail-row"><span>Total Amount</span><span style="color:#c9a24b; font-weight:700;">SAR <?php echo number_format($b['total_amount']); ?></span></div>
+                <div class="detail-row"><span>Total Amount</span><span style="color:var(--c-accent); font-weight:700;">SAR <?php echo number_format($b['total_amount']); ?></span></div>
             </div>
 
             <?php if ($b['service_type'] === 'hotel'): ?>
@@ -113,17 +115,17 @@ $active_page = 'bookings';
                     <?php if (!empty($payment['rejection_reason'])): ?>
                     <div class="detail-row"><span>Reason</span><span><?php echo htmlspecialchars($payment['rejection_reason']); ?></span></div>
                     <?php endif; ?>
-                    <div class="detail-row"><span></span><span><a href="services.php" style="color:#c9a24b; text-decoration:none;">Create a new booking →</a></span></div>
+                    <div class="detail-row"><span></span><span><a href="services.php" style="color:var(--c-accent); text-decoration:none;">Create a new booking →</a></span></div>
                 <?php elseif ($payment): ?>
                     <div class="detail-row"><span>Status</span><span class="pill <?php echo htmlspecialchars($payment['status']); ?>"><?php echo htmlspecialchars(ucfirst($payment['status'])); ?></span></div>
                     <div class="detail-row"><span>Reference</span><span><?php echo htmlspecialchars($payment['payment_reference']); ?></span></div>
                     <div class="detail-row"><span>Submitted</span><span><?php echo date('M j, Y g:i A', strtotime($payment['submitted_at'])); ?></span></div>
                 <?php elseif ($b['status'] === 'cancelled'): ?>
                     <div class="detail-row"><span>Status</span><span>Cancelled</span></div>
-                    <div class="detail-row"><span></span><span><a href="services.php" style="color:#c9a24b; text-decoration:none;">Create a new booking →</a></span></div>
+                    <div class="detail-row"><span></span><span><a href="services.php" style="color:var(--c-accent); text-decoration:none;">Create a new booking →</a></span></div>
                 <?php elseif (!empty($b['customer_name'])): ?>
                     <div class="detail-row"><span>Status</span><span>Awaiting payment</span></div>
-                    <div class="detail-row"><span></span><span><a href="booking_payment.php?booking_id=<?php echo $booking_id; ?>" style="color:#c9a24b; text-decoration:none;">Complete payment →</a></span></div>
+                    <div class="detail-row"><span></span><span><a href="booking_payment.php?booking_id=<?php echo $booking_id; ?>" style="color:var(--c-accent); text-decoration:none;">Complete payment →</a></span></div>
                 <?php else: ?>
                     <div class="detail-row"><span>Status</span><span>Not started</span></div>
                 <?php endif; ?>

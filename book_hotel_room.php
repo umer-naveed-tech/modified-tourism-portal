@@ -9,7 +9,7 @@ require_once 'hotel_handlers/handler_factory.php';
 // instead of quietly charging SAR 0 for that night.
 require_once 'hotel_handlers/price_calculator.php';
 
-// 🔴 CSRF VERIFY — PEHLE HI HONA CHAHIYE
+// CSRF VERIFY — PEHLE HI HONA CHAHIYE
 csrf_verify();
 
 $room_id = $_POST['room_id'] ?? 0;
@@ -60,7 +60,7 @@ if (!isset($_SESSION['user_email'])) {
 }
 
 // ============================================================
-// 🔴 HAR HOTEL KA APNA HANDLER ROOM DETAILS DEGA
+// HAR HOTEL KA APNA HANDLER ROOM DETAILS DEGA
 // ============================================================
 $handler = HotelHandlerFactory::getHandler($hotel_id);
 $room = $handler->getRoomDetails($room_id);
@@ -81,14 +81,10 @@ if ($nights < 1) {
 }
 
 // ============================================================
-// 🔴 PRICE CALCULATION -- delegated entirely to price_calculator.php.
+// PRICE CALCULATION -- delegated entirely to price_calculator.php.
 // If ANY date in the stay has no matching pricing row, this now fails
 // the booking outright (same as the preview endpoint always did)
-// instead of silently treating that night as free. This is the fix
-// for the "Makkah Towers silent under-charge" bug -- and the same
-// class of bug that also existed (unnoticed) for hotels 43, 63, and 41
-// in this file, since none of their inline blocks used to check for a
-// missing pricing row either.
+// instead of silently treating that night as free.
 // ============================================================
 $price = calculateHotelStayPrice($pdo, [
     'hotel_id'    => $hotel_id,
@@ -117,21 +113,12 @@ $booking_no = 'HOTEL-' . date('Ymd') . '-' . rand(1000, 9999);
 $travel_date = $check_in;
 $room_display = $room['room_type'] ?? $room['display_name'] ?? 'Room';
 $capacity = $room['capacity'] ?? 2;
-// 🔴 FIX: from_location is VARCHAR(100) in the database -- the old
-// "HotelName - RoomType (Check-in: X, Check-out: Y)" format could
-// easily exceed that with longer hotel/room names, causing a fatal
-// "Data too long for column" error at INSERT time. check_in is
-// already stored separately in travel_date, and the full detail now
-// lives in price_breakdown (JSON, no length limit), so from_location
-// only needs to stay short and human-readable -- mb_substr guarantees
-// it never exceeds the column limit no matter how long the names are.
+// from_location is VARCHAR(100) -- mb_substr guarantees it never
+// exceeds the column limit no matter how long hotel/room names are.
 $from_location = mb_substr($hotel_name . ' - ' . $room_display, 0, 100);
 
-// 🔴 price_breakdown -- structured detail the agent panel reads to show
-// "Details" on every booking (hotel/room/dates/meal/extra bed), instead
-// of just "Hotel". from_location above stays as a short human-readable
-// summary for places that only show plain text; this JSON is the full,
-// exact record.
+// price_breakdown -- structured detail the agent panel reads to show
+// "Details" on every booking, instead of just "Hotel".
 $price_breakdown = json_encode([
     'hotel_name' => $hotel_name,
     'room_type' => $room_display,
@@ -149,7 +136,7 @@ $price_breakdown = json_encode([
     'supplements' => $supplements ?: null,
 ]);
 
-// 🔴 BOOKING INSERT
+// BOOKING INSERT
 $stmt = $pdo->prepare("
     INSERT INTO bookings (
         booking_no, user_id, service_type, service_id, booking_date, 
@@ -171,26 +158,18 @@ if ($stmt->execute([
     $meal_total,
     $price_breakdown
 ])) {
-    if (file_exists('send_booking_email.php')) {
-        require_once 'send_booking_email.php';
-        sendBookingEmail(
-            $_SESSION['user_email'],
-            $_SESSION['user_name'],
-            $booking_no,
-            'Hotel - ' . $hotel_name . ' (' . $room_display . ')',
-            $check_in . ' to ' . $check_out,
-            $grand_total,
-            $hotel_name,
-            $room_display,
-            $capacity,
-            $grand_total
-        );
-    }
-    
-    // 🔴 NEW: send the customer into the new booking flow (personal
+    // REMOVED: the "Booking Received" email used to fire right here,
+    // the moment a room was picked -- before the customer had even
+    // entered their details or confirmed anything. That email now
+    // fires once, at the Confirm step (booking_review.php), which is
+    // the point a booking actually becomes "real" (see
+    // customer_confirmed_at). Nothing else in this file changed --
+    // pricing, the INSERT, and the redirect below are untouched.
+
+    // Send the customer into the new booking flow (personal
     // details -> confirm -> payment) instead of straight to the old
-    // success page. Everything above this line -- pricing, the INSERT,
-    // the booking-received email -- is completely unchanged.
+    // success page. Everything above this line -- pricing, the INSERT --
+    // is completely unchanged.
     header('Location: booking_details.php?booking_id=' . $pdo->lastInsertId());
     exit();
 } else {

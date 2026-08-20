@@ -1015,7 +1015,7 @@ function renderBookingDetails(data) {
 
     html += '<div class="detail-section-title">Booking Info</div>';
     html += row('Guests', b.guests);
-    html += row('Travel Date', b.travel_date);
+    html += row('Travel Date', (b.travel_date && b.travel_date > '1970-01-02') ? b.travel_date : null);
     html += row('Booked On', b.created_at);
     html += row('Status', b.status ? (b.status.charAt(0).toUpperCase() + b.status.slice(1)) : null);
     html += '<div class="detail-row"><span>Total Amount</span><span class="amt">SAR ' + escHtml(Number(b.total_amount).toLocaleString()) + '</span></div>';

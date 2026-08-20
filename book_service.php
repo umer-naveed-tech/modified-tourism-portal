@@ -33,7 +33,31 @@ function svcBg($path, $fallback, $key = null, $slotColors = []) {
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: var(--font-body, 'Inter', sans-serif); background: var(--c-bg); color: var(--c-text); min-height: 100vh; }
+        body { font-family: var(--font-body, 'Inter', sans-serif); background: var(--c-bg); color: var(--c-text); min-height: 100vh; position: relative; overflow-x: hidden; }
+
+        /* NEW: elegant ambient background -- soft gold glow, fine grain
+           texture, and a couple of slow-floating glass shapes. Purely
+           decorative (z-index 0, pointer-events none) -- sits behind
+           everything, doesn't touch layout, links, or the cards. */
+        .bg-ambient { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+        .bg-ambient::before {
+            content: ''; position: absolute; inset: -20%;
+            background:
+                radial-gradient(circle at 15% 15%, rgba(212,175,55,0.09), transparent 40%),
+                radial-gradient(circle at 88% 20%, rgba(212,175,55,0.06), transparent 35%),
+                radial-gradient(circle at 50% 95%, rgba(91,143,214,0.05), transparent 45%);
+            animation: driftGlow 24s ease-in-out infinite alternate;
+        }
+        @keyframes driftGlow { 0% { transform: translate(0,0) scale(1); } 100% { transform: translate(2%,-2%) scale(1.05); } }
+        .grain-overlay { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.025;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+        .float-shape { position: fixed; z-index: 0; border-radius: 50%; background: rgba(212,175,55,0.04); border: 1px solid rgba(212,175,55,0.1); pointer-events: none; animation: floatShape 16s ease-in-out infinite; }
+        .float-shape.f1 { width: 220px; height: 220px; top: 8%; left: 4%; animation-delay: 0s; }
+        .float-shape.f2 { width: 140px; height: 140px; bottom: 10%; right: 6%; animation-delay: -6s; }
+        @keyframes floatShape { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-26px); } }
+        @media (prefers-reduced-motion: reduce) { .bg-ambient::before, .float-shape { animation: none; } }
+
+        .top-bar, .intro, .services-grid { position: relative; z-index: 1; }
         .top-bar { display: flex; align-items: center; justify-content: space-between; padding: 24px 40px; }
         .brand { font-family: var(--font-heading); font-size: 18px; font-weight: 700; color: var(--c-text); text-decoration: none; }
         .brand span { color: #b8912f; }
@@ -83,6 +107,11 @@ function svcBg($path, $fallback, $key = null, $slotColors = []) {
     <?php include 'dynamic_theme.php'; ?>
 </head>
 <body>
+    <div class="bg-ambient" aria-hidden="true"></div>
+    <div class="grain-overlay" aria-hidden="true"></div>
+    <div class="float-shape f1" aria-hidden="true"></div>
+    <div class="float-shape f2" aria-hidden="true"></div>
+
     <div class="top-bar">
         <a href="dashboard.php" class="brand">Ahmed<span>Travels</span></a>
         <a href="dashboard.php" class="back-link">← Back to Dashboard</a>
@@ -97,7 +126,7 @@ function svcBg($path, $fallback, $key = null, $slotColors = []) {
         <a href="services.php?type=hotels" class="svc-card" style="<?php echo svcBg($theme_images['service_hotel'] ?? null, 'linear-gradient(135deg,#2b2416,#5c4a24)', 'service_hotel', $theme_slot_colors); ?>">
             <div class="svc-eyebrow">Stay</div>
             <h2>Hotels</h2>
-            <p>Mecca &amp; Madinah, every star rating, seasonal pricing built in.</p>
+            <p>Mecca &amp; Madinah, every star rating.</p>
             <span class="svc-cta">Browse Hotels <i class="fas fa-arrow-right"></i></span>
         </a>
         <a href="services.php?type=taxi" class="svc-card" style="<?php echo svcBg($theme_images['service_taxi'] ?? null, 'linear-gradient(135deg,#1e2a3d,#3a5170)', 'service_taxi', $theme_slot_colors); ?>">

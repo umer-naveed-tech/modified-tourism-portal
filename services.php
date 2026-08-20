@@ -211,16 +211,17 @@ if(empty($cities)) {
 
         .navbar { background: rgba(255, 253, 250, 0.92); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(212, 175, 55, 0.08); padding: 14px 0; position: sticky; top: 0; z-index: 100; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
-        .navbar .container { display: flex; justify-content: space-between; align-items: center; }
+        .navbar .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px 0; }
         .logo { font-family: 'Playfair Display', serif; color: #2b2620; font-size: 23px; font-weight: 800; text-decoration: none; letter-spacing: -0.5px; }
         .logo span { color: #d4af37; }
-        .nav-links a { position: relative; color: rgba(43,38,32,0.78); text-decoration: none; margin-left: 24px; font-size: 14px; transition: all 0.3s ease; }
+        .nav-links { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; }
+        .nav-links a { position: relative; color: rgba(43,38,32,0.78); text-decoration: none; font-size: 14px; transition: all 0.3s ease; }
         .nav-links a:not(.btn-logout):not(.btn-login)::after { content: ''; position: absolute; left: 0; right: 0; bottom: -4px; height: 1px; background: #d4af37; transform: scaleX(0); transition: transform 0.25s ease; }
         .nav-links a:not(.btn-logout):not(.btn-login):hover::after { transform: scaleX(1); }
         .nav-links a:hover { color: #d4af37; }
-        .nav-links .btn-logout { background: rgba(239,68,68,0.1); color: #f87171; padding: 8px 20px; border-radius: 8px; margin-left: 24px; transition: all 0.3s ease; }
+        .nav-links .btn-logout { background: rgba(239,68,68,0.1); color: #f87171; padding: 8px 20px; border-radius: 8px; transition: all 0.3s ease; }
         .nav-links .btn-logout:hover { background: #dc2626; color: white; transform: translateY(-2px); }
-        .nav-links .btn-login { background: rgba(212,175,55,0.1); color: #d4af37; padding: 8px 20px; border-radius: 8px; margin-left: 24px; transition: all 0.3s ease; }
+        .nav-links .btn-login { background: rgba(212,175,55,0.1); color: #d4af37; padding: 8px 20px; border-radius: 8px; transition: all 0.3s ease; }
         .nav-links .btn-login:hover { background: #d4af37; color: #faf7f1; transform: translateY(-2px); }
 
         /* ===== Page heading (new, purely additive block above tabs) ===== */
@@ -275,6 +276,13 @@ if(empty($cities)) {
             .page-hero-header { padding: 50px 20px 34px; }
             .page-hero-header h1 { font-size: 30px; }
             .hero-tab-btn { padding: 12px 20px; font-size: 13px; }
+        }
+
+        @media (max-width: 480px) {
+            .navbar .container { justify-content: center; text-align: center; }
+            .nav-links { justify-content: center; gap: 6px 14px; }
+            .nav-links a { font-size: 13px; }
+            .nav-links .btn-logout, .nav-links .btn-login { padding: 7px 14px; }
         }
 
         .tabs { display: flex; gap: 8px; border-bottom: 1px solid rgba(43,38,32,0.04); margin: 32px 0 32px; flex-wrap: wrap; justify-content: center; }

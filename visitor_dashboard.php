@@ -76,6 +76,7 @@ $active_page = 'dashboard';
             background-size: cover; background-position: center;
             display: flex;
         }
+        .hero-bg-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
         .hero-full::after {
             content: ''; position: absolute; inset: 0;
             background: linear-gradient(180deg, rgba(10,8,4,0.15) 0%, rgba(10,8,4,0.05) 30%, rgba(10,8,4,0.55) 100%),
@@ -167,6 +168,9 @@ $active_page = 'dashboard';
 <body>
 
 <div class="hero-full" style="<?php echo $hero_style; ?>">
+    <video class="hero-bg-video" autoplay muted loop playsinline<?php echo $hero_image ? ' poster="' . htmlspecialchars($hero_image) . '"' : ''; ?>>
+        <source src="videos/hero-taxi.mp4" type="video/mp4">
+    </video>
     <nav class="hero-nav">
         <a href="visitor_dashboard.php" class="brand">Ahmed<span>Travels</span></a>
         <a href="visitor_dashboard.php" class="link on"><i class="fas fa-globe" aria-hidden="true"></i>Dashboard</a>

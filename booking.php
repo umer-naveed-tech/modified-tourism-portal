@@ -33,8 +33,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
     $booking_no = 'TRV-' . date('Ymd') . '-' . rand(1000, 9999);
     $total_amount = $service['price'] * $guests;
 
-    // 🔴 price_breakdown -- lets the agent panel show which service/
-    // package this actually was, instead of just "Visa".
     $price_breakdown = json_encode([
         'service_title' => $service['title'],
         'service_description' => $service['description'] ?? null,
@@ -49,10 +47,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         $wa_msg = "Hi! I have booked {$service['title']} for $guests person(s) on $travel_date. Booking ID: $booking_no. Total: SAR $total_amount";
         $wa_link = "https://wa.me/923134830023?text=" . urlencode($wa_msg);
 
-        // 🔴 NEW: send the customer into the new booking flow (personal
-        // details -> confirm -> payment) instead of showing the inline
-        // success block below. Everything above this line -- pricing,
-        // the INSERT -- is completely unchanged.
         header('Location: booking_details.php?booking_id=' . $pdo->lastInsertId());
         exit();
     } else {
@@ -140,7 +134,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         .error-message { background: rgba(239,68,68,0.07); color: #f87171; padding: 13px 16px; border-radius: 12px; font-size: 13px; margin-bottom: 20px; border: 1px solid rgba(239,68,68,0.1); display: flex; align-items: center; gap: 10px; }
 
-        /* Success state */
         .success-block { text-align: center; }
         .check-wrap { width: 76px; height: 76px; margin: 0 auto 18px; border-radius: 50%; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); display: flex; align-items: center; justify-content: center; opacity: 0; transform: scale(0.5); animation: popIn 0.5s cubic-bezier(.34,1.56,.64,1) forwards; animation-delay: 0.15s; }
         .check-wrap i { font-size: 32px; color: #34d399; }
@@ -170,13 +163,23 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         @keyframes btnSpin { to { transform: rotate(360deg); } }
 
-        /* NEW: compact trust badges strip */
         .mini-trust-strip { display: flex; justify-content: center; gap: 16px; margin-top: 18px; flex-wrap: wrap; }
         .mini-trust-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: rgba(43,38,32,0.6); }
         .mini-trust-item i { color: #d4af37; font-size: 12px; }
+
+        /* NEW: branded full-page loading overlay -- shown the instant
+           "Confirm Booking" is submitted. */
+        .page-transition { position: fixed; inset: 0; z-index: 9998; background: #faf7f1; display: none; align-items: center; justify-content: center; }
+        .page-transition.active { display: flex; }
+        .pt-spinner { position: relative; width: 64px; height: 64px; }
+        .pt-ring { position: absolute; inset: 0; border: 2px solid rgba(212,175,55,0.15); border-top-color: #d4af37; border-radius: 50%; animation: ptSpin 0.9s linear infinite; }
+        .pt-icon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #d4af37; font-size: 20px; animation: ptSpin 0.9s linear infinite reverse; }
+        @keyframes ptSpin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+    <div class="page-transition" id="pageTransition"><div class="pt-spinner"><div class="pt-ring"></div><i class="fas fa-plane pt-icon" style="font-style:normal;">✈</i></div></div>
+
     <div class="bg-ambient" aria-hidden="true"></div>
     <div class="grain-overlay" aria-hidden="true"></div>
 
@@ -211,7 +214,7 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <div class="error-message"><i class="fas fa-circle-exclamation"></i> <?php echo htmlspecialchars($error); ?></div>
                 <?php endif; ?>
                 
-                <form method="POST">
+                <form method="POST" id="visaConfirmForm">
                     <?php echo csrf_field(); ?>
 
                     <?php if (!empty($service['description'])): ?>
@@ -251,11 +254,6 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 
 <script>
-    /* NEW: disable the submit button and show a spinner while the form
-       is submitting, so double-clicking never fires a second (duplicate)
-       booking request. Skips entirely if an earlier listener already
-       cancelled the submit (e.g. client-side validation failing) --
-       never leaves a valid form stuck showing "Processing...". */
     document.querySelectorAll('form').forEach(function(form) {
         form.addEventListener('submit', function(e) {
             if (e.defaultPrevented) return;
@@ -265,6 +263,8 @@ if($_SERVER['REQUEST_METHOD'] == 'POST') {
                 btn.innerHTML = '<span class="btn-spinner"></span>Processing...';
                 btn.disabled = true;
             }
+            const pt = document.getElementById('pageTransition');
+            if (pt) pt.classList.add('active');
         });
     });
 </script>
